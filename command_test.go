@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -193,6 +194,19 @@ func TestTranslate(t *testing.T) {
 	}
 }
 
+func TestTranslateUnsupportedAction(t *testing.T) {
+	req := Request{Resource: "issue", Action: "close"}
+	repo := RepoURL{Host: "github.com", Owner: "o", Name: "r"}
+	_, err := Translate(req, repo, GH, "")
+	var ue UsageError
+	if !errors.As(err, &ue) {
+		t.Fatalf("Translate(issue close): UsageError 기대, got %v", err)
+	}
+	if !strings.Contains(ue.Msg, "does not support close") {
+		t.Errorf("error = %q, want unsupported action message", ue.Msg)
+	}
+}
+
 func TestPlanPullGoesToGit(t *testing.T) {
 	req := Request{Resource: "repo", Action: "pull", GitArgs: []string{"--rebase"}}
 	inv, err := plan(req)
@@ -240,5 +254,16 @@ func TestRunExitCodes(t *testing.T) {
 	fakeExec(t, map[string]string{}) // git 실패
 	if code := run([]string{"view"}); code != 1 {
 		t.Errorf("route error = %d, want 1", code)
+	}
+}
+
+func TestExecChildExit127(t *testing.T) {
+	origLook := lookPath
+	t.Cleanup(func() { lookPath = origLook })
+	lookPath = func(bin string) (string, error) {
+		return "", fmt.Errorf("%s not found", bin)
+	}
+	if code := execChild(Invocation{Bin: "gh"}); code != 127 {
+		t.Errorf("execChild = %d, want 127", code)
 	}
 }

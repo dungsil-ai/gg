@@ -191,11 +191,11 @@ type Invocation struct {
 func Translate(req Request, r RepoURL, p Provider, teaLogin string) (Invocation, error) {
 	switch p {
 	case GH:
-		return ghInvocation(req, r), nil
+		return ghInvocation(req, r)
 	case GLab:
-		return glabInvocation(req, r), nil
+		return glabInvocation(req, r)
 	case Tea:
-		return teaInvocation(req, r, teaLogin), nil
+		return teaInvocation(req, r, teaLogin)
 	}
 	return Invocation{}, usageErr("unknown provider " + string(p))
 }
@@ -207,7 +207,7 @@ func appendKV(args []string, flag, val string) []string {
 	return append(args, flag, val)
 }
 
-func ghInvocation(req Request, r RepoURL) Invocation {
+func ghInvocation(req Request, r RepoURL) (Invocation, error) {
 	inv := Invocation{Bin: "gh"}
 	if r.Host != "github.com" {
 		inv.Env = []string{"GH_HOST=" + r.Host}
@@ -249,8 +249,10 @@ func ghInvocation(req Request, r RepoURL) Invocation {
 			}
 		}
 		inv.Env = nil
+	default:
+		return Invocation{}, usageErr(req.Resource + " does not support " + req.Action)
 	}
-	return inv
+	return inv, nil
 }
 
 func visFlag(req Request) string {
@@ -260,7 +262,7 @@ func visFlag(req Request) string {
 	return "--public"
 }
 
-func glabInvocation(req Request, r RepoURL) Invocation {
+func glabInvocation(req Request, r RepoURL) (Invocation, error) {
 	inv := Invocation{Bin: "glab"}
 	target := []string{"--repo", r.HTTPS()}
 	res := map[string]string{"repo": "repo", "issue": "issue", "pr": "mr"}[req.Resource]
@@ -299,11 +301,13 @@ func glabInvocation(req Request, r RepoURL) Invocation {
 				inv.Args = append(inv.Args, "--draft")
 			}
 		}
+	default:
+		return Invocation{}, usageErr(req.Resource + " does not support " + req.Action)
 	}
-	return inv
+	return inv, nil
 }
 
-func teaInvocation(req Request, r RepoURL, login string) Invocation {
+func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	inv := Invocation{Bin: "tea"}
 	auth := []string{"--login", login}
 	target := append(append([]string{}, auth...), "--repo", r.Slug())
@@ -342,6 +346,8 @@ func teaInvocation(req Request, r RepoURL, login string) Invocation {
 				inv.Args = append(inv.Args, "--draft")
 			}
 		}
+	default:
+		return Invocation{}, usageErr(req.Resource + " does not support " + req.Action)
 	}
-	return inv
+	return inv, nil
 }
