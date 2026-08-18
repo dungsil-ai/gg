@@ -87,8 +87,8 @@ gg pr create [--title TEXT] [--body TEXT] [--base BRANCH] [--head BRANCH] [--dra
 Repository 명령:
 
 ```text
-gg list [--limit N]
-gg view
+gg list [--limit N]        # 로그인한 내 계정의 repository 목록
+gg view                    # 현재 remote(또는 --repo) repository 정보
 gg --repo <new-repository-URL> create (--public|--private) [--description TEXT]
 gg clone <repository-URL> [DIR]
 gg pull [git-args...]
@@ -122,8 +122,7 @@ gg push [git-args...]
 
 URL parser는 다음 값을 만든다.
 
-- 정규화한 lowercase host
-- 선택 port가 있는 host key
+- 정규화한 lowercase host (port 제외; forge 식별과 설정 key로 사용)
 - owner 또는 namespace path
 - repository 이름
 - 끝의 `.git`을 뺀 repository slug
