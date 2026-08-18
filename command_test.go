@@ -75,3 +75,119 @@ func TestParseRequestErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestTranslate(t *testing.T) {
+	gh := RepoURL{Host: "github.com", Owner: "o", Name: "r"}
+	ghe := RepoURL{Host: "ghe.corp.com", Owner: "o", Name: "r"}
+	gl := RepoURL{Host: "git.example.com", Owner: "grp/sub", Name: "p"}
+	te := RepoURL{Host: "gitea.example.com", Owner: "o", Name: "r"}
+
+	cases := []struct {
+		name string
+		req  Request
+		repo RepoURL
+		p    Provider
+		tea  string
+		want Invocation
+	}{
+		// ---- GitHub ----
+		{name: "gh issue list",
+			req:  Request{Resource: "issue", Action: "list", State: "all", Limit: "5"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"issue", "list", "-R", "github.com/o/r", "--state", "all", "--limit", "5"}}},
+		{name: "gh pr view",
+			req:  Request{Resource: "pr", Action: "view", Number: "7"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"pr", "view", "7", "-R", "github.com/o/r"}}},
+		{name: "gh pr create",
+			req:  Request{Resource: "pr", Action: "create", Title: "t", Body: "b", Base: "main", Head: "f", Draft: true},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"pr", "create", "-R", "github.com/o/r", "--title", "t", "--body", "b", "--base", "main", "--head", "f", "--draft"}}},
+		{name: "gh repo list on GHE",
+			req:  Request{Resource: "repo", Action: "list", Limit: "3"},
+			repo: ghe, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"repo", "list", "--limit", "3"}, Env: []string{"GH_HOST=ghe.corp.com"}}},
+		{name: "gh repo view",
+			req:  Request{Resource: "repo", Action: "view"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"repo", "view", "https://github.com/o/r"}}},
+		{name: "gh repo create",
+			req:  Request{Resource: "repo", Action: "create", Public: true, Description: "d"},
+			repo: ghe, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"repo", "create", "o/r", "--public", "--description", "d"}, Env: []string{"GH_HOST=ghe.corp.com"}}},
+		{name: "gh clone",
+			req:  Request{Resource: "repo", Action: "clone", CloneURL: "https://github.com/o/r", CloneDir: "dst"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"repo", "clone", "https://github.com/o/r", "dst"}}},
+
+		// ---- GitLab ----
+		{name: "glab issue list closed",
+			req:  Request{Resource: "issue", Action: "list", State: "closed", Limit: "5"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"issue", "list", "--repo", "https://git.example.com/grp/sub/p", "--closed", "--per-page", "5"}}},
+		{name: "glab pr list all",
+			req:  Request{Resource: "pr", Action: "list", State: "all"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"mr", "list", "--repo", "https://git.example.com/grp/sub/p", "--all"}}},
+		{name: "glab pr list open은 flag 없음",
+			req:  Request{Resource: "pr", Action: "list", State: "open"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"mr", "list", "--repo", "https://git.example.com/grp/sub/p"}}},
+		{name: "glab pr create",
+			req:  Request{Resource: "pr", Action: "create", Title: "t", Body: "b", Base: "main", Head: "f", Draft: true},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"mr", "create", "--repo", "https://git.example.com/grp/sub/p", "--title", "t", "--description", "b", "--target-branch", "main", "--source-branch", "f", "--draft"}}},
+		{name: "glab issue view",
+			req:  Request{Resource: "issue", Action: "view", Number: "9"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"issue", "view", "9", "--repo", "https://git.example.com/grp/sub/p"}}},
+		{name: "glab repo list",
+			req:  Request{Resource: "repo", Action: "list", Limit: "7"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"repo", "list", "--per-page", "7"}, Env: []string{"GITLAB_HOST=git.example.com"}}},
+		{name: "glab repo create",
+			req:  Request{Resource: "repo", Action: "create", Private: true, Description: "d"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"repo", "create", "grp/sub/p", "--private", "--description", "d"}, Env: []string{"GITLAB_HOST=git.example.com"}}},
+
+		// ---- Gitea ----
+		{name: "tea issue list",
+			req:  Request{Resource: "issue", Action: "list", State: "all", Limit: "5"},
+			repo: te, p: Tea, tea: "corp",
+			want: Invocation{Bin: "tea", Args: []string{"issues", "list", "--login", "corp", "--repo", "o/r", "--state", "all", "--limit", "5"}}},
+		{name: "tea pr view",
+			req:  Request{Resource: "pr", Action: "view", Number: "3"},
+			repo: te, p: Tea, tea: "corp",
+			want: Invocation{Bin: "tea", Args: []string{"pulls", "3", "--login", "corp", "--repo", "o/r"}}},
+		{name: "tea pr create",
+			req:  Request{Resource: "pr", Action: "create", Title: "t", Body: "b", Base: "main", Head: "f", Draft: true},
+			repo: te, p: Tea, tea: "corp",
+			want: Invocation{Bin: "tea", Args: []string{"pulls", "create", "--login", "corp", "--repo", "o/r", "--title", "t", "--description", "b", "--base", "main", "--head", "f", "--draft"}}},
+		{name: "tea repo view",
+			req:  Request{Resource: "repo", Action: "view"},
+			repo: te, p: Tea, tea: "corp",
+			want: Invocation{Bin: "tea", Args: []string{"repos", "o/r", "--login", "corp"}}},
+		{name: "tea repo create public은 --private 없음",
+			req:  Request{Resource: "repo", Action: "create", Public: true, Description: "d"},
+			repo: te, p: Tea, tea: "corp",
+			want: Invocation{Bin: "tea", Args: []string{"repos", "create", "--login", "corp", "--owner", "o", "--name", "r", "--description", "d"}}},
+		{name: "tea repo create private",
+			req:  Request{Resource: "repo", Action: "create", Private: true},
+			repo: te, p: Tea, tea: "corp",
+			want: Invocation{Bin: "tea", Args: []string{"repos", "create", "--login", "corp", "--owner", "o", "--name", "r", "--private"}}},
+		{name: "tea clone은 login 불필요",
+			req:  Request{Resource: "repo", Action: "clone", CloneURL: "https://gitea.example.com/o/r"},
+			repo: te, p: Tea,
+			want: Invocation{Bin: "tea", Args: []string{"clone", "https://gitea.example.com/o/r"}}},
+	}
+	for _, c := range cases {
+		got, err := Translate(c.req, c.repo, c.p, c.tea)
+		if err != nil {
+			t.Errorf("%s: %v", c.name, err)
+			continue
+		}
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%s\n got %+v\nwant %+v", c.name, got, c.want)
+		}
+	}
+}

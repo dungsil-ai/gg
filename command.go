@@ -180,3 +180,168 @@ func noPositional(req *Request, args []string, strs map[string]*string, bools ma
 	}
 	return nil
 }
+
+// Invocation은 실행할 자식 process다.
+type Invocation struct {
+	Bin  string
+	Args []string
+	Env  []string // os.Environ()에 덧붙일 KEY=VALUE
+}
+
+func Translate(req Request, r RepoURL, p Provider, teaLogin string) (Invocation, error) {
+	switch p {
+	case GH:
+		return ghInvocation(req, r), nil
+	case GLab:
+		return glabInvocation(req, r), nil
+	case Tea:
+		return teaInvocation(req, r, teaLogin), nil
+	}
+	return Invocation{}, usageErr("unknown provider " + string(p))
+}
+
+func appendKV(args []string, flag, val string) []string {
+	if val == "" {
+		return args
+	}
+	return append(args, flag, val)
+}
+
+func ghInvocation(req Request, r RepoURL) Invocation {
+	inv := Invocation{Bin: "gh"}
+	if r.Host != "github.com" {
+		inv.Env = []string{"GH_HOST=" + r.Host}
+	}
+	target := []string{"-R", r.Host + "/" + r.Slug()}
+	res := map[string]string{"repo": "repo", "issue": "issue", "pr": "pr"}[req.Resource]
+	switch req.Resource + " " + req.Action {
+	case "repo list":
+		inv.Args = appendKV([]string{"repo", "list"}, "--limit", req.Limit)
+	case "repo view":
+		inv.Args = []string{"repo", "view", r.HTTPS()}
+		inv.Env = nil // URL이 host를 지정하므로 GH_HOST 불필요
+	case "repo create":
+		inv.Args = []string{"repo", "create", r.Slug(), visFlag(req)}
+		inv.Args = appendKV(inv.Args, "--description", req.Description)
+	case "repo clone":
+		inv.Args = []string{"repo", "clone", req.CloneURL}
+		if req.CloneDir != "" {
+			inv.Args = append(inv.Args, req.CloneDir)
+		}
+		inv.Env = nil
+	case "issue list", "pr list":
+		inv.Args = append([]string{res, "list"}, target...)
+		inv.Args = appendKV(inv.Args, "--state", req.State)
+		inv.Args = appendKV(inv.Args, "--limit", req.Limit)
+		inv.Env = nil
+	case "issue view", "pr view":
+		inv.Args = append([]string{res, "view", req.Number}, target...)
+		inv.Env = nil
+	case "issue create", "pr create":
+		inv.Args = append([]string{res, "create"}, target...)
+		inv.Args = appendKV(inv.Args, "--title", req.Title)
+		inv.Args = appendKV(inv.Args, "--body", req.Body)
+		if req.Resource == "pr" {
+			inv.Args = appendKV(inv.Args, "--base", req.Base)
+			inv.Args = appendKV(inv.Args, "--head", req.Head)
+			if req.Draft {
+				inv.Args = append(inv.Args, "--draft")
+			}
+		}
+		inv.Env = nil
+	}
+	return inv
+}
+
+func visFlag(req Request) string {
+	if req.Private {
+		return "--private"
+	}
+	return "--public"
+}
+
+func glabInvocation(req Request, r RepoURL) Invocation {
+	inv := Invocation{Bin: "glab"}
+	target := []string{"--repo", r.HTTPS()}
+	res := map[string]string{"repo": "repo", "issue": "issue", "pr": "mr"}[req.Resource]
+	stateFlags := map[string]string{"closed": "--closed", "all": "--all"}
+	switch req.Resource + " " + req.Action {
+	case "repo list":
+		inv.Args = appendKV([]string{"repo", "list"}, "--per-page", req.Limit)
+		inv.Env = []string{"GITLAB_HOST=" + r.Host}
+	case "repo view":
+		inv.Args = []string{"repo", "view", r.HTTPS()}
+	case "repo create":
+		inv.Args = []string{"repo", "create", r.Slug(), visFlag(req)}
+		inv.Args = appendKV(inv.Args, "--description", req.Description)
+		inv.Env = []string{"GITLAB_HOST=" + r.Host}
+	case "repo clone":
+		inv.Args = []string{"repo", "clone", req.CloneURL}
+		if req.CloneDir != "" {
+			inv.Args = append(inv.Args, req.CloneDir)
+		}
+	case "issue list", "pr list":
+		inv.Args = append([]string{res, "list"}, target...)
+		if f := stateFlags[req.State]; f != "" {
+			inv.Args = append(inv.Args, f)
+		}
+		inv.Args = appendKV(inv.Args, "--per-page", req.Limit)
+	case "issue view", "pr view":
+		inv.Args = append([]string{res, "view", req.Number}, target...)
+	case "issue create", "pr create":
+		inv.Args = append([]string{res, "create"}, target...)
+		inv.Args = appendKV(inv.Args, "--title", req.Title)
+		inv.Args = appendKV(inv.Args, "--description", req.Body)
+		if req.Resource == "pr" {
+			inv.Args = appendKV(inv.Args, "--target-branch", req.Base)
+			inv.Args = appendKV(inv.Args, "--source-branch", req.Head)
+			if req.Draft {
+				inv.Args = append(inv.Args, "--draft")
+			}
+		}
+	}
+	return inv
+}
+
+func teaInvocation(req Request, r RepoURL, login string) Invocation {
+	inv := Invocation{Bin: "tea"}
+	auth := []string{"--login", login}
+	target := append(append([]string{}, auth...), "--repo", r.Slug())
+	res := map[string]string{"repo": "repos", "issue": "issues", "pr": "pulls"}[req.Resource]
+	switch req.Resource + " " + req.Action {
+	case "repo list":
+		inv.Args = appendKV(append([]string{"repos", "list"}, auth...), "--limit", req.Limit)
+	case "repo view":
+		inv.Args = append([]string{"repos", r.Slug()}, auth...)
+	case "repo create":
+		inv.Args = append([]string{"repos", "create"}, auth...)
+		inv.Args = append(inv.Args, "--owner", r.Owner, "--name", r.Name)
+		if req.Private {
+			inv.Args = append(inv.Args, "--private")
+		}
+		inv.Args = appendKV(inv.Args, "--description", req.Description)
+	case "repo clone":
+		inv.Args = []string{"clone", req.CloneURL}
+		if req.CloneDir != "" {
+			inv.Args = append(inv.Args, req.CloneDir)
+		}
+	case "issue list", "pr list":
+		inv.Args = append([]string{res, "list"}, target...)
+		inv.Args = appendKV(inv.Args, "--state", req.State)
+		inv.Args = appendKV(inv.Args, "--limit", req.Limit)
+	case "issue view", "pr view":
+		inv.Args = append([]string{res, req.Number}, target...)
+	case "issue create", "pr create":
+		inv.Args = append([]string{res, "create"}, target...)
+		inv.Args = appendKV(inv.Args, "--title", req.Title)
+		inv.Args = appendKV(inv.Args, "--description", req.Body)
+		if req.Resource == "pr" {
+			inv.Args = appendKV(inv.Args, "--base", req.Base)
+			inv.Args = appendKV(inv.Args, "--head", req.Head)
+			if req.Draft {
+				inv.Args = append(inv.Args, "--draft")
+			}
+		}
+	}
+	return inv
+}
