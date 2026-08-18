@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -189,5 +190,55 @@ func TestTranslate(t *testing.T) {
 		if !reflect.DeepEqual(got, c.want) {
 			t.Errorf("%s\n got %+v\nwant %+v", c.name, got, c.want)
 		}
+	}
+}
+
+func TestPlanPullGoesToGit(t *testing.T) {
+	req := Request{Resource: "repo", Action: "pull", GitArgs: []string{"--rebase"}}
+	inv, err := plan(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := Invocation{Bin: "git", Args: []string{"pull", "--rebase"}}
+	if !reflect.DeepEqual(inv, want) {
+		t.Errorf("plan = %+v, want %+v", inv, want)
+	}
+}
+
+func TestPlanUsesRemoteWhenNoRepoFlag(t *testing.T) {
+	t.Setenv("GG_HOME", t.TempDir())
+	fakeExec(t, map[string]string{
+		"git rev-parse --abbrev-ref HEAD": "main",
+		"git remote get-url origin":       "git@github.com:o/r.git",
+	})
+	inv, err := plan(Request{Resource: "issue", Action: "list"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := Invocation{Bin: "gh", Args: []string{"issue", "list", "-R", "github.com/o/r"}}
+	if !reflect.DeepEqual(inv, want) {
+		t.Errorf("plan = %+v, want %+v", inv, want)
+	}
+}
+
+func TestPlanTeaNeedsLogin(t *testing.T) {
+	t.Setenv("GG_HOME", t.TempDir())
+	fakeExec(t, map[string]string{
+		"tea logins list --output json": `[]`,
+	})
+	_, err := plan(Request{Resource: "issue", Action: "list",
+		RepoFlag: "https://gitea.com/o/r"})
+	if err == nil || !strings.Contains(err.Error(), "tea login add") {
+		t.Errorf("tea login 안내 기대, got %v", err)
+	}
+}
+
+func TestRunExitCodes(t *testing.T) {
+	if code := run([]string{"unknown"}); code != 2 {
+		t.Errorf("usage error = %d, want 2", code)
+	}
+	fakeExec(t, map[string]string{}) // git 실패
+	if code := run([]string{"view"}); code != 1 {
+		t.Errorf("route error = %d, want 1", code)
 	}
 }
