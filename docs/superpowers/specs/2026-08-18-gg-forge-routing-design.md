@@ -245,12 +245,19 @@ $XDG_CONFIG_HOME/gg/config.json
 
 | 공통 flag | GitHub | GitLab | Gitea |
 |---|---|---|---|
-| `--body` | `--body` | `--description` | `--description` |
-| `--base` | `--base` | `--target-branch` | `--base` |
-| `--head` | `--head` | `--source-branch` | `--head` |
+| `--title TEXT` | `--title TEXT` | `--title TEXT` | `--title TEXT` |
+| `--body TEXT` | `--body TEXT` | `--description TEXT` | `--description TEXT` |
+| `--base BRANCH` | `--base BRANCH` | `--target-branch BRANCH` | `--base BRANCH` |
+| `--head BRANCH` | `--head BRANCH` | `--source-branch BRANCH` | `--head BRANCH` |
 | `--draft` | `--draft` | `--draft` | `--draft` |
-| `--state` | `--state` | `--state` | `--state` |
-| `--limit` | `--limit` | provider 명령에 맞게 변환 | `--limit` |
+| `--state open` | `--state open` | flag 없음 (glab 기본값) | `--state open` |
+| `--state closed` | `--state closed` | `--closed` | `--state closed` |
+| `--state all` | `--state all` | `--all` | `--state all` |
+| `--limit N` | `--limit N` | `--per-page N` | `--limit N` |
+
+GitLab list 명령에는 `--state`와 `--limit` flag가 없다. `gg`는 위 표대로
+`--closed`/`--all`과 `--per-page`로 변환한다. 이 표는 `gh`/`glab` 로컬
+`--help` 출력과 `tea` main branch 소스(`cmd/flags`)로 검증했다.
 
 Repository create는 URL path를 provider 형식으로 바꾼다.
 
