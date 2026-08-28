@@ -3,9 +3,11 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 )
 
 const usage = `usage:
@@ -15,7 +17,7 @@ repository (repo 생략 가능):
   gg list [--limit N]
   gg view
   gg --repo <URL> create (--public|--private) [--description TEXT]
-  gg clone <URL> [DIR]
+  gg clone <URL> [DIR] [--allow-insecure-http]
   gg pull [git-args...]
   gg push [git-args...]
 
@@ -54,6 +56,12 @@ func plan(req Request) (Invocation, error) {
 	if req.Action == "pull" || req.Action == "push" {
 		return Invocation{Bin: "git", Args: append([]string{req.Action}, req.GitArgs...)}, nil
 	}
+	if req.Action == "clone" && isHTTPURL(req.CloneURL) {
+		if !req.AllowInsecureHTTP {
+			return Invocation{}, usageErr("HTTP clone is blocked by default; use HTTPS or SSH (or pass --allow-insecure-http)")
+		}
+		fmt.Fprintln(os.Stderr, "gg: warning: allowing insecure HTTP clone; credentials or repository data may be exposed")
+	}
 	rawURL := req.RepoFlag
 	if req.Action == "clone" {
 		rawURL = req.CloneURL
@@ -84,6 +92,11 @@ func plan(req Request) (Invocation, error) {
 		}
 	}
 	return Translate(req, repo, p, teaLogin)
+}
+
+func isHTTPURL(raw string) bool {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	return err == nil && strings.EqualFold(u.Scheme, "http")
 }
 
 func execChild(inv Invocation) int {

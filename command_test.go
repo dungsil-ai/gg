@@ -34,6 +34,8 @@ func TestParseRequest(t *testing.T) {
 			want: Request{Resource: "repo", Action: "create", RepoFlag: "https://gitea.com/o/r", Private: true, Description: "d"}},
 		{name: "clone dir", args: []string{"clone", "https://github.com/o/r", "dst"},
 			want: Request{Resource: "repo", Action: "clone", CloneURL: "https://github.com/o/r", CloneDir: "dst"}},
+		{name: "clone allow insecure http", args: []string{"clone", "http://git.example.com/o/r", "--allow-insecure-http"},
+			want: Request{Resource: "repo", Action: "clone", CloneURL: "http://git.example.com/o/r", AllowInsecureHTTP: true}},
 		{name: "pull 전달", args: []string{"pull", "--rebase", "origin", "main"},
 			want: Request{Resource: "repo", Action: "pull", GitArgs: []string{"--rebase", "origin", "main"}}},
 		{name: "push 전달", args: []string{"repo", "push", "--force-with-lease"},
@@ -121,6 +123,10 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "repo", Action: "clone", CloneURL: "https://github.com/o/r", CloneDir: "dst"},
 			repo: gh, p: GH,
 			want: Invocation{Bin: "gh", Args: []string{"repo", "clone", "https://github.com/o/r", "dst"}}},
+		{name: "gh clone keeps ssh non-standard port",
+			req:  Request{Resource: "repo", Action: "clone", CloneURL: "ssh://git@github.com:2222/o/r.git"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"repo", "clone", "ssh://git@github.com:2222/o/r.git"}}},
 
 		// ---- GitLab ----
 		{name: "glab issue list closed",
@@ -244,6 +250,14 @@ func TestPlanTeaNeedsLogin(t *testing.T) {
 		RepoFlag: "https://gitea.com/o/r"})
 	if err == nil || !strings.Contains(err.Error(), "tea login add") {
 		t.Errorf("tea login 안내 기대, got %v", err)
+	}
+}
+
+func TestPlanCloneRejectsHTTPByDefault(t *testing.T) {
+	t.Setenv("GG_HOME", t.TempDir())
+	_, err := plan(Request{Resource: "repo", Action: "clone", CloneURL: "http://github.com/o/r"})
+	if err == nil || !strings.Contains(err.Error(), "HTTP clone is blocked by default") {
+		t.Fatalf("HTTP 차단 오류 기대, got %v", err)
 	}
 }
 
