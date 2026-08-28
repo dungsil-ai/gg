@@ -2,12 +2,19 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/gofrs/flock"
 )
 
 // buildGG는 gg를 임시 폴더에 build한다.
@@ -43,9 +50,7 @@ func writeFakeBin(t *testing.T, dir, name, logFile string) {
 // runGG는 fake PATH + 임시 GG_HOME으로 gg를 실행한다.
 func runGG(t *testing.T, bin, fakeDir, workDir string, args ...string) (string, int) {
 	t.Helper()
-	cmd := ggCommand(t, bin, fakeDir, workDir, args...)
-	out, err := cmd.CombinedOutput()
-	return string(out), processExitCode(t, err, string(out))
+	return runGGWithHome(t, bin, fakeDir, workDir, t.TempDir(), args...)
 }
 
 // runGGStreams는 실제 gg process의 stdout과 stderr를 따로 읽는다.
@@ -62,12 +67,41 @@ func runGGStreams(t *testing.T, bin, workDir string, args ...string) (string, st
 
 func ggCommand(t *testing.T, bin, fakeDir, workDir string, args ...string) *exec.Cmd {
 	t.Helper()
+	return ggCommandWithHomeAndPath(bin, workDir, t.TempDir(), pathWithFakeBin(fakeDir), args...)
+}
+
+func runGGWithHome(t *testing.T, bin, fakeDir, workDir, ggHome string, args ...string) (string, int) {
+	t.Helper()
+	return runGGWithPath(t, bin, workDir, ggHome, pathWithFakeBin(fakeDir), args...)
+}
+
+func pathWithFakeBin(fakeDir string) string {
+	pathValue := os.Getenv("PATH")
+	if fakeDir != "" {
+		pathValue = fakeDir + string(os.PathListSeparator) + pathValue
+	}
+	return pathValue
+}
+
+func runGGWithoutProviderCLIs(t *testing.T, bin, workDir, ggHome string, args ...string) (string, int) {
+	t.Helper()
+	return runGGWithPath(t, bin, workDir, ggHome, t.TempDir(), args...)
+}
+
+func runGGWithPath(t *testing.T, bin, workDir, ggHome, pathValue string, args ...string) (string, int) {
+	t.Helper()
+	cmd := ggCommandWithHomeAndPath(bin, workDir, ggHome, pathValue, args...)
+	out, err := cmd.CombinedOutput()
+	return string(out), processExitCode(t, err, string(out))
+}
+
+func ggCommandWithHomeAndPath(bin, workDir, ggHome, pathValue string, args ...string) *exec.Cmd {
 	cmd := exec.Command(bin, args...)
 	cmd.Dir = workDir
-	cmd.Env = append(os.Environ(), "GG_HOME="+t.TempDir())
-	if fakeDir != "" {
-		cmd.Env = append(cmd.Env, "PATH="+fakeDir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	}
+	cmd.Env = append(os.Environ(),
+		"PATH="+pathValue,
+		"GG_HOME="+ggHome,
+	)
 	return cmd
 }
 
@@ -81,6 +115,296 @@ func processExitCode(t *testing.T, err error, output string) int {
 	}
 	t.Fatalf("실행 실패: %v\n%s", err, output)
 	return 0
+}
+
+func TestE2EProviderSettingListEmpty(t *testing.T) {
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	ggHome := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	for _, name := range []string{"gh", "glab", "tea"} {
+		writeFakeBin(t, fakeDir, name, logFile)
+	}
+
+	out, code := runGGWithHome(t, bin, fakeDir, t.TempDir(), ggHome, "config", "list")
+	if code != 0 || out != "No provider settings.\n" {
+		t.Fatalf("exit %d, output %q", code, out)
+	}
+	if got := readLog(t, logFile); got != "" {
+		t.Fatalf("provider CLI should not run, got %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(ggHome, "config.json.lock")); !os.IsNotExist(err) {
+		t.Fatalf("empty config list should not create a lock file, stat error = %v", err)
+	}
+}
+
+func TestE2EProviderSettingSetReplacesWithoutPromptAndListsSorted(t *testing.T) {
+	bin := buildGG(t)
+	ggHome := t.TempDir()
+	workDir := t.TempDir()
+
+	commands := [][]string{
+		{"config", "set", "Git.B.Example:8443", "glab"},
+		{"config", "set", "git.b.example", "glab"},
+		{"config", "set", "git.b.example:443", "tea"},
+		{"config", "set", "A.Example", "gh"},
+	}
+	for _, args := range commands {
+		out, code := runGGWithoutProviderCLIs(t, bin, workDir, ggHome, args...)
+		if code != 0 || out != "" {
+			t.Fatalf("gg %v: exit %d, output %q", args, code, out)
+		}
+	}
+
+	out, code := runGGWithoutProviderCLIs(t, bin, workDir, ggHome, "config", "list")
+	if code != 0 {
+		t.Fatalf("list: exit %d, output %q", code, out)
+	}
+	wantFields := []string{"HOST", "PROVIDER", "a.example", "gh", "git.b.example", "tea"}
+	if got := strings.Fields(out); !slices.Equal(got, wantFields) {
+		t.Fatalf("list fields = %q, want %q", got, wantFields)
+	}
+
+	data, err := os.ReadFile(filepath.Join(ggHome, "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved Config
+	if err := json.Unmarshal(data, &saved); err != nil {
+		t.Fatal(err)
+	}
+	wantHosts := map[string]string{"a.example": "gh", "git.b.example": "tea"}
+	if !maps.Equal(saved.Hosts, wantHosts) {
+		t.Fatalf("saved hosts = %v, want %v", saved.Hosts, wantHosts)
+	}
+}
+
+func TestE2EProviderSettingUnsetIsIdempotentAndSavesResult(t *testing.T) {
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	ggHome := t.TempDir()
+	workDir := t.TempDir()
+
+	for _, args := range [][]string{
+		{"config", "unset", "gitlab.com"},
+		{"config", "unset", "Missing.Example:443"},
+		{"config", "set", "Git.Example", "glab"},
+		{"config", "unset", "git.example:8443"},
+		{"config", "unset", "git.example"},
+	} {
+		out, code := runGGWithHome(t, bin, fakeDir, workDir, ggHome, args...)
+		if code != 0 || out != "" {
+			t.Fatalf("gg %v: exit %d, output %q", args, code, out)
+		}
+	}
+
+	out, code := runGGWithHome(t, bin, fakeDir, workDir, ggHome, "config", "list")
+	if code != 0 || out != "No provider settings.\n" {
+		t.Fatalf("list: exit %d, output %q", code, out)
+	}
+	data, err := os.ReadFile(filepath.Join(ggHome, "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved Config
+	if err := json.Unmarshal(data, &saved); err != nil {
+		t.Fatal(err)
+	}
+	if len(saved.Hosts) != 0 {
+		t.Fatalf("saved hosts = %v, want empty", saved.Hosts)
+	}
+}
+
+func TestE2EProviderSettingRejectsInvalidAndDefaultDomainChanges(t *testing.T) {
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	for _, name := range []string{"gh", "glab", "tea"} {
+		writeFakeBin(t, fakeDir, name, logFile)
+	}
+	ggHome := t.TempDir()
+	workDir := t.TempDir()
+
+	commands := [][]string{
+		{"config", "set", "https://git.example.com", "gh"},
+		{"config", "set", "git.example.com/group/repo", "gh"},
+		{"config", "set", "git.example.com", "github"},
+		{"config", "set", "GitHub.com:443", "gh"},
+	}
+	for _, args := range commands {
+		out, code := runGGWithHome(t, bin, fakeDir, workDir, ggHome, args...)
+		if code != 2 || !strings.Contains(out, "gg:") {
+			t.Fatalf("gg %v: exit %d, output %q", args, code, out)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(ggHome, "config.json")); !os.IsNotExist(err) {
+		t.Fatalf("invalid commands should not create config, stat error = %v", err)
+	}
+	if got := readLog(t, logFile); got != "" {
+		t.Fatalf("provider CLI should not run, got %q", got)
+	}
+}
+
+func TestE2EProviderSettingMutationsPreserveBrokenConfig(t *testing.T) {
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	brokenConfigs := []struct {
+		name    string
+		content string
+	}{
+		{name: "malformed JSON", content: `{"hosts":{"git.example.com":"gh"}`},
+		{name: "secret fields", content: `{"hosts":{},"token":"secret","login":"user","repository":"https://git.example.com/o/r"}`},
+	}
+	for _, brokenConfig := range brokenConfigs {
+		t.Run(brokenConfig.name, func(t *testing.T) {
+			ggHome := t.TempDir()
+			configPath := filepath.Join(ggHome, "config.json")
+			broken := []byte(brokenConfig.content)
+			if err := os.WriteFile(configPath, broken, 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			for _, args := range [][]string{
+				{"config", "set", "other.example", "tea"},
+				{"config", "unset", "git.example.com"},
+			} {
+				out, code := runGGWithHome(t, bin, fakeDir, t.TempDir(), ggHome, args...)
+				if code != 1 || !strings.Contains(out, "broken config") {
+					t.Fatalf("gg %v: exit %d, output %q", args, code, out)
+				}
+				got, err := os.ReadFile(configPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !slices.Equal(got, broken) {
+					t.Fatalf("gg %v changed broken config to %q", args, got)
+				}
+			}
+		})
+	}
+}
+
+func TestE2EProviderSettingConcurrentSetsKeepEveryHost(t *testing.T) {
+	bin := buildGG(t)
+	ggHome := t.TempDir()
+	emptyPath := t.TempDir()
+	workDir := t.TempDir()
+	const count = 32
+	const baseCount = 20000
+	baseHosts := make(map[string]string, baseCount)
+	for i := 0; i < baseCount; i++ {
+		baseHosts[fmt.Sprintf("base-%04d.example", i)] = "tea"
+	}
+	baseData, err := json.Marshal(Config{Hosts: baseHosts})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ggHome, "config.json"), baseData, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	commands := make([]*exec.Cmd, 0, count)
+	for i := 0; i < count; i++ {
+		host := fmt.Sprintf("git-%02d.example", i)
+		cmd := exec.Command(bin, "config", "set", host, "gh")
+		cmd.Dir = workDir
+		cmd.Env = append(os.Environ(), "PATH="+emptyPath, "GG_HOME="+ggHome)
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		commands = append(commands, cmd)
+	}
+	for _, cmd := range commands {
+		if err := cmd.Wait(); err != nil {
+			t.Fatalf("concurrent set failed: %v", err)
+		}
+	}
+
+	data, err := os.ReadFile(filepath.Join(ggHome, "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved Config
+	if err := json.Unmarshal(data, &saved); err != nil {
+		t.Fatal(err)
+	}
+	if len(saved.Hosts) != baseCount+count {
+		t.Fatalf("saved %d hosts, want %d", len(saved.Hosts), baseCount+count)
+	}
+}
+
+func TestE2EProviderSettingListWaitsForMutationLock(t *testing.T) {
+	bin := buildGG(t)
+	ggHome := t.TempDir()
+	configPath := filepath.Join(ggHome, "config.json")
+	if err := os.WriteFile(configPath, []byte(`{"hosts":{"git.example.com":"gh"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	lock := flock.New(configPath + ".lock")
+	if err := lock.Lock(); err != nil {
+		t.Fatal(err)
+	}
+	locked := true
+	defer func() {
+		if locked {
+			_ = lock.Unlock()
+		}
+	}()
+
+	cmd := exec.Command(bin, "config", "list")
+	cmd.Dir = t.TempDir()
+	cmd.Env = append(os.Environ(), "PATH="+t.TempDir(), "GG_HOME="+ggHome)
+	var output bytes.Buffer
+	cmd.Stdout = &output
+	cmd.Stderr = &output
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	select {
+	case err := <-done:
+		t.Fatalf("config list finished while mutation lock was held: %v, output %q", err, output.String())
+	case <-time.After(750 * time.Millisecond):
+	}
+
+	if err := lock.Unlock(); err != nil {
+		t.Fatal(err)
+	}
+	locked = false
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("config list failed after mutation lock was released: %v, output %q", err, output.String())
+		}
+	case <-time.After(5 * time.Second):
+		_ = cmd.Process.Kill()
+		t.Fatal("config list did not finish after mutation lock was released")
+	}
+	if got := strings.Fields(output.String()); !slices.Equal(got, []string{"HOST", "PROVIDER", "git.example.com", "gh"}) {
+		t.Fatalf("list fields = %q", got)
+	}
+}
+
+func TestE2EProviderSettingIPv6RoundTrip(t *testing.T) {
+	bin := buildGG(t)
+	ggHome := t.TempDir()
+	workDir := t.TempDir()
+
+	out, code := runGGWithoutProviderCLIs(t, bin, workDir, ggHome, "config", "set", "[2001:DB8::1]:2222", "gh")
+	if code != 0 || out != "" {
+		t.Fatalf("set: exit %d, output %q", code, out)
+	}
+	out, code = runGGWithoutProviderCLIs(t, bin, workDir, ggHome, "config", "list")
+	if code != 0 || !slices.Equal(strings.Fields(out), []string{"HOST", "PROVIDER", "2001:db8::1", "gh"}) {
+		t.Fatalf("list: exit %d, output %q", code, out)
+	}
+	out, code = runGGWithoutProviderCLIs(t, bin, workDir, ggHome, "config", "unset", "2001:db8::1")
+	if code != 0 || out != "" {
+		t.Fatalf("unset: exit %d, output %q", code, out)
+	}
 }
 
 func readLog(t *testing.T, logFile string) string {
