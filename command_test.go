@@ -251,13 +251,13 @@ func TestPlanTeaNeedsLogin(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "tea login add") {
 		t.Errorf("tea login 안내 기대, got %v", err)
 	}
+}
 
-	func TestPlanCloneRejectsHTTPByDefault(t *testing.T) {
-		t.Setenv("GG_HOME", t.TempDir())
-		_, err := plan(Request{Resource: "repo", Action: "clone", CloneURL: "http://github.com/o/r"})
-		if err == nil || !strings.Contains(err.Error(), "HTTP clone is blocked by default") {
-			t.Fatalf("HTTP 차단 오류 기대, got %v", err)
-		}
+func TestPlanCloneRejectsHTTPByDefault(t *testing.T) {
+	t.Setenv("GG_HOME", t.TempDir())
+	_, err := plan(Request{Resource: "repo", Action: "clone", CloneURL: "http://github.com/o/r"})
+	if err == nil || !strings.Contains(err.Error(), "HTTP clone is blocked by default") {
+		t.Fatalf("HTTP 차단 오류 기대, got %v", err)
 	}
 }
 
