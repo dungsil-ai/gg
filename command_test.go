@@ -40,6 +40,12 @@ func TestParseRequest(t *testing.T) {
 			want: Request{Resource: "repo", Action: "pull", GitArgs: []string{"--rebase", "origin", "main"}}},
 		{name: "push 전달", args: []string{"repo", "push", "--force-with-lease"},
 			want: Request{Resource: "repo", Action: "push", GitArgs: []string{"--force-with-lease"}}},
+		{name: "config list", args: []string{"config", "list"},
+			want: Request{Resource: "config", Action: "list"}},
+		{name: "config set", args: []string{"config", "set", "Git.Example.com:8443", "glab"},
+			want: Request{Resource: "config", Action: "set", ConfigHost: "Git.Example.com:8443", ConfigProvider: "glab"}},
+		{name: "config unset", args: []string{"config", "unset", "git.example.com"},
+			want: Request{Resource: "config", Action: "unset", ConfigHost: "git.example.com"}},
 	}
 	for _, c := range cases {
 		got, err := ParseRequest(c.args)
@@ -55,21 +61,28 @@ func TestParseRequest(t *testing.T) {
 
 func TestParseRequestErrors(t *testing.T) {
 	bad := [][]string{
-		{},                                   // 명령 없음
-		{"unknown"},                          // 알 수 없는 자원
-		{"issue"},                            // action 없음
-		{"issue", "close", "1"},              // 지원 안 하는 action
-		{"issue", "view"},                    // number 없음
-		{"issue", "view", "1", "2"},          // 인자 초과
-		{"issue", "list", "--wat"},           // 알 수 없는 flag
-		{"pr", "list", "--state", "merged"},  // 지원 안 하는 state
-		{"pr", "create", "--title"},          // 값 없는 flag
-		{"clone"},                            // URL 없음
-		{"clone", "u", "d", "x"},             // 인자 초과
-		{"create", "--public"},               // --repo 없는 repo create
-		{"create", "--repo", "https://x.com/o/r"},                 // 공개 범위 없음
+		{},                                  // 명령 없음
+		{"unknown"},                         // 알 수 없는 자원
+		{"issue"},                           // action 없음
+		{"issue", "close", "1"},             // 지원 안 하는 action
+		{"issue", "view"},                   // number 없음
+		{"issue", "view", "1", "2"},         // 인자 초과
+		{"issue", "list", "--wat"},          // 알 수 없는 flag
+		{"pr", "list", "--state", "merged"}, // 지원 안 하는 state
+		{"pr", "create", "--title"},         // 값 없는 flag
+		{"clone"},                           // URL 없음
+		{"clone", "u", "d", "x"},            // 인자 초과
+		{"create", "--public"},              // --repo 없는 repo create
+		{"create", "--repo", "https://x.com/o/r"},                          // 공개 범위 없음
 		{"create", "--repo", "https://x.com/o/r", "--public", "--private"}, // 둘 다 지정
-		{"list", "extra"},                    // list에 positional
+		{"list", "extra"}, // list에 positional
+		{"config"},
+		{"config", "show"},
+		{"config", "list", "extra"},
+		{"config", "set", "only-host"},
+		{"config", "set", "host", "gh", "extra"},
+		{"config", "unset"},
+		{"config", "unset", "host", "extra"},
 	}
 	for _, args := range bad {
 		_, err := ParseRequest(args)
