@@ -197,13 +197,15 @@ func TestTranslate(t *testing.T) {
 func TestTranslateUnsupportedAction(t *testing.T) {
 	req := Request{Resource: "issue", Action: "close"}
 	repo := RepoURL{Host: "github.com", Owner: "o", Name: "r"}
-	_, err := Translate(req, repo, GH, "")
-	var ue UsageError
-	if !errors.As(err, &ue) {
-		t.Fatalf("Translate(issue close): UsageError 기대, got %v", err)
-	}
-	if !strings.Contains(ue.Msg, "does not support close") {
-		t.Errorf("error = %q, want unsupported action message", ue.Msg)
+	for _, p := range []Provider{GH, GLab, Tea} {
+		_, err := Translate(req, repo, p, "corp")
+		var ue UsageError
+		if !errors.As(err, &ue) {
+			t.Fatalf("Translate(%s issue close): UsageError 기대, got %v", p, err)
+		}
+		if !strings.Contains(ue.Msg, "does not support close") {
+			t.Errorf("provider %s error = %q, want unsupported action message", p, ue.Msg)
+		}
 	}
 }
 
