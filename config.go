@@ -90,6 +90,21 @@ func ParseProvider(input string) (Provider, error) {
 
 func LoadConfig() (Config, error) {
 	cfg := Config{Hosts: map[string]string{}}
+	if _, err := os.Stat(ConfigPath()); errors.Is(err, os.ErrNotExist) {
+		return cfg, nil
+	} else if err != nil {
+		return cfg, err
+	}
+	err := withConfigReadLock(func() error {
+		var loadErr error
+		cfg, loadErr = loadConfigUnlocked()
+		return loadErr
+	})
+	return cfg, err
+}
+
+func loadConfigUnlocked() (Config, error) {
+	cfg := Config{Hosts: map[string]string{}}
 	data, err := os.ReadFile(ConfigPath())
 	if errors.Is(err, os.ErrNotExist) {
 		return cfg, nil
@@ -102,8 +117,8 @@ func LoadConfig() (Config, error) {
 		return cfg, fmt.Errorf("broken config %s: %v", ConfigPath(), err)
 	}
 	hostsJSON, ok := document["hosts"]
-	if document == nil || !ok || string(hostsJSON) == "null" {
-		return cfg, fmt.Errorf("broken config %s: hosts must be an object", ConfigPath())
+	if document == nil || len(document) != 1 || !ok || string(hostsJSON) == "null" {
+		return cfg, fmt.Errorf("broken config %s: config must contain only a hosts object", ConfigPath())
 	}
 	if err := json.Unmarshal(hostsJSON, &cfg.Hosts); err != nil || cfg.Hosts == nil {
 		if err == nil {
@@ -127,7 +142,7 @@ var renameConfigFile = os.Rename
 // SaveProvider는 temp 파일 + rename으로 원자적으로 저장한다.
 func SaveProvider(host string, p Provider) error {
 	return withConfigLock(func() error {
-		cfg, err := LoadConfig()
+		cfg, err := loadConfigUnlocked()
 		if err != nil {
 			return err // 손상 파일은 절대 덮어쓰지 않는다
 		}
@@ -138,7 +153,7 @@ func SaveProvider(host string, p Provider) error {
 
 func UnsetProvider(host string) error {
 	return withConfigLock(func() error {
-		cfg, err := LoadConfig()
+		cfg, err := loadConfigUnlocked()
 		if err != nil {
 			return err // 손상 파일은 절대 덮어쓰지 않는다
 		}
@@ -151,11 +166,24 @@ func UnsetProvider(host string) error {
 }
 
 func withConfigLock(action func() error) (err error) {
+	return withConfigFileLock(false, action)
+}
+
+func withConfigReadLock(action func() error) (err error) {
+	return withConfigFileLock(true, action)
+}
+
+func withConfigFileLock(readOnly bool, action func() error) (err error) {
 	if err := os.MkdirAll(ConfigDir(), 0o700); err != nil {
 		return err
 	}
 	lock := flock.New(ConfigPath() + ".lock")
-	if err := lock.Lock(); err != nil {
+	if readOnly {
+		err = lock.RLock()
+	} else {
+		err = lock.Lock()
+	}
+	if err != nil {
 		return err
 	}
 	defer func() {

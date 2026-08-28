@@ -145,7 +145,15 @@ func TestBrokenConfigIsNotOverwritten(t *testing.T) {
 }
 
 func TestBrokenProviderSettingSchemaIsNotOverwritten(t *testing.T) {
-	for _, broken := range []string{"null", `{}`, `{"hosts":null}`, `[]`} {
+	for _, broken := range []string{
+		"null",
+		`{}`,
+		`{"hosts":null}`,
+		`[]`,
+		`{"hosts":{},"token":"secret"}`,
+		`{"hosts":{},"login":"user"}`,
+		`{"hosts":{},"repository":"https://git.example.com/o/r"}`,
+	} {
 		t.Run(broken, func(t *testing.T) {
 			dir := t.TempDir()
 			t.Setenv("GG_HOME", dir)

@@ -12,6 +12,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/gofrs/flock"
 )
 
 // buildGG는 gg를 임시 폴더에 build한다.
@@ -117,17 +120,21 @@ func processExitCode(t *testing.T, err error, output string) int {
 func TestE2EProviderSettingListEmpty(t *testing.T) {
 	bin := buildGG(t)
 	fakeDir := t.TempDir()
+	ggHome := t.TempDir()
 	logFile := filepath.Join(t.TempDir(), "calls.log")
 	for _, name := range []string{"gh", "glab", "tea"} {
 		writeFakeBin(t, fakeDir, name, logFile)
 	}
 
-	out, code := runGGWithHome(t, bin, fakeDir, t.TempDir(), t.TempDir(), "config", "list")
+	out, code := runGGWithHome(t, bin, fakeDir, t.TempDir(), ggHome, "config", "list")
 	if code != 0 || out != "No provider settings.\n" {
 		t.Fatalf("exit %d, output %q", code, out)
 	}
 	if got := readLog(t, logFile); got != "" {
 		t.Fatalf("provider CLI should not run, got %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(ggHome, "config.json.lock")); !os.IsNotExist(err) {
+		t.Fatalf("empty config list should not create a lock file, stat error = %v", err)
 	}
 }
 
@@ -241,28 +248,39 @@ func TestE2EProviderSettingRejectsInvalidAndDefaultDomainChanges(t *testing.T) {
 func TestE2EProviderSettingMutationsPreserveBrokenConfig(t *testing.T) {
 	bin := buildGG(t)
 	fakeDir := t.TempDir()
-	ggHome := t.TempDir()
-	configPath := filepath.Join(ggHome, "config.json")
-	broken := []byte(`{"hosts":{"git.example.com":"gh"}`)
-	if err := os.WriteFile(configPath, broken, 0o600); err != nil {
-		t.Fatal(err)
+	brokenConfigs := []struct {
+		name    string
+		content string
+	}{
+		{name: "malformed JSON", content: `{"hosts":{"git.example.com":"gh"}`},
+		{name: "secret fields", content: `{"hosts":{},"token":"secret","login":"user","repository":"https://git.example.com/o/r"}`},
 	}
+	for _, brokenConfig := range brokenConfigs {
+		t.Run(brokenConfig.name, func(t *testing.T) {
+			ggHome := t.TempDir()
+			configPath := filepath.Join(ggHome, "config.json")
+			broken := []byte(brokenConfig.content)
+			if err := os.WriteFile(configPath, broken, 0o600); err != nil {
+				t.Fatal(err)
+			}
 
-	for _, args := range [][]string{
-		{"config", "set", "other.example", "tea"},
-		{"config", "unset", "git.example.com"},
-	} {
-		out, code := runGGWithHome(t, bin, fakeDir, t.TempDir(), ggHome, args...)
-		if code != 1 || !strings.Contains(out, "broken config") {
-			t.Fatalf("gg %v: exit %d, output %q", args, code, out)
-		}
-		got, err := os.ReadFile(configPath)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !slices.Equal(got, broken) {
-			t.Fatalf("gg %v changed broken config to %q", args, got)
-		}
+			for _, args := range [][]string{
+				{"config", "set", "other.example", "tea"},
+				{"config", "unset", "git.example.com"},
+			} {
+				out, code := runGGWithHome(t, bin, fakeDir, t.TempDir(), ggHome, args...)
+				if code != 1 || !strings.Contains(out, "broken config") {
+					t.Fatalf("gg %v: exit %d, output %q", args, code, out)
+				}
+				got, err := os.ReadFile(configPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !slices.Equal(got, broken) {
+					t.Fatalf("gg %v changed broken config to %q", args, got)
+				}
+			}
+		})
 	}
 }
 
@@ -312,6 +330,61 @@ func TestE2EProviderSettingConcurrentSetsKeepEveryHost(t *testing.T) {
 	}
 	if len(saved.Hosts) != baseCount+count {
 		t.Fatalf("saved %d hosts, want %d", len(saved.Hosts), baseCount+count)
+	}
+}
+
+func TestE2EProviderSettingListWaitsForMutationLock(t *testing.T) {
+	bin := buildGG(t)
+	ggHome := t.TempDir()
+	configPath := filepath.Join(ggHome, "config.json")
+	if err := os.WriteFile(configPath, []byte(`{"hosts":{"git.example.com":"gh"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	lock := flock.New(configPath + ".lock")
+	if err := lock.Lock(); err != nil {
+		t.Fatal(err)
+	}
+	locked := true
+	defer func() {
+		if locked {
+			_ = lock.Unlock()
+		}
+	}()
+
+	cmd := exec.Command(bin, "config", "list")
+	cmd.Dir = t.TempDir()
+	cmd.Env = append(os.Environ(), "PATH="+t.TempDir(), "GG_HOME="+ggHome)
+	var output bytes.Buffer
+	cmd.Stdout = &output
+	cmd.Stderr = &output
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	select {
+	case err := <-done:
+		t.Fatalf("config list finished while mutation lock was held: %v, output %q", err, output.String())
+	case <-time.After(750 * time.Millisecond):
+	}
+
+	if err := lock.Unlock(); err != nil {
+		t.Fatal(err)
+	}
+	locked = false
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("config list failed after mutation lock was released: %v, output %q", err, output.String())
+		}
+	case <-time.After(5 * time.Second):
+		_ = cmd.Process.Kill()
+		t.Fatal("config list did not finish after mutation lock was released")
+	}
+	if got := strings.Fields(output.String()); !slices.Equal(got, []string{"HOST", "PROVIDER", "git.example.com", "gh"}) {
+		t.Fatalf("list fields = %q", got)
 	}
 }
 
