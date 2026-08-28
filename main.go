@@ -12,15 +12,18 @@ import (
 
 var version = "dev"
 
-const repositoryContextFlags = `  --repo <URL>      이 URL을 저장소 문맥으로 사용
-  --remote <name>   이 Git remote를 저장소 문맥으로 사용`
-const helpFlag = `  -h, --help        Show help`
+const repositoryContextFlags = `  --repo <URL>      이 URL을 저장소 문맥으로 사용`
+const topLevelHelpFlag = `  -h, --help        Show top-level help`
+const nestedHelpFlag = `  --help            Show help`
 
 const topLevelHelp = `gg sends common Git forge commands to gh, glab, or tea.
 
 Usage:
   gg [flags] <command>
-  gg <command> --help
+  gg config --help
+  gg issue --help
+  gg issue list --help
+  gg pr create --help
 
 Commands:
   repo       List, view, create, or clone repositories
@@ -34,7 +37,7 @@ Commands:
 
 Flags:
 ` + repositoryContextFlags + `
-` + helpFlag + `
+` + topLevelHelpFlag + `
   --version         Show gg version`
 
 const configHelp = `Manage Provider 설정 for self-hosted hosts.
@@ -45,7 +48,10 @@ Usage:
 Commands:
   gg config list
   gg config set <host> <gh|glab|tea>
-  gg config unset <host>`
+  gg config unset <host>
+
+Flags:
+` + nestedHelpFlag
 
 const issueHelp = `List, view, or create issues.
 
@@ -59,7 +65,7 @@ Commands:
 
 Flags:
 ` + repositoryContextFlags + `
-` + helpFlag
+` + nestedHelpFlag
 
 const issueListHelp = `List issues.
 
@@ -70,7 +76,7 @@ Flags:
   --state <open|closed|all>   Filter by state
   --limit <N>                 Limit the result count
 ` + repositoryContextFlags + `
-` + helpFlag
+` + nestedHelpFlag
 
 const prCreateHelp = `Create a pull request.
 
@@ -84,7 +90,7 @@ Flags:
   --head <branch>    Set the head branch
   --draft            Create a draft pull request
 ` + repositoryContextFlags + `
-` + helpFlag
+` + nestedHelpFlag
 
 func main() { os.Exit(run(os.Args[1:])) }
 

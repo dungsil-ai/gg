@@ -134,7 +134,48 @@ func assertGGHelp(t *testing.T, bin string, args, wants []string) {
 func TestE2ETopLevelHelp(t *testing.T) {
 	bin := buildGG(t)
 	for _, args := range [][]string{nil, {"help"}, {"--help"}, {"-h"}} {
-		assertGGHelp(t, bin, args, []string{"Usage:", "Commands:", "issue", "pr", "config", "--repo", "--remote"})
+		assertGGHelp(t, bin, args, []string{"Usage:", "Commands:", "issue", "pr", "config", "--repo"})
+	}
+}
+
+func TestE2ETopLevelHelpListsSupportedNestedHelpForms(t *testing.T) {
+	bin := buildGG(t)
+	stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), "--help")
+	if code != 0 || stderr != "" {
+		t.Fatalf("gg --help = stderr %q, exit %d; want empty stderr, exit 0", stderr, code)
+	}
+	for _, want := range []string{"gg config --help", "gg issue --help", "gg issue list --help", "gg pr create --help"} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("gg --help stdout에 %q 없음:\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout, "gg <command> --help") {
+		t.Errorf("gg --help stdout advertises unsupported generic command help:\n%s", stdout)
+	}
+}
+
+func assertGGHelpOmits(t *testing.T, bin string, args []string, unsupported string) {
+	t.Helper()
+	stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), args...)
+	if code != 0 || stderr != "" {
+		t.Fatalf("gg %v = stderr %q, exit %d; want empty stderr, exit 0", args, stderr, code)
+	}
+	if strings.Contains(stdout, unsupported) {
+		t.Errorf("gg %v stdout advertises unsupported %s:\n%s", args, unsupported, stdout)
+	}
+}
+
+func TestE2EHelpDoesNotAdvertiseUnsupportedRemoteFlag(t *testing.T) {
+	bin := buildGG(t)
+	for _, args := range [][]string{nil, {"config", "--help"}, {"issue", "--help"}, {"issue", "list", "--help"}, {"pr", "create", "--help"}} {
+		assertGGHelpOmits(t, bin, args, "--remote")
+	}
+}
+
+func TestE2ENestedHelpDoesNotAdvertiseUnsupportedShortFlag(t *testing.T) {
+	bin := buildGG(t)
+	for _, args := range [][]string{{"config", "--help"}, {"issue", "--help"}, {"issue", "list", "--help"}, {"pr", "create", "--help"}} {
+		assertGGHelpOmits(t, bin, args, "-h, --help")
 	}
 }
 
@@ -144,10 +185,10 @@ func TestE2ENestedHelp(t *testing.T) {
 		args []string
 		want []string
 	}{
-		{[]string{"config", "--help"}, []string{"Usage:", "config list", "config set", "config unset"}},
-		{[]string{"issue", "--help"}, []string{"Usage:", "list", "view", "create", "--repo", "--remote"}},
-		{[]string{"issue", "list", "--help"}, []string{"Usage:", "--state", "--limit", "--repo", "--remote"}},
-		{[]string{"pr", "create", "--help"}, []string{"Usage:", "--title", "--body", "--base", "--head", "--draft", "--repo", "--remote"}},
+		{[]string{"config", "--help"}, []string{"Usage:", "config list", "config set", "config unset", "Flags:", "--help"}},
+		{[]string{"issue", "--help"}, []string{"Usage:", "list", "view", "create", "--repo", "--help"}},
+		{[]string{"issue", "list", "--help"}, []string{"Usage:", "--state", "--limit", "--repo", "--help"}},
+		{[]string{"pr", "create", "--help"}, []string{"Usage:", "--title", "--body", "--base", "--head", "--draft", "--repo", "--help"}},
 	}
 	for _, tt := range tests {
 		assertGGHelp(t, bin, tt.args, tt.want)
