@@ -67,20 +67,20 @@ func runGGStreams(t *testing.T, bin, workDir string, args ...string) (string, st
 
 func ggCommand(t *testing.T, bin, fakeDir, workDir string, args ...string) *exec.Cmd {
 	t.Helper()
-	pathValue := os.Getenv("PATH")
-	if fakeDir != "" {
-		pathValue = fakeDir + string(os.PathListSeparator) + pathValue
-	}
-	return ggCommandWithHomeAndPath(bin, workDir, t.TempDir(), pathValue, args...)
+	return ggCommandWithHomeAndPath(bin, workDir, t.TempDir(), pathWithFakeBin(fakeDir), args...)
 }
 
 func runGGWithHome(t *testing.T, bin, fakeDir, workDir, ggHome string, args ...string) (string, int) {
 	t.Helper()
+	return runGGWithPath(t, bin, workDir, ggHome, pathWithFakeBin(fakeDir), args...)
+}
+
+func pathWithFakeBin(fakeDir string) string {
 	pathValue := os.Getenv("PATH")
 	if fakeDir != "" {
 		pathValue = fakeDir + string(os.PathListSeparator) + pathValue
 	}
-	return runGGWithPath(t, bin, workDir, ggHome, pathValue, args...)
+	return pathValue
 }
 
 func runGGWithoutProviderCLIs(t *testing.T, bin, workDir, ggHome string, args ...string) (string, int) {
