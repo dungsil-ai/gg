@@ -21,7 +21,7 @@ type Request struct {
 	GitArgs  []string // pull/push는 검사 없이 git으로 전달
 
 	Title, Body, Base, Head, State, Limit, Description string
-	Draft, Public, Private                             bool
+	Draft, Public, Private, AllowInsecureHTTP          bool
 }
 
 var repoActions = map[string]bool{
@@ -106,7 +106,7 @@ func parseRest(req *Request, args []string) error {
 		req.GitArgs = args
 		return nil
 	case "repo clone":
-		pos, err := flagLoop(req, args, nil, nil)
+		pos, err := flagLoop(req, args, nil, map[string]*bool{"--allow-insecure-http": &req.AllowInsecureHTTP})
 		if err != nil {
 			return err
 		}

@@ -126,6 +126,56 @@ func TestE2EChildExitCodePassthrough(t *testing.T) {
 		path = filepath.Join(fakeDir, "gh")
 		body = "#!/bin/sh\nexit 7\n"
 	}
+
+	func TestE2ECloneHTTPBlockedByDefault(t *testing.T) {
+		bin := buildGG(t)
+		fakeDir := t.TempDir()
+		logFile := filepath.Join(t.TempDir(), "calls.log")
+		writeFakeBin(t, fakeDir, "gh", logFile)
+
+		out, code := runGG(t, bin, fakeDir, t.TempDir(), "clone", "http://github.com/o/r.git")
+		if code == 0 {
+			t.Fatalf("HTTP clone should be blocked: %s", out)
+		}
+		if got := readLog(t, logFile); got != "" {
+			t.Fatalf("child command should not run, got log: %q", got)
+		}
+	}
+
+	func TestE2ECloneHTTPAllowedWithWarning(t *testing.T) {
+		bin := buildGG(t)
+		fakeDir := t.TempDir()
+		logFile := filepath.Join(t.TempDir(), "calls.log")
+		writeFakeBin(t, fakeDir, "gh", logFile)
+
+		out, code := runGG(t, bin, fakeDir, t.TempDir(), "clone", "http://github.com/o/r.git", "--allow-insecure-http")
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, out)
+		}
+		if !strings.Contains(out, "warning: allowing insecure HTTP clone") {
+			t.Fatalf("warning expected, got: %s", out)
+		}
+		got := readLog(t, logFile)
+		if !strings.Contains(got, "gh repo clone http://github.com/o/r.git") {
+			t.Fatalf("gh argv = %q", got)
+		}
+	}
+
+	func TestE2ECloneKeepsSSHNonStandardPort(t *testing.T) {
+		bin := buildGG(t)
+		fakeDir := t.TempDir()
+		logFile := filepath.Join(t.TempDir(), "calls.log")
+		writeFakeBin(t, fakeDir, "gh", logFile)
+
+		out, code := runGG(t, bin, fakeDir, t.TempDir(), "clone", "ssh://git@github.com:2222/o/r.git")
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, out)
+		}
+		got := readLog(t, logFile)
+		if !strings.Contains(got, "gh repo clone ssh://git@github.com:2222/o/r.git") {
+			t.Fatalf("gh argv = %q", got)
+		}
+	}
 	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
