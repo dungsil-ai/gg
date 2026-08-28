@@ -45,6 +45,8 @@ func LoadConfig() (Config, error) {
 	return cfg, nil
 }
 
+var renameConfigFile = os.Rename
+
 // SaveProvider는 temp 파일 + rename으로 원자적으로 저장한다.
 func SaveProvider(host string, p Provider) error {
 	cfg, err := LoadConfig()
@@ -75,5 +77,5 @@ func SaveProvider(host string, p Provider) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmp.Name(), ConfigPath())
+	return renameConfigFile(tmp.Name(), ConfigPath())
 }
