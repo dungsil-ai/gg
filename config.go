@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 )
 
 // Config는 host별 provider 선택만 담는다. token 저장 금지.
@@ -46,24 +45,7 @@ func LoadConfig() (Config, error) {
 	return cfg, nil
 }
 
-var (
-	renameFile = os.Rename
-	removeFile = os.Remove
-	goos       = runtime.GOOS
-)
-
-func replaceConfigFile(tmpPath, dstPath string) error {
-	if err := renameFile(tmpPath, dstPath); err != nil {
-		if goos != "windows" {
-			return err
-		}
-		if rmErr := removeFile(dstPath); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) {
-			return rmErr
-		}
-		return renameFile(tmpPath, dstPath)
-	}
-	return nil
-}
+var renameConfigFile = os.Rename
 
 // SaveProvider는 temp 파일 + rename으로 원자적으로 저장한다.
 func SaveProvider(host string, p Provider) error {
@@ -95,5 +77,5 @@ func SaveProvider(host string, p Provider) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return replaceConfigFile(tmp.Name(), ConfigPath())
+	return renameConfigFile(tmp.Name(), ConfigPath())
 }

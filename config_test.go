@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,6 +56,72 @@ func TestSaveAndReload(t *testing.T) {
 	data, _ := os.ReadFile(ConfigPath())
 	if !strings.Contains(string(data), `"hosts"`) {
 		t.Errorf("json 형식이 아님: %s", data)
+	}
+}
+
+func TestSaveProviderReplacesExistingConfig(t *testing.T) {
+	t.Setenv("GG_HOME", t.TempDir())
+	if err := SaveProvider("github.com", GH); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveProvider("git.example.com", GLab); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Hosts) != 2 || cfg.Hosts["github.com"] != "gh" || cfg.Hosts["git.example.com"] != "glab" {
+		t.Errorf("Hosts = %v", cfg.Hosts)
+	}
+}
+
+func TestSaveProviderRenameFailurePreservesExistingConfig(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("GG_HOME", dir)
+	if err := SaveProvider("github.com", GH); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(ConfigPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	originalRename := renameConfigFile
+	t.Cleanup(func() { renameConfigFile = originalRename })
+	wantErr := errors.New("rename failed")
+	renameCalls := 0
+	renameConfigFile = func(tmpPath, dstPath string) error {
+		renameCalls++
+		if filepath.Dir(tmpPath) != dir {
+			t.Errorf("temp dir = %q, want %q", filepath.Dir(tmpPath), dir)
+		}
+		if dstPath != ConfigPath() {
+			t.Errorf("destination = %q, want %q", dstPath, ConfigPath())
+		}
+		return wantErr
+	}
+
+	if err := SaveProvider("git.example.com", GLab); !errors.Is(err, wantErr) {
+		t.Fatalf("SaveProvider error = %v, want %v", err, wantErr)
+	}
+	if renameCalls != 1 {
+		t.Errorf("rename calls = %d, want 1", renameCalls)
+	}
+	after, err := os.ReadFile(ConfigPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Errorf("config changed after rename failure:\n%s", after)
+	}
+	tempFiles, err := filepath.Glob(filepath.Join(dir, "config-*.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tempFiles) != 0 {
+		t.Errorf("temporary files were not removed: %v", tempFiles)
 	}
 }
 
