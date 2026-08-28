@@ -10,26 +10,97 @@ import (
 	"strings"
 )
 
-const usage = `usage:
-  gg [--repo <URL>] <command>
+var version = "dev"
 
-repository (repo 생략 가능):
-  gg list [--limit N]
-  gg view
-  gg --repo <URL> create (--public|--private) [--description TEXT]
-  gg clone <URL> [DIR] [--allow-insecure-http]
-  gg pull [git-args...]
-  gg push [git-args...]
+const repositoryContextFlags = `  --repo <URL>      이 URL을 저장소 문맥으로 사용
+  --remote <name>   이 Git remote를 저장소 문맥으로 사용`
+const helpFlag = `  -h, --help        Show help`
 
-issue / pr:
-  gg issue|pr list [--state open|closed|all] [--limit N]
-  gg issue|pr view <number>
-  gg issue create [--title TEXT] [--body TEXT]
-  gg pr create [--title TEXT] [--body TEXT] [--base BRANCH] [--head BRANCH] [--draft]`
+const topLevelHelp = `gg sends common Git forge commands to gh, glab, or tea.
+
+Usage:
+  gg [flags] <command>
+  gg <command> --help
+
+Commands:
+  repo       List, view, create, or clone repositories
+  issue      List, view, or create issues
+  pr         List, view, or create pull requests
+  config     Provider 설정 관리
+  pull       Run git pull
+  push       Run git push
+  version    Show gg version
+  help       Show this help
+
+Flags:
+` + repositoryContextFlags + `
+` + helpFlag + `
+  --version         Show gg version`
+
+const configHelp = `Manage Provider 설정 for self-hosted hosts.
+
+Usage:
+  gg config <command>
+
+Commands:
+  gg config list
+  gg config set <host> <gh|glab|tea>
+  gg config unset <host>`
+
+const issueHelp = `List, view, or create issues.
+
+Usage:
+  gg issue <command> [flags]
+
+Commands:
+  list      List issues
+  view      View one issue
+  create    Create an issue
+
+Flags:
+` + repositoryContextFlags + `
+` + helpFlag
+
+const issueListHelp = `List issues.
+
+Usage:
+  gg issue list [flags]
+
+Flags:
+  --state <open|closed|all>   Filter by state
+  --limit <N>                 Limit the result count
+` + repositoryContextFlags + `
+` + helpFlag
+
+const prCreateHelp = `Create a pull request.
+
+Usage:
+  gg pr create [flags]
+
+Flags:
+  --title <text>     Set the title
+  --body <text>      Set the body
+  --base <branch>    Set the base branch
+  --head <branch>    Set the head branch
+  --draft            Create a draft pull request
+` + repositoryContextFlags + `
+` + helpFlag
 
 func main() { os.Exit(run(os.Args[1:])) }
 
 func run(args []string) int {
+	if len(args) == 0 || (len(args) == 1 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h")) {
+		fmt.Fprintln(os.Stdout, topLevelHelp)
+		return 0
+	}
+	if help, ok := nestedHelp(args); ok {
+		fmt.Fprintln(os.Stdout, help)
+		return 0
+	}
+	if len(args) == 1 && (args[0] == "version" || args[0] == "--version") {
+		fmt.Fprintln(os.Stdout, "gg "+version)
+		return 0
+	}
 	req, err := ParseRequest(args)
 	if err != nil {
 		return fail(err)
@@ -41,11 +112,28 @@ func run(args []string) int {
 	return execChild(inv)
 }
 
+func nestedHelp(args []string) (string, bool) {
+	if len(args) < 2 || args[len(args)-1] != "--help" {
+		return "", false
+	}
+	switch strings.Join(args, " ") {
+	case "config --help":
+		return configHelp, true
+	case "issue --help":
+		return issueHelp, true
+	case "issue list --help":
+		return issueListHelp, true
+	case "pr create --help":
+		return prCreateHelp, true
+	}
+	return "", false
+}
+
 func fail(err error) int {
 	fmt.Fprintln(os.Stderr, "gg:", err)
 	var ue UsageError
 	if errors.As(err, &ue) {
-		fmt.Fprintln(os.Stderr, usage)
+		fmt.Fprintln(os.Stderr, topLevelHelp)
 		return 2
 	}
 	return 1

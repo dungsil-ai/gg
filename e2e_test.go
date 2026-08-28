@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -42,20 +43,44 @@ func writeFakeBin(t *testing.T, dir, name, logFile string) {
 // runGG는 fake PATH + 임시 GG_HOME으로 gg를 실행한다.
 func runGG(t *testing.T, bin, fakeDir, workDir string, args ...string) (string, int) {
 	t.Helper()
+	cmd := ggCommand(t, bin, fakeDir, workDir, args...)
+	out, err := cmd.CombinedOutput()
+	return string(out), processExitCode(t, err, string(out))
+}
+
+// runGGStreams는 실제 gg process의 stdout과 stderr를 따로 읽는다.
+func runGGStreams(t *testing.T, bin, workDir string, args ...string) (string, string, int) {
+	t.Helper()
+	cmd := ggCommand(t, bin, "", workDir, args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	output := "stdout: " + stdout.String() + "\nstderr: " + stderr.String()
+	return stdout.String(), stderr.String(), processExitCode(t, err, output)
+}
+
+func ggCommand(t *testing.T, bin, fakeDir, workDir string, args ...string) *exec.Cmd {
+	t.Helper()
 	cmd := exec.Command(bin, args...)
 	cmd.Dir = workDir
-	cmd.Env = append(os.Environ(),
-		"PATH="+fakeDir+string(os.PathListSeparator)+os.Getenv("PATH"),
-		"GG_HOME="+t.TempDir(),
-	)
-	out, err := cmd.CombinedOutput()
-	code := 0
-	if ee, ok := err.(*exec.ExitError); ok {
-		code = ee.ExitCode()
-	} else if err != nil {
-		t.Fatalf("실행 실패: %v\n%s", err, out)
+	cmd.Env = append(os.Environ(), "GG_HOME="+t.TempDir())
+	if fakeDir != "" {
+		cmd.Env = append(cmd.Env, "PATH="+fakeDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	}
-	return string(out), code
+	return cmd
+}
+
+func processExitCode(t *testing.T, err error, output string) int {
+	t.Helper()
+	if err == nil {
+		return 0
+	}
+	if ee, ok := err.(*exec.ExitError); ok {
+		return ee.ExitCode()
+	}
+	t.Fatalf("실행 실패: %v\n%s", err, output)
+	return 0
 }
 
 func readLog(t *testing.T, logFile string) string {
@@ -88,6 +113,92 @@ func tempRepo(t *testing.T, remoteURL string) string {
 		}
 	}
 	return dir
+}
+
+func assertGGHelp(t *testing.T, bin string, args, wants []string) {
+	t.Helper()
+	stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), args...)
+	if code != 0 {
+		t.Errorf("gg %v exit = %d, want 0", args, code)
+	}
+	if stderr != "" {
+		t.Errorf("gg %v stderr = %q, want empty", args, stderr)
+	}
+	for _, want := range wants {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("gg %v stdout에 %q 없음:\n%s", args, want, stdout)
+		}
+	}
+}
+
+func TestE2ETopLevelHelp(t *testing.T) {
+	bin := buildGG(t)
+	for _, args := range [][]string{nil, {"help"}, {"--help"}, {"-h"}} {
+		assertGGHelp(t, bin, args, []string{"Usage:", "Commands:", "issue", "pr", "config", "--repo", "--remote"})
+	}
+}
+
+func TestE2ENestedHelp(t *testing.T) {
+	bin := buildGG(t)
+	tests := []struct {
+		args []string
+		want []string
+	}{
+		{[]string{"config", "--help"}, []string{"Usage:", "config list", "config set", "config unset"}},
+		{[]string{"issue", "--help"}, []string{"Usage:", "list", "view", "create", "--repo", "--remote"}},
+		{[]string{"issue", "list", "--help"}, []string{"Usage:", "--state", "--limit", "--repo", "--remote"}},
+		{[]string{"pr", "create", "--help"}, []string{"Usage:", "--title", "--body", "--base", "--head", "--draft", "--repo", "--remote"}},
+	}
+	for _, tt := range tests {
+		assertGGHelp(t, bin, tt.args, tt.want)
+	}
+}
+
+func TestE2EUnknownCommandUsesStderrAndExitTwo(t *testing.T) {
+	bin := buildGG(t)
+	stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), "unknown")
+	if code != 2 {
+		t.Errorf("exit = %d, want 2", code)
+	}
+	if stdout != "" {
+		t.Errorf("stdout = %q, want empty", stdout)
+	}
+	if !strings.Contains(stderr, "gg: unknown command unknown") {
+		t.Errorf("stderr에 unknown command 오류 없음:\n%s", stderr)
+	}
+}
+
+func TestE2EVersion(t *testing.T) {
+	localBin := buildGG(t)
+	releaseBin := filepath.Join(t.TempDir(), "gg")
+	if runtime.GOOS == "windows" {
+		releaseBin += ".exe"
+	}
+	build := exec.Command("go", "build", "-ldflags", "-X main.version=v0.1.0", "-o", releaseBin, ".")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("release build 실패: %v\n%s", err, out)
+	}
+
+	for _, tt := range []struct {
+		name string
+		bin  string
+		want string
+	}{
+		{"local version", localBin, "gg dev\n"},
+		{"release version", releaseBin, "gg v0.1.0\n"},
+	} {
+		for _, args := range [][]string{{"version"}, {"--version"}} {
+			stdout, stderr, code := runGGStreams(t, tt.bin, t.TempDir(), args...)
+			if code != 0 || stdout != tt.want || stderr != "" {
+				t.Errorf("%s %v = stdout %q, stderr %q, exit %d; want stdout %q, empty stderr, exit 0", tt.name, args, stdout, stderr, code, tt.want)
+			}
+		}
+	}
+
+	stdout, stderr, code := runGGStreams(t, localBin, t.TempDir(), "-v")
+	if code != 2 || stdout != "" || !strings.Contains(stderr, "unknown command -v") {
+		t.Errorf("-v = stdout %q, stderr %q, exit %d; want usage error", stdout, stderr, code)
+	}
 }
 
 func TestE2EGitHubIssueList(t *testing.T) {
