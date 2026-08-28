@@ -53,23 +53,96 @@ func TestParseRequest(t *testing.T) {
 	}
 }
 
+func TestParseRequestRepositoryContextRemoteBeforeAndAfterCommand(t *testing.T) {
+	want := Request{Resource: "issue", Action: "list", RemoteFlag: "upstream"}
+	for _, args := range [][]string{
+		{"--remote", "upstream", "issue", "list"},
+		{"issue", "list", "--remote", "upstream"},
+	} {
+		got, err := ParseRequest(args)
+		if err != nil {
+			t.Fatalf("ParseRequest(%v): %v", args, err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("ParseRequest(%v) = %+v, want %+v", args, got, want)
+		}
+	}
+}
+
+func TestParseRequestRejectsRepositoryContextFlagsTogether(t *testing.T) {
+	for _, args := range [][]string{
+		{"--repo", "https://github.com/o/r", "issue", "list", "--remote", "upstream"},
+		{"--remote", "upstream", "issue", "list", "--repo", "https://github.com/o/r"},
+	} {
+		_, err := ParseRequest(args)
+		var usage UsageError
+		if !errors.As(err, &usage) || !strings.Contains(err.Error(), "cannot be used together") {
+			t.Errorf("ParseRequest(%v): conflict UsageError 기대, got %v", args, err)
+		}
+	}
+}
+
+func TestParseRequestRepositoryContextRemoteScope(t *testing.T) {
+	allowed := [][]string{
+		{"repo", "list", "--remote", "upstream"},
+		{"repo", "view", "--remote", "upstream"},
+		{"issue", "list", "--remote", "upstream"},
+		{"issue", "view", "1", "--remote", "upstream"},
+		{"issue", "create", "--remote", "upstream"},
+		{"pr", "list", "--remote", "upstream"},
+		{"pr", "view", "1", "--remote", "upstream"},
+		{"pr", "create", "--remote", "upstream"},
+	}
+	for _, args := range allowed {
+		got, err := ParseRequest(args)
+		if err != nil {
+			t.Errorf("ParseRequest(%v): %v", args, err)
+		} else if got.RemoteFlag != "upstream" {
+			t.Errorf("ParseRequest(%v).RemoteFlag = %q", args, got.RemoteFlag)
+		}
+	}
+
+	for _, args := range [][]string{
+		{"--remote", "upstream", "clone", "https://github.com/o/r"},
+		{"--remote", "upstream", "pull"},
+		{"--remote", "upstream", "push"},
+	} {
+		_, err := ParseRequest(args)
+		var usage UsageError
+		if !errors.As(err, &usage) {
+			t.Errorf("ParseRequest(%v): UsageError 기대, got %v", args, err)
+		}
+	}
+}
+
+func TestParseRequestKeepsPullRemoteArgument(t *testing.T) {
+	got, err := ParseRequest([]string{"pull", "--remote", "upstream"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := Request{Resource: "repo", Action: "pull", GitArgs: []string{"--remote", "upstream"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseRequest = %+v, want %+v", got, want)
+	}
+}
+
 func TestParseRequestErrors(t *testing.T) {
 	bad := [][]string{
-		{},                                   // 명령 없음
-		{"unknown"},                          // 알 수 없는 자원
-		{"issue"},                            // action 없음
-		{"issue", "close", "1"},              // 지원 안 하는 action
-		{"issue", "view"},                    // number 없음
-		{"issue", "view", "1", "2"},          // 인자 초과
-		{"issue", "list", "--wat"},           // 알 수 없는 flag
-		{"pr", "list", "--state", "merged"},  // 지원 안 하는 state
-		{"pr", "create", "--title"},          // 값 없는 flag
-		{"clone"},                            // URL 없음
-		{"clone", "u", "d", "x"},             // 인자 초과
-		{"create", "--public"},               // --repo 없는 repo create
-		{"create", "--repo", "https://x.com/o/r"},                 // 공개 범위 없음
+		{},                                  // 명령 없음
+		{"unknown"},                         // 알 수 없는 자원
+		{"issue"},                           // action 없음
+		{"issue", "close", "1"},             // 지원 안 하는 action
+		{"issue", "view"},                   // number 없음
+		{"issue", "view", "1", "2"},         // 인자 초과
+		{"issue", "list", "--wat"},          // 알 수 없는 flag
+		{"pr", "list", "--state", "merged"}, // 지원 안 하는 state
+		{"pr", "create", "--title"},         // 값 없는 flag
+		{"clone"},                           // URL 없음
+		{"clone", "u", "d", "x"},            // 인자 초과
+		{"create", "--public"},              // --repo 없는 repo create
+		{"create", "--repo", "https://x.com/o/r"},                          // 공개 범위 없음
 		{"create", "--repo", "https://x.com/o/r", "--public", "--private"}, // 둘 다 지정
-		{"list", "extra"},                    // list에 positional
+		{"list", "extra"}, // list에 positional
 	}
 	for _, args := range bad {
 		_, err := ParseRequest(args)

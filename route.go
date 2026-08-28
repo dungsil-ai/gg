@@ -87,25 +87,46 @@ func CurrentRemoteURL() (string, error) {
 	// 건너뛰고 origin/유일 remote fallback은 계속 시도한다.
 	if branch, err := runOut("git", "rev-parse", "--abbrev-ref", "HEAD"); err == nil && branch != "" {
 		if remote, _ := runOut("git", "config", "--get", "branch."+branch+".remote"); remote != "" {
-			if u, _ := runOut("git", "remote", "get-url", remote); u != "" {
+			if u, ok := gitRemoteURL(remote); ok {
 				return u, nil
 			}
 		}
 	}
-	if u, _ := runOut("git", "remote", "get-url", "origin"); u != "" {
+	if u, ok := gitRemoteURL("origin"); ok {
 		return u, nil
 	}
-	remotes, err := runOut("git", "remote")
+	names, err := gitRemoteNames()
 	if err != nil {
 		return "", errors.New("not a git repository (use --repo <URL>)")
 	}
-	names := strings.Fields(remotes)
 	if len(names) == 1 {
-		if u, _ := runOut("git", "remote", "get-url", names[0]); u != "" {
+		if u, ok := gitRemoteURL(names[0]); ok {
 			return u, nil
 		}
 	}
 	return "", errors.New("cannot pick a remote (use --repo <URL>)")
+}
+
+func RemoteURL(name string) (string, error) {
+	if u, ok := gitRemoteURL(name); ok {
+		return u, nil
+	}
+	names, _ := gitRemoteNames()
+	available := "none"
+	if len(names) != 0 {
+		available = strings.Join(names, ", ")
+	}
+	return "", fmt.Errorf("remote %q not found (available remotes: %s)", name, available)
+}
+
+func gitRemoteURL(name string) (string, bool) {
+	u, err := runOut("git", "remote", "get-url", name)
+	return u, err == nil && u != ""
+}
+
+func gitRemoteNames() ([]string, error) {
+	remotes, err := runOut("git", "remote")
+	return strings.Fields(remotes), err
 }
 
 var defaultProviders = map[string]Provider{

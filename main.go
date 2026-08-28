@@ -12,7 +12,8 @@ import (
 
 var version = "dev"
 
-const repositoryContextFlags = `  --repo <URL>      이 URL을 저장소 문맥으로 사용`
+const repositoryContextFlags = `  --repo <URL>      이 URL을 저장소 문맥으로 사용
+  --remote <name>   이 Git remote를 저장소 문맥으로 사용`
 const topLevelHelpFlag = `  -h, --help        Show top-level help`
 const nestedHelpFlag = `  --help            Show help`
 
@@ -162,7 +163,11 @@ func plan(req Request) (Invocation, error) {
 	}
 	if rawURL == "" {
 		var err error
-		rawURL, err = CurrentRemoteURL()
+		if req.RemoteFlag != "" {
+			rawURL, err = RemoteURL(req.RemoteFlag)
+		} else {
+			rawURL, err = CurrentRemoteURL()
+		}
 		if err != nil {
 			return Invocation{}, err
 		}
