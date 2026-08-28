@@ -2,3 +2,6 @@
 gg
 gg.exe
 out/
+.agents/worktrees/
+.agents/prototype/
+.agents/reports/
