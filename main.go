@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -107,7 +108,7 @@ func run(args []string) int {
 		return 0
 	}
 	if len(args) == 1 && (args[0] == "version" || args[0] == "--version") {
-		fmt.Fprintln(os.Stdout, "gg "+version)
+		fmt.Fprintln(os.Stdout, "gg "+getVersion())
 		return 0
 	}
 	req, err := ParseRequest(args)
@@ -125,6 +126,19 @@ func run(args []string) int {
 		return fail(err)
 	}
 	return execChild(inv)
+}
+
+func getVersion() string {
+	if version != "dev" && version != "" {
+		return version
+	}
+	if info, ok := debug.ReadBuildInfo(); ok {
+		v := info.Main.Version
+		if v != "" && v != "(devel)" && !strings.HasPrefix(v, "v0.0.0-") {
+			return v
+		}
+	}
+	return "dev"
 }
 
 func nestedHelp(args []string) (string, bool) {

@@ -5,7 +5,8 @@ on:
   push:
     branches:
       - main
-
+    tags:
+      - "v*"
 permissions:
   contents: read
 
@@ -34,3 +35,33 @@ jobs:
 
       - name: Test
         run: go test ./...
+
+  release:
+    name: Release
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Build and package release assets
+        run: |
+          mkdir -p dist
+          go test -v -run '^TestBuildAndPackageRelease$' .
+        env:
+          GG_RELEASE_OUT_DIR: dist
+          GG_RELEASE_VERSION: ${{ github.ref_name }}
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" dist/* --title "${{ github.ref_name }}" --generate-notes
