@@ -426,16 +426,8 @@ func setupFakeGH(t *testing.T) (bin, fakeDir, logFile string) {
 func tempRepo(t *testing.T, remoteURL string) string {
 	t.Helper()
 	dir := t.TempDir()
-	for _, args := range [][]string{
-		{"init", "-q"},
-		{"remote", "add", "origin", remoteURL},
-	} {
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
+	gitIn(t, dir, "init", "-q")
+	gitIn(t, dir, "remote", "add", "origin", remoteURL)
 	return dir
 }
 
@@ -458,7 +450,7 @@ func assertGGHelp(t *testing.T, bin string, args, wants []string) {
 func TestE2ETopLevelHelp(t *testing.T) {
 	bin := buildGG(t)
 	for _, args := range [][]string{nil, {"help"}, {"--help"}, {"-h"}} {
-		assertGGHelp(t, bin, args, []string{"Usage:", "Commands:", "issue", "pr", "config", "--repo"})
+		assertGGHelp(t, bin, args, []string{"Usage:", "Commands:", "issue", "pr", "config", "--repo", "--remote"})
 	}
 }
 
@@ -489,11 +481,9 @@ func assertGGHelpOmits(t *testing.T, bin string, args []string, unsupported stri
 	}
 }
 
-func TestE2EHelpDoesNotAdvertiseUnsupportedRemoteFlag(t *testing.T) {
+func TestE2EConfigHelpDoesNotAdvertiseRemoteFlag(t *testing.T) {
 	bin := buildGG(t)
-	for _, args := range [][]string{nil, {"config", "--help"}, {"issue", "--help"}, {"issue", "list", "--help"}, {"pr", "create", "--help"}} {
-		assertGGHelpOmits(t, bin, args, "--remote")
-	}
+	assertGGHelpOmits(t, bin, []string{"config", "--help"}, "--remote")
 }
 
 func TestE2ENestedHelpDoesNotAdvertiseUnsupportedShortFlag(t *testing.T) {
@@ -510,9 +500,9 @@ func TestE2ENestedHelp(t *testing.T) {
 		want []string
 	}{
 		{[]string{"config", "--help"}, []string{"Usage:", "config list", "config set", "config unset", "Flags:", "--help"}},
-		{[]string{"issue", "--help"}, []string{"Usage:", "list", "view", "create", "--repo", "--help"}},
-		{[]string{"issue", "list", "--help"}, []string{"Usage:", "--state", "--limit", "--repo", "--help"}},
-		{[]string{"pr", "create", "--help"}, []string{"Usage:", "--title", "--body", "--base", "--head", "--draft", "--repo", "--help"}},
+		{[]string{"issue", "--help"}, []string{"Usage:", "list", "view", "create", "--repo", "--remote", "--help"}},
+		{[]string{"issue", "list", "--help"}, []string{"Usage:", "--state", "--limit", "--repo", "--remote", "--help"}},
+		{[]string{"pr", "create", "--help"}, []string{"Usage:", "--title", "--body", "--base", "--head", "--draft", "--repo", "--remote", "--help"}},
 	}
 	for _, tt := range tests {
 		assertGGHelp(t, bin, tt.args, tt.want)
@@ -566,6 +556,24 @@ func TestE2EVersion(t *testing.T) {
 	}
 }
 
+func tempRepoWithUpstream(t *testing.T) string {
+	t.Helper()
+	repo := tempRepo(t, "https://github.com/o/origin.git")
+	gitIn(t, repo, "remote", "add", "upstream", "https://github.com/o/upstream.git")
+	return repo
+}
+
+func gitIn(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, out)
+	}
+	return strings.TrimSpace(string(out))
+}
+
 func TestE2EGitHubIssueList(t *testing.T) {
 	bin := buildGG(t)
 	fakeDir := t.TempDir()
@@ -580,6 +588,144 @@ func TestE2EGitHubIssueList(t *testing.T) {
 	got := readLog(t, logFile)
 	if !strings.Contains(got, "gh issue list -R github.com/o/r --limit 3") {
 		t.Errorf("gh argv = %q", got)
+	}
+}
+
+func TestE2ERepositoryContextRemoteBeforeAndAfterCommand(t *testing.T) {
+	bin, fakeDir, logFile := setupFakeGH(t)
+	repo := tempRepoWithUpstream(t)
+
+	for _, args := range [][]string{
+		{"--remote", "upstream", "issue", "list"},
+		{"issue", "list", "--remote", "upstream"},
+	} {
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, args...)
+		if code != 0 {
+			t.Fatalf("gg %v: exit %d: %s", args, code, out)
+		}
+		if got := readLog(t, logFile); got != "gh issue list -R github.com/o/upstream" {
+			t.Errorf("gg %v argv = %q", args, got)
+		}
+	}
+}
+
+func TestE2EAutomaticRepositoryContextSelectionOrder(t *testing.T) {
+	bin, fakeDir, logFile := setupFakeGH(t)
+
+	t.Run("branch upstream", func(t *testing.T) {
+		repo := tempRepoWithUpstream(t)
+		gitIn(t, repo, "config", "user.name", "gg test")
+		gitIn(t, repo, "config", "user.email", "gg-test@example.com")
+		gitIn(t, repo, "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "test")
+		branch := gitIn(t, repo, "branch", "--show-current")
+		gitIn(t, repo, "config", "branch."+branch+".remote", "upstream")
+
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, "issue", "list")
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, out)
+		}
+		if got := readLog(t, logFile); got != "gh issue list -R github.com/o/upstream" {
+			t.Errorf("argv = %q", got)
+		}
+	})
+
+	t.Run("origin", func(t *testing.T) {
+		repo := tempRepo(t, "https://github.com/o/origin.git")
+		gitIn(t, repo, "remote", "add", "other", "https://github.com/o/other.git")
+
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, "issue", "list")
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, out)
+		}
+		if got := readLog(t, logFile); got != "gh issue list -R github.com/o/origin" {
+			t.Errorf("argv = %q", got)
+		}
+	})
+
+	t.Run("single remote", func(t *testing.T) {
+		repo := t.TempDir()
+		gitIn(t, repo, "init", "-q")
+		gitIn(t, repo, "remote", "add", "solo", "https://github.com/o/solo.git")
+
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, "issue", "list")
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, out)
+		}
+		if got := readLog(t, logFile); got != "gh issue list -R github.com/o/solo" {
+			t.Errorf("argv = %q", got)
+		}
+	})
+}
+
+func TestE2ERepositoryContextShowsAvailableNamesForMissingRemote(t *testing.T) {
+	bin, fakeDir, logFile := setupFakeGH(t)
+	repo := tempRepoWithUpstream(t)
+
+	out, code := runGG(t, bin, fakeDir, repo, "--remote", "missing", "issue", "list")
+	if code != 1 {
+		t.Fatalf("exit = %d, want 1: %s", code, out)
+	}
+	for _, want := range []string{`remote "missing" not found`, "origin", "upstream"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output에 %q 필요: %s", want, out)
+		}
+	}
+	if got := readLog(t, logFile); got != "" {
+		t.Errorf("child command should not run, got %q", got)
+	}
+}
+
+func TestE2ERepositoryContextFlagConflictIsUsageError(t *testing.T) {
+	bin, fakeDir, logFile := setupFakeGH(t)
+
+	out, code := runGG(t, bin, fakeDir, t.TempDir(),
+		"--repo", "https://github.com/o/r", "--remote", "upstream", "issue", "list")
+	if code != 2 {
+		t.Fatalf("exit = %d, want 2: %s", code, out)
+	}
+	for _, want := range []string{"cannot be used together", "Usage:"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output에 %q 필요: %s", want, out)
+		}
+	}
+	if got := readLog(t, logFile); got != "" {
+		t.Errorf("child command should not run, got %q", got)
+	}
+}
+
+func TestE2EEmptyRemoteNameInRepositoryContextIsUsageError(t *testing.T) {
+	bin, fakeDir, logFile := setupFakeGH(t)
+	repo := tempRepo(t, "https://github.com/o/origin.git")
+
+	for _, args := range [][]string{
+		{"--remote", "", "issue", "list"},
+		{"issue", "list", "--remote", ""},
+	} {
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, args...)
+		if code != 2 {
+			t.Fatalf("gg %v: exit = %d, want 2: %s", args, code, out)
+		}
+		if !strings.Contains(out, "--remote needs a name") {
+			t.Errorf("gg %v output: %s", args, out)
+		}
+		if got := readLog(t, logFile); got != "" {
+			t.Errorf("gg %v child command should not run, got %q", args, got)
+		}
 	}
 }
 

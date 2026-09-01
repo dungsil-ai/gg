@@ -15,6 +15,7 @@ type Request struct {
 	Resource                   string // "repo" | "issue" | "pr"
 	Action                     string // list | view | create | clone | pull | push
 	RepoFlag                   string // --repo 값
+	RemoteFlag                 string // --remote 값
 	Number                     string // issue/pr view 대상
 	CloneURL                   string
 	CloneDir                   string
@@ -32,12 +33,14 @@ var repoActions = map[string]bool{
 
 func ParseRequest(args []string) (Request, error) {
 	var req Request
-	for len(args) >= 2 && args[0] == "--repo" {
-		req.RepoFlag = args[1]
+	for len(args) >= 2 && (args[0] == "--repo" || args[0] == "--remote") {
+		if err := setContextFlag(&req, args[0], args[1]); err != nil {
+			return req, err
+		}
 		args = args[2:]
 	}
-	if len(args) == 1 && args[0] == "--repo" {
-		return req, usageErr("--repo needs a URL")
+	if len(args) == 1 && (args[0] == "--repo" || args[0] == "--remote") {
+		return req, setContextFlag(&req, args[0], "")
 	}
 	if len(args) == 0 {
 		return req, usageErr("missing command")
@@ -73,7 +76,35 @@ func ParseRequest(args []string) (Request, error) {
 	default:
 		return req, usageErr("unknown command " + head)
 	}
-	return req, parseRest(&req, rest)
+	if err := parseRest(&req, rest); err != nil {
+		return req, err
+	}
+	if req.RepoFlag != "" && req.RemoteFlag != "" {
+		return req, usageErr("--repo and --remote cannot be used together")
+	}
+	if req.RemoteFlag != "" && !supportsRemote(req) {
+		return req, usageErr("--remote is not supported for " + req.Resource + " " + req.Action)
+	}
+	return req, nil
+}
+
+func supportsRemote(req Request) bool {
+	return req.Resource != "repo" || req.Action == "list" || req.Action == "view"
+}
+
+func setContextFlag(req *Request, flag, value string) error {
+	if value == "" {
+		if flag == "--repo" {
+			return usageErr("--repo needs a URL")
+		}
+		return usageErr("--remote needs a name")
+	}
+	if flag == "--repo" {
+		req.RepoFlag = value
+	} else {
+		req.RemoteFlag = value
+	}
+	return nil
 }
 
 // flagLoop은 허용된 flag만 소비하고 positional 인자를 돌려준다.
@@ -85,11 +116,13 @@ func flagLoop(req *Request, args []string, strs map[string]*string, bools map[st
 			pos = append(pos, a)
 			continue
 		}
-		if a == "--repo" {
+		if a == "--repo" || a == "--remote" {
 			if i+1 >= len(args) {
-				return nil, usageErr("--repo needs a URL")
+				return nil, setContextFlag(req, a, "")
 			}
-			req.RepoFlag = args[i+1]
+			if err := setContextFlag(req, a, args[i+1]); err != nil {
+				return nil, err
+			}
 			i++
 			continue
 		}
