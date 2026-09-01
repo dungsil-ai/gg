@@ -12,14 +12,15 @@ func usageErr(m string) error      { return UsageError{Msg: m} }
 
 // Request는 파싱된 공통 명령이다.
 type Request struct {
-	Resource   string // "repo" | "issue" | "pr"
-	Action     string // list | view | create | clone | pull | push
-	RepoFlag   string // --repo 값
-	RemoteFlag string // --remote 값
-	Number     string // issue/pr view 대상
-	CloneURL   string
-	CloneDir   string
-	GitArgs    []string // pull/push는 검사 없이 git으로 전달
+	Resource                   string // "repo" | "issue" | "pr"
+	Action                     string // list | view | create | clone | pull | push
+	RepoFlag                   string // --repo 값
+	RemoteFlag                 string // --remote 값
+	Number                     string // issue/pr view 대상
+	CloneURL                   string
+	CloneDir                   string
+	GitArgs                    []string // pull/push는 검사 없이 git으로 전달
+	ConfigHost, ConfigProvider string
 
 	Title, Body, Base, Head, State, Limit, Description string
 	Draft, Public, Private, AllowInsecureHTTP          bool
@@ -46,6 +47,15 @@ func ParseRequest(args []string) (Request, error) {
 	}
 	head, rest := args[0], args[1:]
 	switch {
+	case head == "config":
+		req.Resource = head
+		if len(rest) == 0 {
+			return req, usageErr("config needs an action: list, set, unset")
+		}
+		req.Action, rest = rest[0], rest[1:]
+		if req.Action != "list" && req.Action != "set" && req.Action != "unset" {
+			return req, usageErr("config does not support " + req.Action)
+		}
 	case head == "issue" || head == "pr":
 		req.Resource = head
 		if len(rest) == 0 {
@@ -135,6 +145,23 @@ func flagLoop(req *Request, args []string, strs map[string]*string, bools map[st
 
 func parseRest(req *Request, args []string) error {
 	switch req.Resource + " " + req.Action {
+	case "config list":
+		if len(args) != 0 {
+			return usageErr("usage: gg config list")
+		}
+		return nil
+	case "config set":
+		if len(args) != 2 {
+			return usageErr("usage: gg config set <host> <provider>")
+		}
+		req.ConfigHost, req.ConfigProvider = args[0], args[1]
+		return nil
+	case "config unset":
+		if len(args) != 1 {
+			return usageErr("usage: gg config unset <host>")
+		}
+		req.ConfigHost = args[0]
+		return nil
 	case "repo pull", "repo push":
 		req.GitArgs = args
 		return nil

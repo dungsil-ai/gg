@@ -40,6 +40,12 @@ func TestParseRequest(t *testing.T) {
 			want: Request{Resource: "repo", Action: "pull", GitArgs: []string{"--rebase", "origin", "main"}}},
 		{name: "push 전달", args: []string{"repo", "push", "--force-with-lease"},
 			want: Request{Resource: "repo", Action: "push", GitArgs: []string{"--force-with-lease"}}},
+		{name: "config list", args: []string{"config", "list"},
+			want: Request{Resource: "config", Action: "list"}},
+		{name: "config set", args: []string{"config", "set", "Git.Example.com:8443", "glab"},
+			want: Request{Resource: "config", Action: "set", ConfigHost: "Git.Example.com:8443", ConfigProvider: "glab"}},
+		{name: "config unset", args: []string{"config", "unset", "git.example.com"},
+			want: Request{Resource: "config", Action: "unset", ConfigHost: "git.example.com"}},
 	}
 	for _, c := range cases {
 		got, err := ParseRequest(c.args)
@@ -143,6 +149,13 @@ func TestParseRequestErrors(t *testing.T) {
 		{"create", "--repo", "https://x.com/o/r"},                          // 공개 범위 없음
 		{"create", "--repo", "https://x.com/o/r", "--public", "--private"}, // 둘 다 지정
 		{"list", "extra"}, // list에 positional
+		{"config"},
+		{"config", "show"},
+		{"config", "list", "extra"},
+		{"config", "set", "only-host"},
+		{"config", "set", "host", "gh", "extra"},
+		{"config", "unset"},
+		{"config", "unset", "host", "extra"},
 	}
 	for _, args := range bad {
 		_, err := ParseRequest(args)
