@@ -1,4 +1,4 @@
-module gg
+module github.com/dungsil-ai/gg
 
 go 1.22
 
