@@ -165,9 +165,9 @@ func TestBuildAndPackageRelease(t *testing.T) {
 	}
 
 	for _, tg := range targets {
-		archiveName := fmt.Sprintf("gg_0.1.0_%s_%s.%s", tg.goos, tg.goarch, tg.ext)
+		archiveName := ReleaseArchiveName(version, tg.goos, tg.goarch)
 		archivePath := filepath.Join(outDir, archiveName)
-		checksumName := archiveName + ".sha256"
+		checksumName := ReleaseChecksumName(archiveName)
 		checksumPath := filepath.Join(outDir, checksumName)
 
 		archiveData, err := os.ReadFile(archivePath)
@@ -205,10 +205,11 @@ func TestBuildAndPackageRelease(t *testing.T) {
 				t.Fatalf("바이너리 쓰기 실패: %v", err)
 			}
 
+			wantVersionOutput := fmt.Sprintf("gg %s\n", version)
 			for _, args := range [][]string{{"version"}, {"--version"}} {
 				stdout, stderr, code := runGGStreams(t, binPath, t.TempDir(), args...)
-				if code != 0 || stdout != "gg v0.1.0\n" || stderr != "" {
-					t.Errorf("release binary %v = stdout %q, stderr %q, exit %d; want stdout %q, exit 0", args, stdout, stderr, code, "gg v0.1.0\n")
+				if code != 0 || stdout != wantVersionOutput || stderr != "" {
+					t.Errorf("release binary %v = stdout %q, stderr %q, exit %d; want stdout %q, exit 0", args, stdout, stderr, code, wantVersionOutput)
 				}
 			}
 		}
@@ -266,3 +267,119 @@ func TestREADMEContent(t *testing.T) {
 		}
 	}
 }
+
+func TestReleaseWorkflowGate(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join(".github", "workflows", "ci.yml"))
+	if err != nil {
+		t.Fatalf("ci.yml 읽기 실패: %v", err)
+	}
+	content := strings.ReplaceAll(string(data), "\r\n", "\n")
+
+	// 1. jobs 섹션 및 잡별 블록 추출
+	jobsIdx := strings.Index(content, "\njobs:\n")
+	if jobsIdx == -1 {
+		t.Fatalf("ci.yml에 jobs 섹션이 없습니다")
+	}
+	headerBlock := content[:jobsIdx]
+	jobsContent := content[jobsIdx+len("\njobs:\n"):]
+
+	extractJobBlock := func(jobName string) (string, error) {
+		lines := strings.Split(jobsContent, "\n")
+		var jobLines []string
+		inJob := false
+		for _, line := range lines {
+			if strings.HasPrefix(line, "  "+jobName+":") {
+				inJob = true
+				jobLines = append(jobLines, line)
+				continue
+			}
+			if inJob {
+				if len(line) > 0 && !strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "\t") {
+					break
+				}
+				if strings.HasPrefix(line, "  ") && len(line) > 2 && line[2] != ' ' && line[2] != '\t' {
+					// 다른 top-level 잡 시작
+					break
+				}
+				jobLines = append(jobLines, line)
+			}
+		}
+		if !inJob {
+			return "", fmt.Errorf("잡 %q을 찾을 수 없습니다", jobName)
+		}
+		return strings.Join(jobLines, "\n"), nil
+	}
+
+	verifyBlock, err := extractJobBlock("verify")
+	if err != nil {
+		t.Fatalf("verify 잡 추출 실패: %v", err)
+	}
+	releaseBlock, err := extractJobBlock("release")
+	if err != nil {
+		t.Fatalf("release 잡 추출 실패: %v", err)
+	}
+	// 2. 트리거 계약: v* tag push 검증
+	if !strings.Contains(headerBlock, `tags:`) || !strings.Contains(headerBlock, `"v*"`) {
+		t.Errorf("ci.yml push 트리거에 tags v* 항목이 없습니다")
+	}
+
+	// 3. verify 잡 계약: OS 매트릭스 및 테스트/vet 검증
+	for _, expected := range []string{"ubuntu-latest", "windows-latest", "go vet ./...", "go test ./..."} {
+		if !strings.Contains(verifyBlock, expected) {
+			t.Errorf("verify 잡 블록에 필수 항목 %q가 없습니다", expected)
+		}
+	}
+
+	// 4. release 잡 계약: verify 잡 성공 종속성, v* 태그 가드, permissions
+	for _, expected := range []string{
+		"needs: verify",
+		"if: startsWith(github.ref, 'refs/tags/v')",
+		"contents: write",
+	} {
+		if !strings.Contains(releaseBlock, expected) {
+			t.Errorf("release 잡 블록에 필수 설정 %q가 없습니다", expected)
+		}
+	}
+
+	// 5. release 잡 스텝 순서 및 빌드/배포 명령 검증
+	buildStepIdx := strings.Index(releaseBlock, "TestBuildAndPackageRelease")
+	publishStepIdx := strings.Index(releaseBlock, "gh release create")
+	if buildStepIdx == -1 {
+		t.Errorf("release 잡에 6개 타겟 빌드/패키징 스텝(TestBuildAndPackageRelease)이 없습니다")
+	}
+	if publishStepIdx == -1 {
+		t.Errorf("release 잡에 GitHub Release 발행 스텝(gh release create)이 없습니다")
+	}
+	if buildStepIdx != -1 && publishStepIdx != -1 && buildStepIdx >= publishStepIdx {
+		t.Errorf("release 잡에서 빌드/패키징 스텝이 배포 스텝보다 먼저 실행되어야 합니다")
+	}
+
+	if !strings.Contains(releaseBlock, "GG_RELEASE_OUT_DIR: dist") || !strings.Contains(releaseBlock, "GG_RELEASE_VERSION: ${{ github.ref_name }}") {
+		t.Errorf("release 잡 빌드 스텝에 환경 변수 설정(GG_RELEASE_OUT_DIR, GG_RELEASE_VERSION)이 누락되었습니다")
+	}
+	if !strings.Contains(releaseBlock, `gh release create "${{ github.ref_name }}" dist/* --title "${{ github.ref_name }}" --generate-notes`) {
+		t.Errorf("release 잡 배포 명령이 올바르지 않습니다")
+	}
+
+	// 6. 범위 외 요소 금지: --draft, Windows signing, macOS notarization, GPG, Sigstore
+	forbiddenItems := []struct {
+		pattern string
+		reason  string
+	}{
+		{"--draft", "Draft release 생성 플래그"},
+		{"signtool", "Windows code signing 도구"},
+		{"codesign", "macOS signing 도구"},
+		{"notarize", "macOS notarization"},
+		{"gon ", "macOS notarization 도구"},
+		{"gpg", "GPG 서명"},
+		{"cosign", "Sigstore cosign 서명"},
+		{"sigstore", "Sigstore"},
+	}
+
+	for _, item := range forbiddenItems {
+		if strings.Contains(strings.ToLower(content), strings.ToLower(item.pattern)) {
+			t.Errorf("ci.yml에 허용되지 않는 항목(%s: %q)이 포함되어 있습니다", item.reason, item.pattern)
+		}
+	}
+}
+

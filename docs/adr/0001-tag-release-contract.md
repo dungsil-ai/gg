@@ -8,4 +8,6 @@ Release archive 이름은 `gg_<version>_<os>_<arch>.<ext>`로 한다. Windows는
 
 Release binary는 `gg version`과 `gg --version`에서 `gg v0.1.0`처럼 tag version을 보여준다. 일반 local build는 `gg dev`를 보여준다. `v0.x` 범위에서는 SHA-256만 제공하고 Windows code signing, macOS notarization, GPG, Sigstore는 인증서와 secret 관리 범위를 늘리므로 제외한다.
 
+검증은 두 근거를 분리한다. Workflow 수준 검증은 로컬과 CI 테스트에서 워크플로 구성과 빌드/아카이브/체크섬 생성을 확인하고, 실제 `v*` tag 공개 운영 gate는 GitHub Actions 실행 환경에서 verify 성공 및 6개 OS/arch build 성공 후 public GitHub Release가 생성되는 것으로 확인한다.
+
 Draft release와 공통 checksum 파일도 검토했다. Tag 자체를 공개 승인으로 쓰고 각 파일 옆에서 checksum을 바로 찾을 수 있게 하기 위해 선택하지 않았다.
