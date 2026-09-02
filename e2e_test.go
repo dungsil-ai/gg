@@ -450,7 +450,7 @@ func assertGGHelp(t *testing.T, bin string, args, wants []string) {
 func TestE2ETopLevelHelp(t *testing.T) {
 	bin := buildGG(t)
 	for _, args := range [][]string{nil, {"help"}, {"--help"}, {"-h"}} {
-		assertGGHelp(t, bin, args, []string{"Usage:", "Commands:", "issue", "pr", "config", "--repo", "--remote"})
+		assertGGHelp(t, bin, args, []string{"Usage:", "Commands:", "commit", "issue", "pr", "config", "--repo", "--remote"})
 	}
 }
 
@@ -744,6 +744,39 @@ func TestE2EPullPassesThroughToGit(t *testing.T) {
 	}
 	got := readLog(t, logFile)
 	if !strings.Contains(got, "git pull --rebase origin main") {
+		t.Errorf("git argv = %q", got)
+	}
+}
+
+func TestE2ECommitAlwaysDisablesSigning(t *testing.T) {
+	bin := buildGG(t)
+	repo := tempRepo(t, "https://github.com/o/r.git")
+	gitIn(t, repo, "config", "user.name", "gg test")
+	gitIn(t, repo, "config", "user.email", "gg-test@example.com")
+	gitIn(t, repo, "config", "commit.gpgSign", "true")
+	gitIn(t, repo, "config", "gpg.program", filepath.Join(t.TempDir(), "missing-gpg"))
+
+	out, code := runGG(t, bin, "", repo, "commit", "--allow-empty", "-m", "unsigned")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, out)
+	}
+	if got := gitIn(t, repo, "log", "-1", "--format=%s"); got != "unsigned" {
+		t.Errorf("commit subject = %q, want unsigned", got)
+	}
+}
+
+func TestE2ECommitPassesThroughToGitWithNoGpgSign(t *testing.T) {
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	writeFakeBin(t, fakeDir, "git", logFile)
+
+	out, code := runGG(t, bin, fakeDir, t.TempDir(), "commit", "-m", "msg")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, out)
+	}
+	got := readLog(t, logFile)
+	if !strings.Contains(got, "git commit --no-gpg-sign -m msg") {
 		t.Errorf("git argv = %q", got)
 	}
 }
