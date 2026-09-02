@@ -13,13 +13,13 @@ func usageErr(m string) error      { return UsageError{Msg: m} }
 // Request는 파싱된 공통 명령이다.
 type Request struct {
 	Resource                   string // "repo" | "issue" | "pr"
-	Action                     string // list | view | create | clone | pull | push
+	Action                     string // list | view | create | clone | commit | pull | push
 	RepoFlag                   string // --repo 값
 	RemoteFlag                 string // --remote 값
 	Number                     string // issue/pr view 대상
 	CloneURL                   string
 	CloneDir                   string
-	GitArgs                    []string // pull/push는 검사 없이 git으로 전달
+	GitArgs                    []string // commit/pull/push는 검사 없이 git으로 전달
 	ConfigHost, ConfigProvider string
 
 	Title, Body, Base, Head, State, Limit, Description string
@@ -28,7 +28,7 @@ type Request struct {
 
 var repoActions = map[string]bool{
 	"list": true, "view": true, "create": true,
-	"clone": true, "pull": true, "push": true,
+	"clone": true, "commit": true, "pull": true, "push": true,
 }
 
 func ParseRequest(args []string) (Request, error) {
@@ -77,7 +77,7 @@ globalFlags:
 	case head == "repo":
 		req.Resource = "repo"
 		if len(rest) == 0 || !repoActions[rest[0]] {
-			return req, usageErr("repo needs an action: list, view, create, clone, pull, push")
+			return req, usageErr("repo needs an action: list, view, create, clone, commit, pull, push")
 		}
 		req.Action, rest = rest[0], rest[1:]
 	case repoActions[head]: // gg list == gg repo list
@@ -188,7 +188,7 @@ func parseRest(req *Request, args []string) error {
 		}
 		req.ConfigHost = args[0]
 		return nil
-	case "repo pull", "repo push":
+	case "repo commit", "repo pull", "repo push":
 		req.GitArgs = args
 		return nil
 	case "repo clone":

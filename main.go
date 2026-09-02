@@ -35,6 +35,7 @@ Commands:
   issue      List, view, or create issues
   pr         List, view, or create pull requests
   config     Provider 설정 관리
+  commit     Run git commit without signing
   pull       Run git pull
   push       Run git push
   version    Show gg version
@@ -249,6 +250,9 @@ type executionPlan struct {
 }
 
 func resolvePlan(req Request) (executionPlan, error) {
+	if req.Action == "commit" {
+		return executionPlan{inv: Invocation{Bin: "git", Args: append([]string{"commit", "--no-gpg-sign"}, req.GitArgs...)}}, nil
+	}
 	if req.Action == "pull" || req.Action == "push" {
 		return executionPlan{inv: Invocation{Bin: "git", Args: append([]string{req.Action}, req.GitArgs...)}}, nil
 	}

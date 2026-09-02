@@ -36,6 +36,8 @@ func TestParseRequest(t *testing.T) {
 			want: Request{Resource: "repo", Action: "clone", CloneURL: "https://github.com/o/r", CloneDir: "dst"}},
 		{name: "clone allow insecure http", args: []string{"clone", "http://git.example.com/o/r", "--allow-insecure-http"},
 			want: Request{Resource: "repo", Action: "clone", CloneURL: "http://git.example.com/o/r", AllowInsecureHTTP: true}},
+		{name: "commit 전달", args: []string{"commit", "--allow-empty", "-m", "test"},
+			want: Request{Resource: "repo", Action: "commit", GitArgs: []string{"--allow-empty", "-m", "test"}}},
 		{name: "pull 전달", args: []string{"pull", "--rebase", "origin", "main"},
 			want: Request{Resource: "repo", Action: "pull", GitArgs: []string{"--rebase", "origin", "main"}}},
 		{name: "push 전달", args: []string{"repo", "push", "--force-with-lease"},
@@ -110,6 +112,7 @@ func TestParseRequestRepositoryContextRemoteScope(t *testing.T) {
 
 	for _, args := range [][]string{
 		{"--remote", "upstream", "clone", "https://github.com/o/r"},
+		{"--remote", "upstream", "commit"},
 		{"--remote", "upstream", "pull"},
 		{"--remote", "upstream", "push"},
 	} {
@@ -308,6 +311,18 @@ func TestPlanPullGoesToGit(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := Invocation{Bin: "git", Args: []string{"pull", "--rebase"}}
+	if !reflect.DeepEqual(inv, want) {
+		t.Errorf("plan = %+v, want %+v", inv, want)
+	}
+}
+
+func TestPlanCommitDisablesSigning(t *testing.T) {
+	req := Request{Resource: "repo", Action: "commit", GitArgs: []string{"--allow-empty", "-m", "test"}}
+	inv, err := plan(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := Invocation{Bin: "git", Args: []string{"commit", "--no-gpg-sign", "--allow-empty", "-m", "test"}}
 	if !reflect.DeepEqual(inv, want) {
 		t.Errorf("plan = %+v, want %+v", inv, want)
 	}
