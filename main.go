@@ -29,11 +29,12 @@ Usage:
   gg issue --help
   gg issue list --help
   gg pr create --help
+  gg pr merge --help
 
 Commands:
   repo       List, view, create, or clone repositories
   issue      List, view, create, comment, close, or reopen issues
-  pr         List, view, or create pull requests
+  pr         List, view, create, or merge pull requests
   config     Provider 설정 관리
   commit     Run git commit without signing
   pull       Run git pull
@@ -134,6 +135,21 @@ Flags:
   --explain          선택한 저장소 문맥, Provider, 실행할 CLI를 설명
 ` + nestedHelpFlag
 
+const prMergeHelp = `Merge a pull request.
+
+Usage:
+  gg pr merge <number> [flags]
+
+Flags:
+  --merge           Merge the pull request
+  --squash          Squash and merge the pull request
+  --rebase          Rebase and merge the pull request
+  --delete-branch   Delete the source branch after merging
+  --auto            Enable auto-merge after required approvals and CI pass
+` + repositoryContextFlags + `
+  --explain          선택한 저장소 문맥, Provider, 실행할 CLI를 설명
+` + nestedHelpFlag
+
 func main() { os.Exit(run(os.Args[1:])) }
 
 func run(args []string) int {
@@ -210,6 +226,8 @@ func nestedHelp(args []string) (string, bool) {
 		return issueReopenHelp, true
 	case "pr create --help":
 		return prCreateHelp, true
+	case "pr merge --help":
+		return prMergeHelp, true
 	}
 	return "", false
 }
