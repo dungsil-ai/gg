@@ -65,8 +65,10 @@ gg --version
 gg config --help
 gg issue --help
 gg issue list --help
+gg issue comment --help
+gg issue close --help
+gg issue reopen --help
 gg pr create --help
-```
 
 ## 저장소 문맥 선택 (--remote)
 
@@ -86,6 +88,19 @@ gg pr create --remote origin
 
 ```bash
 gg --repo https://github.com/dungsil-ai/gg issue list
+```
+
+## Issue 관리
+
+```bash
+# Issue 댓글 작성
+gg issue comment 18 --body "구현 완료되었습니다."
+
+# Issue 닫기
+gg issue close 18
+
+# Issue 다시 열기
+gg issue reopen 18
 ```
 
 ## Provider 설정
