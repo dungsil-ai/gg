@@ -23,7 +23,7 @@ type Request struct {
 	ConfigHost, ConfigProvider string
 
 	Title, Body, Base, Head, State, Limit, Description string
-	Draft, Public, Private, AllowInsecureHTTP          bool
+	Draft, Public, Private, AllowInsecureHTTP, Explain  bool
 }
 
 var repoActions = map[string]bool{
@@ -33,14 +33,23 @@ var repoActions = map[string]bool{
 
 func ParseRequest(args []string) (Request, error) {
 	var req Request
-	for len(args) >= 2 && (args[0] == "--repo" || args[0] == "--remote") {
-		if err := setContextFlag(&req, args[0], args[1]); err != nil {
-			return req, err
+globalFlags:
+	for len(args) > 0 {
+		switch args[0] {
+		case "--explain":
+			req.Explain = true
+			args = args[1:]
+		case "--repo", "--remote":
+			if len(args) < 2 {
+				return req, setContextFlag(&req, args[0], "")
+			}
+			if err := setContextFlag(&req, args[0], args[1]); err != nil {
+				return req, err
+			}
+			args = args[2:]
+		default:
+			break globalFlags
 		}
-		args = args[2:]
-	}
-	if len(args) == 1 && (args[0] == "--repo" || args[0] == "--remote") {
-		return req, setContextFlag(&req, args[0], "")
 	}
 	if len(args) == 0 {
 		return req, usageErr("missing command")
@@ -85,11 +94,24 @@ func ParseRequest(args []string) (Request, error) {
 	if req.RemoteFlag != "" && !supportsRemote(req) {
 		return req, usageErr("--remote is not supported for " + req.Resource + " " + req.Action)
 	}
+	if req.Explain && !supportsExplain(req) {
+		return req, usageErr("--explain is not supported for " + req.Resource + " " + req.Action)
+	}
 	return req, nil
 }
 
 func supportsRemote(req Request) bool {
 	return req.Resource != "repo" || req.Action == "list" || req.Action == "view"
+}
+
+func supportsExplain(req Request) bool {
+	if req.Resource == "config" {
+		return false
+	}
+	if req.Resource == "repo" && (req.Action == "pull" || req.Action == "push") {
+		return false
+	}
+	return true
 }
 
 func setContextFlag(req *Request, flag, value string) error {
@@ -124,6 +146,10 @@ func flagLoop(req *Request, args []string, strs map[string]*string, bools map[st
 				return nil, err
 			}
 			i++
+			continue
+		}
+		if a == "--explain" {
+			req.Explain = true
 			continue
 		}
 		if p, ok := bools[a]; ok {
