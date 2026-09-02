@@ -26,6 +26,12 @@ func TestParseRequest(t *testing.T) {
 			want: Request{Resource: "issue", Action: "view", Number: "42"}},
 		{name: "issue create", args: []string{"issue", "create", "--title", "t", "--body", "b"},
 			want: Request{Resource: "issue", Action: "create", Title: "t", Body: "b"}},
+		{name: "issue comment", args: []string{"issue", "comment", "42", "--body", "hello world"},
+			want: Request{Resource: "issue", Action: "comment", Number: "42", Body: "hello world"}},
+		{name: "issue close", args: []string{"issue", "close", "42"},
+			want: Request{Resource: "issue", Action: "close", Number: "42"}},
+		{name: "issue reopen", args: []string{"issue", "reopen", "42"},
+			want: Request{Resource: "issue", Action: "reopen", Number: "42"}},
 		{name: "pr list state", args: []string{"pr", "list", "--state", "all", "--limit", "3"},
 			want: Request{Resource: "pr", Action: "list", State: "all", Limit: "3"}},
 		{name: "pr create full", args: []string{"pr", "create", "--title", "t", "--body", "b", "--base", "main", "--head", "f", "--draft"},
@@ -99,6 +105,9 @@ func TestParseRequestRepositoryContextRemoteScope(t *testing.T) {
 		{"issue", "create", "--remote", "upstream"},
 		{"pr", "list", "--remote", "upstream"},
 		{"pr", "view", "1", "--remote", "upstream"},
+		{"issue", "comment", "1", "--body", "b", "--remote", "upstream"},
+		{"issue", "close", "1", "--remote", "upstream"},
+		{"issue", "reopen", "1", "--remote", "upstream"},
 		{"pr", "create", "--remote", "upstream"},
 	}
 	for _, args := range allowed {
@@ -140,9 +149,18 @@ func TestParseRequestErrors(t *testing.T) {
 		{},                                  // 명령 없음
 		{"unknown"},                         // 알 수 없는 자원
 		{"issue"},                           // action 없음
-		{"issue", "close", "1"},             // 지원 안 하는 action
-		{"issue", "view"},                   // number 없음
-		{"issue", "view", "1", "2"},         // 인자 초과
+		{"issue", "delete", "1"},                   // 지원 안 하는 action
+		{"issue", "view"},                          // number 없음
+		{"issue", "view", "1", "2"},                // 인자 초과
+		{"issue", "comment"},                       // number 없음
+		{"issue", "comment", "1"},                  // body 없음
+		{"issue", "comment", "1", "--body", ""},    // 빈 body
+		{"issue", "comment", "1", "--body", "   "}, // 공백 body
+		{"issue", "comment", "1", "2", "--body", "b"},
+		{"issue", "close"},                  // number 없음
+		{"issue", "close", "1", "2"},        // 인자 초과
+		{"issue", "reopen"},                 // number 없음
+		{"issue", "reopen", "1", "2"},       // 인자 초과
 		{"issue", "list", "--wat"},          // 알 수 없는 flag
 		{"pr", "list", "--state", "merged"}, // 지원 안 하는 state
 		{"pr", "create", "--title"},         // 값 없는 flag
@@ -188,6 +206,18 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "issue", Action: "list", State: "all", Limit: "5"},
 			repo: gh, p: GH,
 			want: Invocation{Bin: "gh", Args: []string{"issue", "list", "-R", "github.com/o/r", "--state", "all", "--limit", "5"}}},
+		{name: "gh issue comment",
+			req:  Request{Resource: "issue", Action: "comment", Number: "18", Body: "hello"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"issue", "comment", "18", "--body", "hello", "-R", "github.com/o/r"}}},
+		{name: "gh issue close",
+			req:  Request{Resource: "issue", Action: "close", Number: "18"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"issue", "close", "18", "-R", "github.com/o/r"}}},
+		{name: "gh issue reopen",
+			req:  Request{Resource: "issue", Action: "reopen", Number: "18"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"issue", "reopen", "18", "-R", "github.com/o/r"}}},
 		{name: "gh pr view",
 			req:  Request{Resource: "pr", Action: "view", Number: "7"},
 			repo: gh, p: GH,
@@ -238,6 +268,18 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "issue", Action: "view", Number: "9"},
 			repo: gl, p: GLab,
 			want: Invocation{Bin: "glab", Args: []string{"issue", "view", "9", "--repo", "https://git.example.com/grp/sub/p"}}},
+		{name: "glab issue comment",
+			req:  Request{Resource: "issue", Action: "comment", Number: "18", Body: "hello"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"issue", "note", "18", "--message", "hello", "--repo", "https://git.example.com/grp/sub/p"}}},
+		{name: "glab issue close",
+			req:  Request{Resource: "issue", Action: "close", Number: "18"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"issue", "close", "18", "--repo", "https://git.example.com/grp/sub/p"}}},
+		{name: "glab issue reopen",
+			req:  Request{Resource: "issue", Action: "reopen", Number: "18"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"issue", "reopen", "18", "--repo", "https://git.example.com/grp/sub/p"}}},
 		{name: "glab repo list",
 			req:  Request{Resource: "repo", Action: "list", Limit: "7"},
 			repo: gl, p: GLab,
@@ -252,6 +294,18 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "issue", Action: "list", State: "all", Limit: "5"},
 			repo: te, p: Tea, tea: "corp",
 			want: Invocation{Bin: "tea", Args: []string{"issues", "list", "--login", "corp", "--repo", "o/r", "--state", "all", "--limit", "5"}}},
+		{name: "tea issue comment",
+			req:  Request{Resource: "issue", Action: "comment", Number: "18", Body: "hello"},
+			repo: te, p: Tea, tea: "corp",
+			want: Invocation{Bin: "tea", Args: []string{"comment", "18", "hello", "--login", "corp", "--repo", "o/r"}}},
+		{name: "tea issue close",
+			req:  Request{Resource: "issue", Action: "close", Number: "18"},
+			repo: te, p: Tea, tea: "corp",
+			want: Invocation{Bin: "tea", Args: []string{"issues", "close", "18", "--login", "corp", "--repo", "o/r"}}},
+		{name: "tea issue reopen",
+			req:  Request{Resource: "issue", Action: "reopen", Number: "18"},
+			repo: te, p: Tea, tea: "corp",
+			want: Invocation{Bin: "tea", Args: []string{"issues", "reopen", "18", "--login", "corp", "--repo", "o/r"}}},
 		{name: "tea pr view",
 			req:  Request{Resource: "pr", Action: "view", Number: "3"},
 			repo: te, p: Tea, tea: "corp",
@@ -290,15 +344,15 @@ func TestTranslate(t *testing.T) {
 }
 
 func TestTranslateUnsupportedAction(t *testing.T) {
-	req := Request{Resource: "issue", Action: "close"}
+	req := Request{Resource: "issue", Action: "delete"}
 	repo := RepoURL{Host: "github.com", Owner: "o", Name: "r"}
 	for _, p := range []Provider{GH, GLab, Tea} {
 		_, err := Translate(req, repo, p, "corp")
 		var ue UsageError
 		if !errors.As(err, &ue) {
-			t.Fatalf("Translate(%s issue close): UsageError 기대, got %v", p, err)
+			t.Fatalf("Translate(%s issue delete): UsageError 기대, got %v", p, err)
 		}
-		if !strings.Contains(ue.Msg, "does not support close") {
+		if !strings.Contains(ue.Msg, "does not support delete") {
 			t.Errorf("provider %s error = %q, want unsupported action message", p, ue.Msg)
 		}
 	}

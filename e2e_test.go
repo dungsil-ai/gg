@@ -500,8 +500,11 @@ func TestE2ENestedHelp(t *testing.T) {
 		want []string
 	}{
 		{[]string{"config", "--help"}, []string{"Usage:", "config list", "config set", "config unset", "Flags:", "--help"}},
-		{[]string{"issue", "--help"}, []string{"Usage:", "list", "view", "create", "--repo", "--remote", "--help"}},
+		{[]string{"issue", "--help"}, []string{"Usage:", "list", "view", "create", "comment", "close", "reopen", "--repo", "--remote", "--help"}},
 		{[]string{"issue", "list", "--help"}, []string{"Usage:", "--state", "--limit", "--repo", "--remote", "--help"}},
+		{[]string{"issue", "comment", "--help"}, []string{"Usage:", "comment <number>", "--body", "--repo", "--remote", "--help"}},
+		{[]string{"issue", "close", "--help"}, []string{"Usage:", "close <number>", "--repo", "--remote", "--help"}},
+		{[]string{"issue", "reopen", "--help"}, []string{"Usage:", "reopen <number>", "--repo", "--remote", "--help"}},
 		{[]string{"pr", "create", "--help"}, []string{"Usage:", "--title", "--body", "--base", "--head", "--draft", "--repo", "--remote", "--help"}},
 	}
 	for _, tt := range tests {
@@ -1123,5 +1126,111 @@ func TestE2EExplainDoesNotLeakUserInputs(t *testing.T) {
 	}
 	if got := readLog(t, logFile); got != "" {
 		t.Errorf("child should not run, got: %q", got)
+	}
+}
+
+func TestE2EGitHubIssueCommentCloseReopen(t *testing.T) {
+	bin, fakeDir, logFile := setupFakeGH(t)
+	repo := tempRepoWithUpstream(t)
+
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"issue", "comment", "18", "--body", "fixed"}, "gh issue comment 18 --body fixed -R github.com/o/origin"},
+		{[]string{"issue", "close", "18"}, "gh issue close 18 -R github.com/o/origin"},
+		{[]string{"issue", "reopen", "18"}, "gh issue reopen 18 -R github.com/o/origin"},
+		{[]string{"issue", "comment", "18", "--body", "upstream-note", "--remote", "upstream"}, "gh issue comment 18 --body upstream-note -R github.com/o/upstream"},
+		{[]string{"issue", "close", "18", "--remote", "upstream"}, "gh issue close 18 -R github.com/o/upstream"},
+		{[]string{"issue", "reopen", "18", "--remote", "upstream"}, "gh issue reopen 18 -R github.com/o/upstream"},
+		{[]string{"--repo", "https://github.com/custom/repo", "issue", "comment", "18", "--body", "repo-flag"}, "gh issue comment 18 --body repo-flag -R github.com/custom/repo"},
+		{[]string{"--repo", "https://github.com/custom/repo", "issue", "close", "18"}, "gh issue close 18 -R github.com/custom/repo"},
+		{[]string{"--repo", "https://github.com/custom/repo", "issue", "reopen", "18"}, "gh issue reopen 18 -R github.com/custom/repo"},
+	}
+
+	for _, tc := range cases {
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, tc.args...)
+		if code != 0 {
+			t.Fatalf("gg %v: exit %d: %s", tc.args, code, out)
+		}
+		got := readLog(t, logFile)
+		if got != tc.want {
+			t.Errorf("gg %v argv = %q, want %q", tc.args, got, tc.want)
+		}
+	}
+}
+
+func TestE2EGitLabIssueCommentCloseReopen(t *testing.T) {
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	writeFakeBin(t, fakeDir, "glab", logFile)
+	repo := tempRepo(t, "https://gitlab.com/o/r.git")
+
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"issue", "comment", "18", "--body", "fixed"}, "glab issue note 18 --message fixed --repo https://gitlab.com/o/r"},
+		{[]string{"issue", "close", "18"}, "glab issue close 18 --repo https://gitlab.com/o/r"},
+		{[]string{"issue", "reopen", "18"}, "glab issue reopen 18 --repo https://gitlab.com/o/r"},
+	}
+
+	for _, tc := range cases {
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, tc.args...)
+		if code != 0 {
+			t.Fatalf("gg %v: exit %d: %s", tc.args, code, out)
+		}
+		got := readLog(t, logFile)
+		if got != tc.want {
+			t.Errorf("gg %v argv = %q, want %q", tc.args, got, tc.want)
+		}
+	}
+}
+
+func TestE2EGiteaIssueCommentCloseReopen(t *testing.T) {
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	var scriptPath, body string
+	if runtime.GOOS == "windows" {
+		scriptPath = filepath.Join(fakeDir, "tea.cmd")
+		body = "@echo off\r\nif \"%1\"==\"logins\" if \"%2\"==\"list\" (\r\n  echo [{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]\r\n  exit /b 0\r\n)\r\necho tea %* >> \"" + logFile + "\"\r\nexit /b 0\r\n"
+	} else {
+		scriptPath = filepath.Join(fakeDir, "tea")
+		body = "#!/bin/sh\nif [ \"$1\" = \"logins\" ] && [ \"$2\" = \"list\" ]; then\n  echo '[{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]'\n  exit 0\nfi\necho \"tea $@\" >> \"" + logFile + "\"\nexit 0\n"
+	}
+	if err := os.WriteFile(scriptPath, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	repo := tempRepo(t, "https://gitea.com/o/r.git")
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"issue", "comment", "18", "--body", "fixed"}, "tea comment 18 fixed --login pub --repo o/r"},
+		{[]string{"issue", "close", "18"}, "tea issues close 18 --login pub --repo o/r"},
+		{[]string{"issue", "reopen", "18"}, "tea issues reopen 18 --login pub --repo o/r"},
+	}
+
+	for _, tc := range cases {
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, tc.args...)
+		if code != 0 {
+			t.Fatalf("gg %v: exit %d: %s", tc.args, code, out)
+		}
+		got := readLog(t, logFile)
+		if got != tc.want {
+			t.Errorf("gg %v argv = %q, want %q", tc.args, got, tc.want)
+		}
 	}
 }

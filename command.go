@@ -13,10 +13,10 @@ func usageErr(m string) error      { return UsageError{Msg: m} }
 // Request는 파싱된 공통 명령이다.
 type Request struct {
 	Resource                   string // "repo" | "issue" | "pr"
-	Action                     string // list | view | create | clone | commit | pull | push
+	Action                     string // list | view | create | clone | comment | close | reopen | clone | pull | push
 	RepoFlag                   string // --repo 값
 	RemoteFlag                 string // --remote 값
-	Number                     string // issue/pr view 대상
+	Number                     string // issue/pr 대상 번호
 	CloneURL                   string
 	CloneDir                   string
 	GitArgs                    []string // commit/pull/push는 검사 없이 git으로 전달
@@ -65,7 +65,16 @@ globalFlags:
 		if req.Action != "list" && req.Action != "set" && req.Action != "unset" {
 			return req, usageErr("config does not support " + req.Action)
 		}
-	case head == "issue" || head == "pr":
+	case head == "issue":
+		req.Resource = head
+		if len(rest) == 0 {
+			return req, usageErr(head + " needs an action: list, view, create, comment, close, reopen")
+		}
+		req.Action, rest = rest[0], rest[1:]
+		if req.Action != "list" && req.Action != "view" && req.Action != "create" && req.Action != "comment" && req.Action != "close" && req.Action != "reopen" {
+			return req, usageErr(head + " does not support " + req.Action)
+		}
+	case head == "pr":
 		req.Resource = head
 		if len(rest) == 0 {
 			return req, usageErr(head + " needs an action: list, view, create")
@@ -233,13 +242,23 @@ func parseRest(req *Request, args []string) error {
 			return nil
 		}
 		return usageErr("--state must be open, closed, or all")
-	case "issue view", "pr view":
+	case "issue view", "pr view", "issue close", "issue reopen":
 		pos, err := flagLoop(req, args, nil, nil)
 		if err != nil {
 			return err
 		}
 		if len(pos) != 1 {
-			return usageErr("usage: gg " + req.Resource + " view <number>")
+			return usageErr("usage: gg " + req.Resource + " " + req.Action + " <number>")
+		}
+		req.Number = pos[0]
+		return nil
+	case "issue comment":
+		pos, err := flagLoop(req, args, map[string]*string{"--body": &req.Body}, nil)
+		if err != nil {
+			return err
+		}
+		if len(pos) != 1 || strings.TrimSpace(req.Body) == "" {
+			return usageErr("usage: gg issue comment <number> --body <text>")
 		}
 		req.Number = pos[0]
 		return nil
@@ -323,6 +342,13 @@ func ghInvocation(req Request, r RepoURL) (Invocation, error) {
 	case "issue view", "pr view":
 		inv.Args = append([]string{res, "view", req.Number}, target...)
 		inv.Env = nil
+	case "issue comment":
+		inv.Args = []string{"issue", "comment", req.Number, "--body", req.Body}
+		inv.Args = append(inv.Args, target...)
+		inv.Env = nil
+	case "issue close", "issue reopen":
+		inv.Args = append([]string{"issue", req.Action, req.Number}, target...)
+		inv.Env = nil
 	case "issue create", "pr create":
 		inv.Args = append([]string{res, "create"}, target...)
 		inv.Args = appendKV(inv.Args, "--title", req.Title)
@@ -376,6 +402,11 @@ func glabInvocation(req Request, r RepoURL) (Invocation, error) {
 		inv.Args = appendKV(inv.Args, "--per-page", req.Limit)
 	case "issue view", "pr view":
 		inv.Args = append([]string{res, "view", req.Number}, target...)
+	case "issue comment":
+		inv.Args = []string{"issue", "note", req.Number, "--message", req.Body}
+		inv.Args = append(inv.Args, target...)
+	case "issue close", "issue reopen":
+		inv.Args = append([]string{"issue", req.Action, req.Number}, target...)
 	case "issue create", "pr create":
 		inv.Args = append([]string{res, "create"}, target...)
 		inv.Args = appendKV(inv.Args, "--title", req.Title)
@@ -421,6 +452,10 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 		inv.Args = appendKV(inv.Args, "--limit", req.Limit)
 	case "issue view", "pr view":
 		inv.Args = append([]string{res, req.Number}, target...)
+	case "issue comment":
+		inv.Args = append([]string{"comment", req.Number, req.Body}, target...)
+	case "issue close", "issue reopen":
+		inv.Args = append([]string{"issues", req.Action, req.Number}, target...)
 	case "issue create", "pr create":
 		inv.Args = append([]string{res, "create"}, target...)
 		inv.Args = appendKV(inv.Args, "--title", req.Title)

@@ -32,7 +32,7 @@ Usage:
 
 Commands:
   repo       List, view, create, or clone repositories
-  issue      List, view, or create issues
+  issue      List, view, create, comment, close, or reopen issues
   pr         List, view, or create pull requests
   config     Provider 설정 관리
   commit     Run git commit without signing
@@ -60,7 +60,7 @@ Commands:
 Flags:
 ` + nestedHelpFlag
 
-const issueHelp = `List, view, or create issues.
+const issueHelp = `List, view, create, comment, close, or reopen issues.
 
 Usage:
   gg issue <command> [flags]
@@ -69,7 +69,9 @@ Commands:
   list      List issues
   view      View one issue
   create    Create an issue
-
+  comment   Comment on an issue
+  close     Close an issue
+  reopen    Reopen an issue
 Flags:
 ` + repositoryContextFlags + `
   --explain         선택한 저장소 문맥, Provider, 실행할 CLI를 설명
@@ -85,6 +87,36 @@ Flags:
   --limit <N>                 Limit the result count
 ` + repositoryContextFlags + `
   --explain                   선택한 저장소 문맥, Provider, 실행할 CLI를 설명
+` + nestedHelpFlag
+const issueCommentHelp = `Comment on an issue.
+
+Usage:
+  gg issue comment <number> [flags]
+
+Flags:
+  --body <text>     Set the body
+` + repositoryContextFlags + `
+  --explain         선택한 저장소 문맥, Provider, 실행할 CLI를 설명
+` + nestedHelpFlag
+
+const issueCloseHelp = `Close an issue.
+
+Usage:
+  gg issue close <number> [flags]
+
+Flags:
+` + repositoryContextFlags + `
+  --explain         선택한 저장소 문맥, Provider, 실행할 CLI를 설명
+` + nestedHelpFlag
+
+const issueReopenHelp = `Reopen an issue.
+
+Usage:
+  gg issue reopen <number> [flags]
+
+Flags:
+` + repositoryContextFlags + `
+  --explain         선택한 저장소 문맥, Provider, 실행할 CLI를 설명
 ` + nestedHelpFlag
 
 const prCreateHelp = `Create a pull request.
@@ -170,6 +202,12 @@ func nestedHelp(args []string) (string, bool) {
 		return issueHelp, true
 	case "issue list --help":
 		return issueListHelp, true
+	case "issue comment --help":
+		return issueCommentHelp, true
+	case "issue close --help":
+		return issueCloseHelp, true
+	case "issue reopen --help":
+		return issueReopenHelp, true
 	case "pr create --help":
 		return prCreateHelp, true
 	}
