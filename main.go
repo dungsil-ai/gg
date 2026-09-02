@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"os/exec"
@@ -42,6 +43,7 @@ Commands:
 
 Flags:
 ` + repositoryContextFlags + `
+  --explain         선택한 저장소 문맥, Provider, 실행할 CLI를 설명
 ` + topLevelHelpFlag + `
   --version         Show gg version`
 
@@ -70,6 +72,7 @@ Commands:
 
 Flags:
 ` + repositoryContextFlags + `
+  --explain         선택한 저장소 문맥, Provider, 실행할 CLI를 설명
 ` + nestedHelpFlag
 
 const issueListHelp = `List issues.
@@ -81,6 +84,7 @@ Flags:
   --state <open|closed|all>   Filter by state
   --limit <N>                 Limit the result count
 ` + repositoryContextFlags + `
+  --explain                   선택한 저장소 문맥, Provider, 실행할 CLI를 설명
 ` + nestedHelpFlag
 
 const prCreateHelp = `Create a pull request.
@@ -95,6 +99,7 @@ Flags:
   --head <branch>    Set the head branch
   --draft            Create a draft pull request
 ` + repositoryContextFlags + `
+  --explain          선택한 저장소 문맥, Provider, 실행할 CLI를 설명
 ` + nestedHelpFlag
 
 func main() { os.Exit(run(os.Args[1:])) }
@@ -122,13 +127,20 @@ func run(args []string) int {
 		}
 		return 0
 	}
+	if req.Explain {
+		ep, err := resolvePlan(req)
+		if err != nil {
+			return fail(err)
+		}
+		explain(os.Stdout, ep)
+		return 0
+	}
 	inv, err := plan(req)
 	if err != nil {
 		return fail(err)
 	}
 	return execChild(inv)
 }
-
 func getVersion() string {
 	if version != "dev" && version != "" {
 		return version
@@ -236,12 +248,19 @@ func plan(req Request) (Invocation, error) {
 	if req.Action == "commit" {
 		return Invocation{Bin: "git", Args: append([]string{"commit", "--no-gpg-sign"}, req.GitArgs...)}, nil
 	}
+type executionPlan struct {
+	repo     RepoURL
+	provider Provider
+	inv      Invocation
+}
+
+func resolvePlan(req Request) (executionPlan, error) {
 	if req.Action == "pull" || req.Action == "push" {
-		return Invocation{Bin: "git", Args: append([]string{req.Action}, req.GitArgs...)}, nil
+		return executionPlan{inv: Invocation{Bin: "git", Args: append([]string{req.Action}, req.GitArgs...)}}, nil
 	}
 	if req.Action == "clone" && isHTTPURL(req.CloneURL) {
 		if !req.AllowInsecureHTTP {
-			return Invocation{}, usageErr("HTTP clone is blocked by default; use HTTPS or SSH (or pass --allow-insecure-http)")
+			return executionPlan{}, usageErr("HTTP clone is blocked by default; use HTTPS or SSH (or pass --allow-insecure-http)")
 		}
 		fmt.Fprintln(os.Stderr, "gg: warning: allowing insecure HTTP clone; credentials or repository data may be exposed")
 	}
@@ -257,28 +276,43 @@ func plan(req Request) (Invocation, error) {
 			rawURL, err = CurrentRemoteURL()
 		}
 		if err != nil {
-			return Invocation{}, err
+			return executionPlan{}, err
 		}
 	}
 	repo, err := ParseRepoURL(rawURL)
 	if err != nil {
-		return Invocation{}, err
+		return executionPlan{}, err
 	}
 	cfg, err := LoadConfig()
 	if err != nil {
-		return Invocation{}, err
+		return executionPlan{}, err
 	}
 	p, err := DetectProvider(repo.Host, &cfg, stdinIsTerminal())
 	if err != nil {
-		return Invocation{}, err
+		return executionPlan{}, err
 	}
 	teaLogin := ""
 	if p == Tea && req.Action != "clone" {
 		if teaLogin = teaLoginName(repo.Host); teaLogin == "" {
-			return Invocation{}, fmt.Errorf("no tea login for %s (run: tea login add)", repo.Host)
+			return executionPlan{}, fmt.Errorf("no tea login for %s (run: tea login add)", repo.Host)
 		}
 	}
-	return Translate(req, repo, p, teaLogin)
+	inv, err := Translate(req, repo, p, teaLogin)
+	if err != nil {
+		return executionPlan{}, err
+	}
+	return executionPlan{repo: repo, provider: p, inv: inv}, nil
+}
+
+func plan(req Request) (Invocation, error) {
+	ep, err := resolvePlan(req)
+	return ep.inv, err
+}
+
+func explain(w io.Writer, ep executionPlan) {
+	fmt.Fprintf(w, "저장소 문맥: %s\n", ep.repo.HTTPS())
+	fmt.Fprintf(w, "Provider: %s\n", ep.provider)
+	fmt.Fprintf(w, "CLI: %s\n", ep.inv.Bin)
 }
 
 func isHTTPURL(raw string) bool {
