@@ -69,6 +69,7 @@ gg issue comment --help
 gg issue close --help
 gg issue reopen --help
 gg pr create --help
+gg pr merge --help
 
 ## 저장소 문맥 선택 (--remote)
 
@@ -102,6 +103,24 @@ gg issue close 18
 # Issue 다시 열기
 gg issue reopen 18
 ```
+
+## PR 병합
+
+```bash
+# PR 병합 (provider 기본 방식)
+gg pr merge 42
+
+# 병합 방식 지정: --merge, --squash, --rebase 중 하나
+gg pr merge 42 --squash
+
+# 병합 뒤 source branch 삭제
+gg pr merge 42 --squash --delete-branch
+
+# 필수 승인과 CI가 끝난 뒤 자동 병합
+gg pr merge 42 --auto
+```
+
+GitHub에서는 `gh pr merge`, GitLab에서는 `glab mr merge`로 보냅니다. Gitea(`tea`)는 아직 PR 병합을 지원하지 않습니다.
 
 ## Provider 설정
 

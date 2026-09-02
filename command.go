@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"strings"
 )
 
@@ -23,7 +24,10 @@ type Request struct {
 	ConfigHost, ConfigProvider string
 
 	Title, Body, Base, Head, State, Limit, Description string
-	Draft, Public, Private, AllowInsecureHTTP, Explain  bool
+	Draft, Public, Private, AllowInsecureHTTP, Explain bool
+
+	Merge, Squash, Rebase bool
+	DeleteBranch, Auto    bool
 }
 
 var repoActions = map[string]bool{
@@ -77,10 +81,10 @@ globalFlags:
 	case head == "pr":
 		req.Resource = head
 		if len(rest) == 0 {
-			return req, usageErr(head + " needs an action: list, view, create")
+			return req, usageErr(head + " needs an action: list, view, create, merge")
 		}
 		req.Action, rest = rest[0], rest[1:]
-		if req.Action != "list" && req.Action != "view" && req.Action != "create" {
+		if req.Action != "list" && req.Action != "view" && req.Action != "create" && req.Action != "merge" {
 			return req, usageErr(head + " does not support " + req.Action)
 		}
 	case head == "repo":
@@ -271,6 +275,28 @@ func parseRest(req *Request, args []string) error {
 			"--title": &req.Title, "--body": &req.Body,
 			"--base": &req.Base, "--head": &req.Head,
 		}, map[string]*bool{"--draft": &req.Draft})
+	case "pr merge":
+		pos, err := flagLoop(req, args, nil, map[string]*bool{
+			"--merge": &req.Merge, "--squash": &req.Squash, "--rebase": &req.Rebase,
+			"--delete-branch": &req.DeleteBranch, "--auto": &req.Auto,
+		})
+		if err != nil {
+			return err
+		}
+		if len(pos) != 1 {
+			return usageErr("usage: gg pr merge <number>")
+		}
+		methods := 0
+		for _, b := range []bool{req.Merge, req.Squash, req.Rebase} {
+			if b {
+				methods++
+			}
+		}
+		if methods > 1 {
+			return usageErr("--merge, --squash, --rebase are mutually exclusive; use at most one")
+		}
+		req.Number = pos[0]
+		return nil
 	}
 	return usageErr("unknown command")
 }
@@ -349,6 +375,25 @@ func ghInvocation(req Request, r RepoURL) (Invocation, error) {
 	case "issue close", "issue reopen":
 		inv.Args = append([]string{"issue", req.Action, req.Number}, target...)
 		inv.Env = nil
+	case "pr merge":
+		inv.Args = []string{"pr", "merge", req.Number}
+		if req.Merge {
+			inv.Args = append(inv.Args, "--merge")
+		}
+		if req.Squash {
+			inv.Args = append(inv.Args, "--squash")
+		}
+		if req.Rebase {
+			inv.Args = append(inv.Args, "--rebase")
+		}
+		if req.DeleteBranch {
+			inv.Args = append(inv.Args, "--delete-branch")
+		}
+		if req.Auto {
+			inv.Args = append(inv.Args, "--auto")
+		}
+		inv.Args = append(inv.Args, target...)
+		inv.Env = nil
 	case "issue create", "pr create":
 		inv.Args = append([]string{res, "create"}, target...)
 		inv.Args = appendKV(inv.Args, "--title", req.Title)
@@ -407,6 +452,21 @@ func glabInvocation(req Request, r RepoURL) (Invocation, error) {
 		inv.Args = append(inv.Args, target...)
 	case "issue close", "issue reopen":
 		inv.Args = append([]string{"issue", req.Action, req.Number}, target...)
+	case "pr merge":
+		inv.Args = []string{"mr", "merge", req.Number}
+		if req.Squash {
+			inv.Args = append(inv.Args, "--squash")
+		}
+		if req.DeleteBranch {
+			inv.Args = append(inv.Args, "--remove-source-branch")
+		}
+		if req.Auto {
+			inv.Args = append(inv.Args, "--auto-merge")
+		} else {
+			// pipeline 성공 대기 자동 병합을 명시적으로 끈다
+			inv.Args = append(inv.Args, "--when-pipeline-succeeds=false")
+		}
+		inv.Args = append(inv.Args, target...)
 	case "issue create", "pr create":
 		inv.Args = append([]string{res, "create"}, target...)
 		inv.Args = appendKV(inv.Args, "--title", req.Title)
@@ -426,6 +486,9 @@ func glabInvocation(req Request, r RepoURL) (Invocation, error) {
 
 func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	inv := Invocation{Bin: "tea"}
+	if req.Resource == "pr" && req.Action == "merge" {
+		return Invocation{}, errors.New("pr merge is not supported for tea")
+	}
 	auth := []string{"--login", login}
 	target := append(append([]string{}, auth...), "--repo", r.Slug())
 	res := map[string]string{"repo": "repos", "issue": "issues", "pr": "pulls"}[req.Resource]
