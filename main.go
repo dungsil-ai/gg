@@ -243,11 +243,6 @@ func fail(err error) int {
 	return 1
 }
 
-// plan은 파싱된 요청을 자식 invocation으로 바꾼다.
-func plan(req Request) (Invocation, error) {
-	if req.Action == "commit" {
-		return Invocation{Bin: "git", Args: append([]string{"commit", "--no-gpg-sign"}, req.GitArgs...)}, nil
-	}
 type executionPlan struct {
 	repo     RepoURL
 	provider Provider
@@ -255,6 +250,9 @@ type executionPlan struct {
 }
 
 func resolvePlan(req Request) (executionPlan, error) {
+	if req.Action == "commit" {
+		return executionPlan{inv: Invocation{Bin: "git", Args: append([]string{"commit", "--no-gpg-sign"}, req.GitArgs...)}}, nil
+	}
 	if req.Action == "pull" || req.Action == "push" {
 		return executionPlan{inv: Invocation{Bin: "git", Args: append([]string{req.Action}, req.GitArgs...)}}, nil
 	}
