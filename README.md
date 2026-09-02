@@ -90,7 +90,39 @@ gg pr create --remote origin
 gg --repo https://github.com/dungsil-ai/gg issue list
 ```
 
-## Issue 관리
+### PR 병합 준비 상태
+
+`gg pr status <number>`는 한 PR의 병합 준비 상태를 한 화면에서 보여줍니다. GitHub와 GitLab에서 같은 필드 이름과 값 범위를 사용합니다.
+
+```bash
+gg pr status 42
+```
+
+```text
+Draft: no
+Approval: approved
+CI: pass
+Conflict: no
+Mergeable: yes
+```
+
+### 출력 값의 뜻
+
+| 필드 | 값 | 뜻 |
+| --- | --- | --- |
+| `Draft` | `yes`, `no`, `unknown` | Draft PR인지 |
+| `Approval` | `approved`, `required`, `changes-requested`, `unknown` | 승인 상태 |
+| `CI` | `pass`, `fail`, `pending`, `none`, `unknown` | CI 검사 상태. `none`은 실행된 검사가 없다는 뜻 |
+| `Conflict` | `yes`, `no`, `unknown` | base 브랜치와 충돌이 있는지 |
+| `Mergeable` | `yes`, `no`, `unknown` | 지금 병합할 수 있는지 |
+
+`unknown`은 provider가 아직 계산 중이거나 값을 주지 않았다는 뜻이며, 임의의 안전한 값(`no`, `pass`)으로 바꿔 판단하지 않습니다.
+
+상태 조회 자체가 성공하면 병합 불가, CI 실패, 승인 대기여도 exit code는 0입니다. 조회가 실패할 때만 0이 아닌 exit code를 냅니다.
+
+`tea`(Gitea)는 이 명령을 지원하지 않습니다.
+
+# Issue 관리
 
 ```bash
 # Issue 댓글 작성
