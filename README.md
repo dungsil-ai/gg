@@ -59,17 +59,20 @@ gg version
 gg --version
 ```
 
-각 하위 명령의 도움말을 확인할 수도 있습니다.
+모든 명령과 action은 `--help`를 지원합니다.
 
 ```bash
-gg config --help
+gg repo --help
+gg repo list --help
 gg issue --help
 gg issue list --help
-gg issue comment --help
-gg issue close --help
-gg issue reopen --help
 gg pr create --help
-gg pr merge --help
+gg config --help
+gg config set --help
+```
+
+`repo`를 생략한 `list`, `view`, `create`, `clone`, `pull`, `push`도 같은 help를 제공합니다.
+단, `commit`은 생략 형태로 쓰면 `--help`를 포함한 모든 인자를 git에 그대로 전달합니다.
 
 ## 저장소 문맥 선택 (--remote)
 
