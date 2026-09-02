@@ -133,6 +133,11 @@ func getVersion() string {
 		return version
 	}
 	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, s := range info.Settings {
+			if s.Key == "vcs" {
+				return "dev"
+			}
+		}
 		v := info.Main.Version
 		if v != "" && v != "(devel)" && !strings.HasPrefix(v, "v0.0.0-") {
 			return v
