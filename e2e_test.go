@@ -836,3 +836,259 @@ func TestE2ESavedConfigRoutesWithoutPrompt(t *testing.T) {
 		t.Errorf("glab argv = %q", got)
 	}
 }
+
+func TestE2EExplainIssueListBothFlagOrders(t *testing.T) {
+	bin, fakeDir, logFile := setupFakeGH(t)
+	repo := tempRepo(t, "https://github.com/o/r.git")
+
+	cases := [][]string{
+		{"--explain", "issue", "list"},
+		{"issue", "list", "--explain"},
+	}
+
+	for _, args := range cases {
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, args...)
+		if code != 0 {
+			t.Fatalf("gg %v: exit %d, output: %s", args, code, out)
+		}
+		wants := []string{
+			"저장소 문맥: https://github.com/o/r",
+			"Provider: gh",
+			"CLI: gh",
+		}
+		for _, want := range wants {
+			if !strings.Contains(out, want) {
+				t.Errorf("gg %v output missing %q:\n%s", args, want, out)
+			}
+		}
+		if got := readLog(t, logFile); got != "" {
+			t.Errorf("gg %v child command should not run, got: %q", args, got)
+		}
+	}
+}
+
+func TestE2EExplainWithRepoFlag(t *testing.T) {
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	writeFakeBin(t, fakeDir, "glab", logFile)
+
+	cases := [][]string{
+		{"--explain", "--repo", "https://gitlab.com/o/r", "issue", "list"},
+		{"issue", "list", "--repo", "https://gitlab.com/o/r", "--explain"},
+		{"--explain", "repo", "view", "--repo", "git@gitlab.com:o/r.git"},
+	}
+
+	for _, args := range cases {
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, t.TempDir(), args...)
+		if code != 0 {
+			t.Fatalf("gg %v: exit %d, output: %s", args, code, out)
+		}
+		wants := []string{
+			"저장소 문맥: https://gitlab.com/o/r",
+			"Provider: glab",
+			"CLI: glab",
+		}
+		for _, want := range wants {
+			if !strings.Contains(out, want) {
+				t.Errorf("gg %v output missing %q:\n%s", args, want, out)
+			}
+		}
+		if got := readLog(t, logFile); got != "" {
+			t.Errorf("gg %v child command should not run, got: %q", args, got)
+		}
+	}
+}
+
+func TestE2EExplainWithRemoteFlag(t *testing.T) {
+	bin, fakeDir, logFile := setupFakeGH(t)
+	repo := tempRepoWithUpstream(t)
+
+	cases := [][]string{
+		{"--explain", "--remote", "upstream", "pr", "list"},
+		{"pr", "list", "--remote", "upstream", "--explain"},
+	}
+
+	for _, args := range cases {
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, args...)
+		if code != 0 {
+			t.Fatalf("gg %v: exit %d, output: %s", args, code, out)
+		}
+		wants := []string{
+			"저장소 문맥: https://github.com/o/upstream",
+			"Provider: gh",
+			"CLI: gh",
+		}
+		for _, want := range wants {
+			if !strings.Contains(out, want) {
+				t.Errorf("gg %v output missing %q:\n%s", args, want, out)
+			}
+		}
+		if got := readLog(t, logFile); got != "" {
+			t.Errorf("gg %v child command should not run, got: %q", args, got)
+		}
+	}
+}
+
+func TestE2EExplainAutomaticRemoteSelection(t *testing.T) {
+	bin, fakeDir, logFile := setupFakeGH(t)
+
+	t.Run("branch upstream", func(t *testing.T) {
+		repo := tempRepoWithUpstream(t)
+		gitIn(t, repo, "config", "user.name", "gg test")
+		gitIn(t, repo, "config", "user.email", "gg-test@example.com")
+		gitIn(t, repo, "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "test")
+		branch := gitIn(t, repo, "branch", "--show-current")
+		gitIn(t, repo, "config", "branch."+branch+".remote", "upstream")
+
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, "--explain", "issue", "list")
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, out)
+		}
+		if !strings.Contains(out, "저장소 문맥: https://github.com/o/upstream") || !strings.Contains(out, "Provider: gh") || !strings.Contains(out, "CLI: gh") {
+			t.Errorf("output unexpected: %s", out)
+		}
+		if got := readLog(t, logFile); got != "" {
+			t.Errorf("child should not run, got: %q", got)
+		}
+	})
+
+	t.Run("origin", func(t *testing.T) {
+		repo := tempRepo(t, "https://github.com/o/origin.git")
+		gitIn(t, repo, "remote", "add", "other", "https://github.com/o/other.git")
+
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, "--explain", "issue", "list")
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, out)
+		}
+		if !strings.Contains(out, "저장소 문맥: https://github.com/o/origin") || !strings.Contains(out, "Provider: gh") || !strings.Contains(out, "CLI: gh") {
+			t.Errorf("output unexpected: %s", out)
+		}
+		if got := readLog(t, logFile); got != "" {
+			t.Errorf("child should not run, got: %q", got)
+		}
+	})
+
+	t.Run("single remote", func(t *testing.T) {
+		repo := t.TempDir()
+		gitIn(t, repo, "init", "-q")
+		gitIn(t, repo, "remote", "add", "solo", "https://github.com/o/solo.git")
+
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, "--explain", "issue", "list")
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, out)
+		}
+		if !strings.Contains(out, "저장소 문맥: https://github.com/o/solo") || !strings.Contains(out, "Provider: gh") || !strings.Contains(out, "CLI: gh") {
+			t.Errorf("output unexpected: %s", out)
+		}
+		if got := readLog(t, logFile); got != "" {
+			t.Errorf("child should not run, got: %q", got)
+		}
+	})
+}
+
+func TestE2EExplainErrorsPreserved(t *testing.T) {
+	bin, fakeDir, logFile := setupFakeGH(t)
+	repo := tempRepoWithUpstream(t)
+
+	t.Run("missing remote", func(t *testing.T) {
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, "--explain", "--remote", "missing", "issue", "list")
+		if code != 1 {
+			t.Fatalf("exit = %d, want 1: %s", code, out)
+		}
+		if !strings.Contains(out, `remote "missing" not found`) {
+			t.Errorf("expected missing remote message in output: %s", out)
+		}
+		if got := readLog(t, logFile); got != "" {
+			t.Errorf("child should not run, got %q", got)
+		}
+	})
+
+	t.Run("flag conflict", func(t *testing.T) {
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, "--explain", "--repo", "https://github.com/o/r", "--remote", "upstream", "issue", "list")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2: %s", code, out)
+		}
+		if !strings.Contains(out, "cannot be used together") {
+			t.Errorf("expected conflict message in output: %s", out)
+		}
+		if got := readLog(t, logFile); got != "" {
+			t.Errorf("child should not run, got %q", got)
+		}
+	})
+
+	t.Run("missing command", func(t *testing.T) {
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, "--explain")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2: %s", code, out)
+		}
+		if !strings.Contains(out, "missing command") {
+			t.Errorf("expected missing command message in output: %s", out)
+		}
+		if got := readLog(t, logFile); got != "" {
+			t.Errorf("child should not run, got %q", got)
+		}
+	})
+
+	t.Run("unsupported config command", func(t *testing.T) {
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, "--explain", "config", "list")
+		if code != 2 {
+			t.Fatalf("exit = %d, want 2: %s", code, out)
+		}
+		if !strings.Contains(out, "--explain is not supported for config list") {
+			t.Errorf("expected unsupported message in output: %s", out)
+		}
+		if got := readLog(t, logFile); got != "" {
+			t.Errorf("child should not run, got %q", got)
+		}
+	})
+}
+
+func TestE2EExplainDoesNotLeakUserInputs(t *testing.T) {
+	bin, fakeDir, logFile := setupFakeGH(t)
+	repo := tempRepo(t, "https://github.com/o/r.git")
+
+	if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out, code := runGG(t, bin, fakeDir, repo, "--explain", "issue", "create", "--title", "SECRET_TITLE", "--body", "SECRET_TOKEN_12345")
+	if code != 0 {
+		t.Fatalf("exit = %d: %s", code, out)
+	}
+	if strings.Contains(out, "SECRET_TITLE") || strings.Contains(out, "SECRET_TOKEN_12345") {
+		t.Errorf("explain output leaked user inputs:\n%s", out)
+	}
+	if got := readLog(t, logFile); got != "" {
+		t.Errorf("child should not run, got: %q", got)
+	}
+}

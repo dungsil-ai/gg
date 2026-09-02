@@ -369,3 +369,112 @@ func TestExecChildExit127(t *testing.T) {
 		t.Errorf("execChild = %d, want 127", code)
 	}
 }
+
+func TestParseRequestExplain(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want Request
+	}{
+		{
+			name: "gg --explain issue list",
+			args: []string{"--explain", "issue", "list"},
+			want: Request{Resource: "issue", Action: "list", Explain: true},
+		},
+		{
+			name: "gg issue list --explain",
+			args: []string{"issue", "list", "--explain"},
+			want: Request{Resource: "issue", Action: "list", Explain: true},
+		},
+		{
+			name: "gg --explain --remote upstream issue list --limit 5",
+			args: []string{"--explain", "--remote", "upstream", "issue", "list", "--limit", "5"},
+			want: Request{Resource: "issue", Action: "list", RemoteFlag: "upstream", Limit: "5", Explain: true},
+		},
+		{
+			name: "gg issue list --remote upstream --limit 5 --explain",
+			args: []string{"issue", "list", "--remote", "upstream", "--limit", "5", "--explain"},
+			want: Request{Resource: "issue", Action: "list", RemoteFlag: "upstream", Limit: "5", Explain: true},
+		},
+		{
+			name: "gg --explain repo view",
+			args: []string{"--explain", "repo", "view"},
+			want: Request{Resource: "repo", Action: "view", Explain: true},
+		},
+		{
+			name: "gg --explain repo create with flags",
+			args: []string{"--explain", "repo", "create", "--repo", "https://github.com/o/r", "--public"},
+			want: Request{Resource: "repo", Action: "create", RepoFlag: "https://github.com/o/r", Public: true, Explain: true},
+		},
+		{
+			name: "gg --explain clone with url",
+			args: []string{"--explain", "clone", "https://github.com/o/r"},
+			want: Request{Resource: "repo", Action: "clone", CloneURL: "https://github.com/o/r", Explain: true},
+		},
+		{
+			name: "gg --explain pr list",
+			args: []string{"--explain", "pr", "list"},
+			want: Request{Resource: "pr", Action: "list", Explain: true},
+		},
+		{
+			name: "gg pr view 1 --explain",
+			args: []string{"pr", "view", "1", "--explain"},
+			want: Request{Resource: "pr", Action: "view", Number: "1", Explain: true},
+		},
+		{
+			name: "gg --explain pr create",
+			args: []string{"--explain", "pr", "create", "--title", "t", "--body", "b"},
+			want: Request{Resource: "pr", Action: "create", Title: "t", Body: "b", Explain: true},
+		},
+	}
+
+	for _, c := range cases {
+		got, err := ParseRequest(c.args)
+		if err != nil {
+			t.Errorf("%s: %v", c.name, err)
+			continue
+		}
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%s = %+v, want %+v", c.name, got, c.want)
+		}
+	}
+}
+
+func TestParseRequestExplainErrors(t *testing.T) {
+	bad := [][]string{
+		{"--explain"},
+		{"--explain", "config", "list"},
+		{"config", "list", "--explain"},
+		{"--explain", "pull"},
+		{"--explain", "push"},
+		{"--explain", "--repo", "https://github.com/o/r", "--remote", "upstream", "issue", "list"},
+	}
+	for _, args := range bad {
+		_, err := ParseRequest(args)
+		var ue UsageError
+		if !errors.As(err, &ue) {
+			t.Errorf("ParseRequest(%v): UsageError 기대, got %v", args, err)
+		}
+	}
+}
+
+func TestExplainFormatting(t *testing.T) {
+	var buf strings.Builder
+	ep := executionPlan{
+		repo:     RepoURL{Host: "github.com", Owner: "o", Name: "r"},
+		provider: GH,
+		inv:      Invocation{Bin: "gh"},
+	}
+	explain(&buf, ep)
+	got := buf.String()
+	wants := []string{
+		"저장소 문맥: https://github.com/o/r\n",
+		"Provider: gh\n",
+		"CLI: gh\n",
+	}
+	for _, want := range wants {
+		if !strings.Contains(got, want) {
+			t.Errorf("explain output missing %q:\n%s", want, got)
+		}
+	}
+}
