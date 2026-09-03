@@ -115,14 +115,17 @@ func setNumber(req *Request, pos []string) error {
 	return nil
 }
 
-// gitPassthroughActionNames는 forge 라우팅 없이 git에 그대로 전달할 Main
-// Porcelain 명령이다. clone, commit, pull, push는 기존의 별도 동작을 유지한다.
+// gitPassthroughActionNames는 forge 라우팅 없이 Git에 직접 전달할 지원 명령이다.
+// Main Porcelain 37개와 ancillary 14개를 하나의 registry에서 관리한다.
+// clone, commit, pull, push는 기존의 별도 동작을 유지한다.
 var gitPassthroughActionNames = []string{
 	"add", "am", "archive", "bisect", "branch", "bundle", "checkout", "cherry-pick",
 	"citool", "clean", "describe", "diff", "fetch", "format-patch", "gc", "grep", "gui",
 	"init", "log", "merge", "mv", "notes", "range-diff", "rebase", "reset", "restore",
 	"revert", "rm", "shortlog", "show", "sparse-checkout", "stash", "status", "submodule",
 	"switch", "tag", "worktree",
+	"annotate", "blame", "bugreport", "count-objects", "diagnose", "difftool", "fsck",
+	"instaweb", "maintenance", "merge-tree", "mergetool", "prune-packed", "rerere", "scalar",
 }
 
 func isGitPassthroughAction(name string) bool {
@@ -148,9 +151,9 @@ func gitPassthroughActions() []actionDef {
 var commandDefs = map[string]*resourceDef{
 	"repo": {
 		name:    "repo",
-		summary: "List, view, create, or clone repositories, or run Git main porcelain commands",
-		desc:    "List, view, create, or clone repositories, or run Git main porcelain commands.",
-		usage:   "gg repo <command> [flags]",
+		summary: "List, view, create, or clone repositories, or run supported Git commands",
+		desc:    "List, view, create, or clone repositories, or run supported Git commands.",
+		usage:   "gg repo <command> [args]",
 		actions: append([]actionDef{
 			{
 				name: "list", summary: "List repositories", usage: "gg repo list [flags]",
@@ -192,15 +195,15 @@ var commandDefs = map[string]*resourceDef{
 				},
 			},
 			{
-				name: "commit", summary: "Run git commit without signing", usage: "gg repo commit [git flags]",
+				name: "commit", summary: "Run git commit without signing", usage: "gg repo commit [git args]",
 				passthrough: true, maxPos: -1,
 			},
 			{
-				name: "pull", summary: "Run git pull", usage: "gg repo pull [git flags]",
+				name: "pull", summary: "Run git pull", usage: "gg repo pull [git args]",
 				passthrough: true, maxPos: -1,
 			},
 			{
-				name: "push", summary: "Run git push", usage: "gg repo push [git flags]",
+				name: "push", summary: "Run git push", usage: "gg repo push [git args]",
 				passthrough: true, maxPos: -1,
 			},
 		}, gitPassthroughActions()...),
@@ -398,19 +401,18 @@ func resolveAlias(command string) (resource, action string) {
 	return command, ""
 }
 
-// topLevelAliases는 최상위 help Commands에 별도 항목으로 보이는 alias다.
-var topLevelAliases = []string{"commit", "pull", "push"}
-
 // helpAliases는 repo 생략 형태로 --help를 제공하는 action이다.
 // --help도 git에 전달해야 하는 alias는 제외한다.
 var helpAliases = map[string]bool{
 	"list": true, "view": true, "create": true, "clone": true, "pull": true, "push": true,
 }
 
-const topLevelHelpHead = `gg sends common Git forge commands to gh, glab, or tea.
+const topLevelHelpHead = `gg sends common Git forge commands to gh, glab, or tea, and runs supported Git commands directly.
 
 Usage:
   gg [flags] <command>
+  gg <supported-git-command> [git args]
+  gg repo --help
   gg config --help
   gg issue --help
   gg issue list --help
@@ -435,12 +437,14 @@ Flags:
 func topLevelHelp() string {
 	var b strings.Builder
 	b.WriteString(topLevelHelpHead)
-	rows := make([][2]string, 0, len(commandOrder)+len(topLevelAliases)+2)
+	rows := make([][2]string, 0, len(commandOrder)+len(commandDefs["repo"].actions)+2)
 	for _, name := range commandOrder {
 		rows = append(rows, [2]string{name, commandDefs[name].summary})
 	}
-	for _, name := range topLevelAliases {
-		rows = append(rows, [2]string{name, commandDefs["repo"].action(name).summary})
+	for _, action := range commandDefs["repo"].actions {
+		if action.passthrough {
+			rows = append(rows, [2]string{action.name, action.summary})
+		}
 	}
 	rows = append(rows,
 		[2]string{"version", "Show gg version"},

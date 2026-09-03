@@ -14,7 +14,7 @@ func usageErr(m string) error      { return UsageError{Msg: m} }
 // Request는 파싱된 공통 명령이다.
 type Request struct {
 	Resource                   string // "repo" | "issue" | "pr" | "config"
-	Action                     string // resource action 또는 git Main Porcelain action
+	Action                     string // resource action 또는 Git passthrough action
 	RepoFlag                   string // --repo 값
 	RemoteFlag                 string // --remote 값
 	Number                     string // issue/pr 대상 번호
@@ -29,7 +29,7 @@ type Request struct {
 	Merge, Squash, Rebase bool
 	DeleteBranch, Auto    bool
 
-	Help bool // --help: 파싱된 명령의 help를 출력한다
+	Help bool // action 단계의 --help 출력 요청 여부
 }
 
 func ParseRequest(args []string) (Request, error) {

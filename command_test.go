@@ -284,7 +284,7 @@ func TestParseRequestKeepsPullRemoteArgument(t *testing.T) {
 	}
 }
 
-func TestParseRequestMainPorcelainPassthroughPreservesGitArgs(t *testing.T) {
+func TestParseRequestGitPassthroughPreservesGitArgs(t *testing.T) {
 	rawArgs := []string{"--", "-starts-with-hyphen", "two words", "--repo", "https://example.invalid/o/r", "--help"}
 	for _, action := range gitPassthroughActionNames {
 		for _, form := range [][]string{nil, {"repo"}} {
@@ -344,13 +344,15 @@ func TestParseRequestPassthroughContextFlagPositions(t *testing.T) {
 	}
 }
 
-func TestMainPorcelainPassthroughActionSet(t *testing.T) {
+func TestGitPassthroughActionSet(t *testing.T) {
 	want := []string{
 		"add", "am", "archive", "bisect", "branch", "bundle", "checkout", "cherry-pick",
 		"citool", "clean", "describe", "diff", "fetch", "format-patch", "gc", "grep", "gui",
 		"init", "log", "merge", "mv", "notes", "range-diff", "rebase", "reset", "restore",
 		"revert", "rm", "shortlog", "show", "sparse-checkout", "stash", "status", "submodule",
 		"switch", "tag", "worktree",
+		"annotate", "blame", "bugreport", "count-objects", "diagnose", "difftool", "fsck",
+		"instaweb", "maintenance", "merge-tree", "mergetool", "prune-packed", "rerere", "scalar",
 	}
 	if !reflect.DeepEqual(gitPassthroughActionNames, want) {
 		t.Fatalf("gitPassthroughActionNames = %q, want %q", gitPassthroughActionNames, want)
@@ -622,7 +624,7 @@ func TestPlanPullGoesToGit(t *testing.T) {
 	}
 }
 
-func TestPlanMainPorcelainPassthroughGoesToGit(t *testing.T) {
+func TestPlanGitPassthroughGoesToGit(t *testing.T) {
 	rawArgs := []string{"--", "-starts-with-hyphen", "two words"}
 	for _, action := range gitPassthroughActionNames {
 		inv, err := plan(Request{Resource: "repo", Action: action, GitArgs: rawArgs})
@@ -861,7 +863,7 @@ func TestParseRequestErrorMessages(t *testing.T) {
 		{[]string{"config"}, "config needs an action: list, set, unset"},
 		{[]string{"issue"}, "issue needs an action: list, view, create, comment, close, reopen"},
 		{[]string{"pr"}, "pr needs an action: list, view, create, status, ready, merge"},
-		{[]string{"repo"}, "repo needs an action: list, view, create, clone, commit, pull, push"},
+		{[]string{"repo"}, "repo needs an action: list, view, create, clone, commit, pull, push, add, am, archive, bisect, branch, bundle, checkout, cherry-pick, citool, clean, describe, diff, fetch, format-patch, gc, grep, gui, init, log, merge, mv, notes, range-diff, rebase, reset, restore, revert, rm, shortlog, show, sparse-checkout, stash, status, submodule, switch, tag, worktree, annotate, blame, bugreport, count-objects, diagnose, difftool, fsck, instaweb, maintenance, merge-tree, mergetool, prune-packed, rerere, scalar"},
 		{[]string{"issue", "delete", "1"}, "issue does not support delete"},
 		{[]string{"pr", "delete", "1"}, "pr does not support delete"},
 		{[]string{"issue", "list", "--wat"}, "unknown flag --wat"},

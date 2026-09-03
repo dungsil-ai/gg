@@ -46,21 +46,21 @@
 - [x] `git worktree` (대응: `gg repo worktree`, `gg worktree`)
 
 ### 보조 명령 및 유틸리티 (Ancillary Commands)
-- [ ] `git annotate`
-- [ ] `git blame`
-- [ ] `git bugreport`
-- [ ] `git count-objects`
-- [ ] `git diagnose`
-- [ ] `git difftool`
-- [ ] `git fsck`
+- [x] `git annotate` (대응: `gg repo annotate`, `gg annotate`)
+- [x] `git blame` (대응: `gg repo blame`, `gg blame`)
+- [x] `git bugreport` (대응: `gg repo bugreport`, `gg bugreport`)
+- [x] `git count-objects` (대응: `gg repo count-objects`, `gg count-objects`)
+- [x] `git diagnose` (대응: `gg repo diagnose`, `gg diagnose`)
+- [x] `git difftool` (대응: `gg repo difftool`, `gg difftool`)
+- [x] `git fsck` (대응: `gg repo fsck`, `gg fsck`)
 - [x] `git help` (대응: `gg help`, `gg --help`, `gg -h`)
-- [ ] `git instaweb`
-- [ ] `git maintenance`
-- [ ] `git merge-tree`
-- [ ] `git mergetool`
-- [ ] `git prune-packed`
-- [ ] `git rerere`
-- [ ] `git scalar`
+- [x] `git instaweb` (대응: `gg repo instaweb`, `gg instaweb`)
+- [x] `git maintenance` (대응: `gg repo maintenance`, `gg maintenance`)
+- [x] `git merge-tree` (대응: `gg repo merge-tree`, `gg merge-tree`)
+- [x] `git mergetool` (대응: `gg repo mergetool`, `gg mergetool`)
+- [x] `git prune-packed` (대응: `gg repo prune-packed`, `gg prune-packed`)
+- [x] `git rerere` (대응: `gg repo rerere`, `gg rerere`)
+- [x] `git scalar` (대응: `gg repo scalar`, `gg scalar`)
 - [x] `git version` (대응: 단독 `gg -verison`, 단독 `gg -v`)
 
 <details>
@@ -639,8 +639,8 @@ gg config set --help
 ```
 
 `gg <cmd> --help`와 `gg repo <cmd> --help`는 `list`, `view`, `create`, `clone`, `pull`, `push`에서 같은 gg help를 제공합니다. `gg repo commit --help`도 gg가 처리합니다.
-`gg commit --help`는 `--no-gpg-sign`을 추가해 git에 전달합니다. 신규 Git Main Porcelain passthrough 37개 명령은 `gg <cmd> --help`와 `gg repo <cmd> --help` 모두 명령 뒤에 둔 `--help`를 포함한 모든 인자를 git에 그대로 전달합니다.
-Git Main Porcelain passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없습니다.
+`gg commit --help`는 `--no-gpg-sign`을 추가해 git에 전달합니다. Git Main Porcelain 37개와 ancillary 14개 registry 명령은 `gg <cmd> --help`와 `gg repo <cmd> --help` 모두 명령 뒤에 둔 `--help`를 포함한 모든 인자를 git에 그대로 전달합니다.
+Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없습니다.
 
 ### 사용 예시 (Usage Examples)
 

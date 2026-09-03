@@ -566,7 +566,7 @@ func assertGGHelp(t *testing.T, bin string, args, wants []string) {
 func TestE2ETopLevelHelp(t *testing.T) {
 	bin := buildGG(t)
 	for _, args := range [][]string{nil, {"help"}, {"--help"}, {"-h"}} {
-		assertGGHelp(t, bin, args, []string{"Usage:", "Commands:", "commit", "issue", "pr", "alias: mr", "config", "--repo", "--remote", "--version         gg 버전만 표시", "-v, -verison      단독 사용 시 gg와 설치된 git, gh, glab, tea 버전을 표시"})
+		assertGGHelp(t, bin, args, []string{"Usage:", "gg [flags] <command>", "gg <supported-git-command> [git args]", "gg repo --help", "Commands:", "commit", "issue", "pr", "alias: mr", "config", "--repo", "--remote", "--version         gg 버전만 표시", "-v, -verison      단독 사용 시 gg와 설치된 git, gh, glab, tea 버전을 표시"})
 	}
 }
 
@@ -1178,7 +1178,7 @@ func TestE2EPullPushPassThroughToGit(t *testing.T) {
 	}
 }
 
-func TestE2EMainPorcelainRoutesAllPassthroughForms(t *testing.T) {
+func TestE2EGitPassthroughRoutesAllForms(t *testing.T) {
 	bin := buildGG(t)
 	gitBin := buildGitPassthroughProbe(t)
 	logFile := filepath.Join(t.TempDir(), "git-args.jsonl")
@@ -1226,7 +1226,7 @@ func TestE2EPassthroughContextFlagPositions(t *testing.T) {
 		{name: "--explain", args: []string{"--explain"}},
 	}
 
-	for _, action := range []string{"status", "commit", "pull", "push"} {
+	for _, action := range []string{"status", "mergetool", "commit", "pull", "push"} {
 		for _, form := range [][]string{nil, {"repo"}} {
 			for _, contextFlag := range contextFlags {
 				for _, suffix := range [][]string{nil, {"--help"}} {
@@ -1271,13 +1271,13 @@ func TestE2EPassthroughContextFlagPositions(t *testing.T) {
 	}
 }
 
-func TestE2EMainPorcelainRelaysChildStreams(t *testing.T) {
+func TestE2EGitPassthroughRelaysChildStreams(t *testing.T) {
 	bin := buildGG(t)
 	gitBin := buildGitPassthroughProbe(t)
 	logFile := filepath.Join(t.TempDir(), "git-args.jsonl")
 	t.Setenv("GG_GIT_LOG", logFile)
 
-	cmd := ggCommand(t, bin, filepath.Dir(gitBin), t.TempDir(), "citool", "--", "-interactive")
+	cmd := ggCommand(t, bin, filepath.Dir(gitBin), t.TempDir(), "mergetool", "--", "-interactive")
 	cmd.Stdin = strings.NewReader("typed input\n")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -1292,8 +1292,8 @@ func TestE2EMainPorcelainRelaysChildStreams(t *testing.T) {
 	if got, want := stderr.String(), "stderr:typed input\n"; got != want {
 		t.Errorf("stderr = %q, want %q", got, want)
 	}
-	if calls := readGitPassthroughCalls(t, logFile); len(calls) != 1 || !slices.Equal(calls[0], []string{"citool", "--", "-interactive"}) {
-		t.Errorf("git calls = %q, want [[citool -- -interactive]]", calls)
+	if calls := readGitPassthroughCalls(t, logFile); len(calls) != 1 || !slices.Equal(calls[0], []string{"mergetool", "--", "-interactive"}) {
+		t.Errorf("git calls = %q, want [[mergetool -- -interactive]]", calls)
 	}
 }
 
