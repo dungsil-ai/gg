@@ -159,7 +159,7 @@
 
 ## gh (GitHub CLI) 기능 목록
 
-### Core Commands
+### 공통 핵심 명령 (Core Commands)
 - `auth`
   - [ ] `gh auth login`
   - [ ] `gh auth logout`
@@ -168,6 +168,76 @@
   - [ ] `gh auth status`
   - [ ] `gh auth switch`
   - [ ] `gh auth token`
+- `issue`
+  - [x] `gh issue close` (대응: `gg issue close`)
+  - [x] `gh issue comment` (대응: `gg issue comment`)
+  - [x] `gh issue create` (대응: `gg issue create`)
+  - [ ] `gh issue delete`
+  - [ ] `gh issue develop`
+  - [ ] `gh issue edit`
+  - [x] `gh issue list` (대응: `gg issue list`)
+  - [ ] `gh issue lock`
+  - [ ] `gh issue pin`
+  - [x] `gh issue reopen` (대응: `gg issue reopen`)
+  - [ ] `gh issue status`
+  - [ ] `gh issue transfer`
+  - [ ] `gh issue unlock`
+  - [ ] `gh issue unpin`
+  - [x] `gh issue view` (대응: `gg issue view`)
+- `label`
+  - [ ] `gh label clone`
+  - [ ] `gh label create`
+  - [ ] `gh label delete`
+  - [ ] `gh label edit`
+  - [ ] `gh label list`
+- `pr`
+  - [ ] `gh pr checkout`
+  - [ ] `gh pr checks`
+  - [ ] `gh pr close`
+  - [ ] `gh pr comment`
+  - [x] `gh pr create` (대응: `gg pr create`)
+  - [ ] `gh pr diff`
+  - [ ] `gh pr edit`
+  - [x] `gh pr list` (대응: `gg pr list`)
+  - [ ] `gh pr lock`
+  - [x] `gh pr merge` (대응: `gg pr merge`)
+  - [ ] `gh pr ready`
+  - [ ] `gh pr reopen`
+  - [ ] `gh pr review`
+  - [ ] `gh pr status`
+  - [ ] `gh pr unlock`
+  - [ ] `gh pr update-branch`
+  - [x] `gh pr view` (대응: `gg pr view`)
+- `release`
+  - [ ] `gh release create`
+  - [ ] `gh release delete`
+  - [ ] `gh release delete-asset`
+  - [ ] `gh release download`
+  - [ ] `gh release edit`
+  - [ ] `gh release list`
+  - [ ] `gh release upload`
+  - [ ] `gh release view`
+- `repo`
+  - [ ] `gh repo archive`
+  - [ ] `gh repo autolink`
+  - [x] `gh repo clone` (대응: `gg repo clone`, `gg clone`)
+  - [x] `gh repo create` (대응: `gg repo create`, `gg create`)
+  - [ ] `gh repo delete`
+  - [ ] `gh repo deploy-key`
+  - [ ] `gh repo edit`
+  - [ ] `gh repo fork`
+  - [x] `gh repo list` (대응: `gg repo list`, `gg list`)
+  - [ ] `gh repo rename`
+  - [ ] `gh repo set-default`
+  - [ ] `gh repo sync`
+  - [ ] `gh repo unarchive`
+  - [x] `gh repo view` (대응: `gg repo view`, `gg view`)
+- [x] `gh help` (대응: `gg help`, `gg --help`, `gg -h`)
+- [x] `gh version` (대응: `gg version`, `gg --version`)
+
+<details>
+<summary>기타 및 플랫폼 고유 명령 (GitHub Actions, Codespaces, Project 등)</summary>
+
 - `browse`
   - [ ] `gh browse`
 - `cache`
@@ -195,42 +265,8 @@
   - [ ] `gh gist list`
   - [ ] `gh gist rename`
   - [ ] `gh gist view`
-- `issue`
-  - [x] `gh issue close` (대응: `gg issue close`)
-  - [x] `gh issue comment` (대응: `gg issue comment`)
-  - [x] `gh issue create` (대응: `gg issue create`)
-  - [ ] `gh issue delete`
-  - [ ] `gh issue develop`
-  - [ ] `gh issue edit`
-  - [x] `gh issue list` (대응: `gg issue list`)
-  - [ ] `gh issue lock`
-  - [ ] `gh issue pin`
-  - [x] `gh issue reopen` (대응: `gg issue reopen`)
-  - [ ] `gh issue status`
-  - [ ] `gh issue transfer`
-  - [ ] `gh issue unlock`
-  - [ ] `gh issue unpin`
-  - [x] `gh issue view` (대응: `gg issue view`)
 - `org`
   - [ ] `gh org list`
-- `pr`
-  - [ ] `gh pr checkout`
-  - [ ] `gh pr checks`
-  - [ ] `gh pr close`
-  - [ ] `gh pr comment`
-  - [x] `gh pr create` (대응: `gg pr create`)
-  - [ ] `gh pr diff`
-  - [ ] `gh pr edit`
-  - [x] `gh pr list` (대응: `gg pr list`)
-  - [ ] `gh pr lock`
-  - [x] `gh pr merge` (대응: `gg pr merge`)
-  - [ ] `gh pr ready`
-  - [ ] `gh pr reopen`
-  - [ ] `gh pr review`
-  - [ ] `gh pr status`
-  - [ ] `gh pr unlock`
-  - [ ] `gh pr update-branch`
-  - [x] `gh pr view` (대응: `gg pr view`)
 - `project`
   - [ ] `gh project close`
   - [ ] `gh project copy`
@@ -251,30 +287,6 @@
   - [ ] `gh project mark-template`
   - [ ] `gh project unlink`
   - [ ] `gh project view`
-- `release`
-  - [ ] `gh release create`
-  - [ ] `gh release delete`
-  - [ ] `gh release delete-asset`
-  - [ ] `gh release download`
-  - [ ] `gh release edit`
-  - [ ] `gh release list`
-  - [ ] `gh release upload`
-  - [ ] `gh release view`
-- `repo`
-  - [ ] `gh repo archive`
-  - [ ] `gh repo autolink`
-  - [x] `gh repo clone` (대응: `gg repo clone`, `gg clone`)
-  - [x] `gh repo create` (대응: `gg repo create`, `gg create`)
-  - [ ] `gh repo delete`
-  - [ ] `gh repo deploy-key`
-  - [ ] `gh repo edit`
-  - [ ] `gh repo fork`
-  - [x] `gh repo list` (대응: `gg repo list`, `gg list`)
-  - [ ] `gh repo rename`
-  - [ ] `gh repo set-default`
-  - [ ] `gh repo sync`
-  - [ ] `gh repo unarchive`
-  - [x] `gh repo view` (대응: `gg repo view`, `gg view`)
 - `secret`
   - [ ] `gh secret delete`
   - [ ] `gh secret list`
@@ -284,8 +296,6 @@
   - [ ] `gh variable get`
   - [ ] `gh variable list`
   - [ ] `gh variable set`
-
-### GitHub Actions Commands
 - `run`
   - [ ] `gh run cancel`
   - [ ] `gh run delete`
@@ -300,8 +310,6 @@
   - [ ] `gh workflow list`
   - [ ] `gh workflow run`
   - [ ] `gh workflow view`
-
-### Additional Commands
 - `alias`
   - [ ] `gh alias delete`
   - [ ] `gh alias import`
@@ -331,12 +339,6 @@
   - [ ] `gh gpg-key add`
   - [ ] `gh gpg-key delete`
   - [ ] `gh gpg-key list`
-- `label`
-  - [ ] `gh label clone`
-  - [ ] `gh label create`
-  - [ ] `gh label delete`
-  - [ ] `gh label edit`
-  - [ ] `gh label list`
 - `ruleset`
   - [ ] `gh ruleset check`
   - [ ] `gh ruleset list`
@@ -352,57 +354,18 @@
   - [ ] `gh ssh-key delete`
   - [ ] `gh ssh-key list`
 - [ ] `gh status`
-- [x] `gh help` (대응: `gg help`, `gg --help`, `gg -h`)
-- [x] `gh version` (대응: `gg version`, `gg --version`)
+
+</details>
 
 ---
 
 ## glab (GitLab CLI) 기능 목록
 
-### Core & Additional Commands
-- `alias`
-  - [ ] `glab alias delete`
-  - [ ] `glab alias list`
-  - [ ] `glab alias set`
-- [ ] `glab api`
-- `ask`
-  - [ ] `glab ask git`
+### 공통 핵심 명령 (Core Commands)
 - `auth`
   - [ ] `glab auth login`
   - [ ] `glab auth logout`
   - [ ] `glab auth status`
-- `changelog`
-  - [ ] `glab changelog generate`
-- [ ] `glab check-update`
-- `ci`
-  - [ ] `glab ci artifacts`
-  - [ ] `glab ci delete`
-  - [ ] `glab ci get`
-  - [ ] `glab ci lint`
-  - [ ] `glab ci list`
-  - [ ] `glab ci retry`
-  - [ ] `glab ci run`
-  - [ ] `glab ci status`
-  - [ ] `glab ci trace`
-  - [ ] `glab ci trigger`
-  - [ ] `glab ci view`
-- `cluster`
-  - [ ] `glab cluster agent`
-- [ ] `glab completion`
-- `config`
-  - [ ] `glab config get`
-  - [ ] `glab config init`
-  - [ ] `glab config set`
-- `duo`
-  - [ ] `glab duo ask`
-- `incident`
-  - [ ] `glab incident close`
-  - [ ] `glab incident list`
-  - [ ] `glab incident note`
-  - [ ] `glab incident reopen`
-  - [ ] `glab incident subscribe`
-  - [ ] `glab incident unsubscribe`
-  - [ ] `glab incident view`
 - `issue`
   - [ ] `glab issue board`
   - [x] `glab issue close` (대응: `gg issue close`)
@@ -457,6 +420,51 @@
   - [ ] `glab repo search`
   - [ ] `glab repo transfer`
   - [x] `glab repo view` (대응: `gg repo view`, `gg view`)
+- [x] `glab help` (대응: `gg help`, `gg --help`, `gg -h`)
+- [x] `glab version` (대응: `gg version`, `gg --version`)
+
+<details>
+<summary>기타 및 플랫폼 고유 명령 (CI/CD, Incident, Duo, Snippet 등)</summary>
+
+- `alias`
+  - [ ] `glab alias delete`
+  - [ ] `glab alias list`
+  - [ ] `glab alias set`
+- [ ] `glab api`
+- `ask`
+  - [ ] `glab ask git`
+- `changelog`
+  - [ ] `glab changelog generate`
+- [ ] `glab check-update`
+- `ci`
+  - [ ] `glab ci artifacts`
+  - [ ] `glab ci delete`
+  - [ ] `glab ci get`
+  - [ ] `glab ci lint`
+  - [ ] `glab ci list`
+  - [ ] `glab ci retry`
+  - [ ] `glab ci run`
+  - [ ] `glab ci status`
+  - [ ] `glab ci trace`
+  - [ ] `glab ci trigger`
+  - [ ] `glab ci view`
+- `cluster`
+  - [ ] `glab cluster agent`
+- [ ] `glab completion`
+- `config`
+  - [ ] `glab config get`
+  - [ ] `glab config init`
+  - [ ] `glab config set`
+- `duo`
+  - [ ] `glab duo ask`
+- `incident`
+  - [ ] `glab incident close`
+  - [ ] `glab incident list`
+  - [ ] `glab incident note`
+  - [ ] `glab incident reopen`
+  - [ ] `glab incident subscribe`
+  - [ ] `glab incident unsubscribe`
+  - [ ] `glab incident view`
 - `schedule`
   - [ ] `glab schedule create`
   - [ ] `glab schedule delete`
@@ -497,25 +505,14 @@
   - [ ] `glab variable list`
   - [ ] `glab variable set`
   - [ ] `glab variable update`
-- [x] `glab help` (대응: `gg help`, `gg --help`, `gg -h`)
-- [x] `glab version` (대응: `gg version`, `gg --version`)
+
+</details>
 
 ---
 
 ## tea (Gitea CLI) 기능 목록
 
-### Subcommands
-- `actions`
-  - [ ] `tea actions runs`
-  - [ ] `tea actions secrets`
-- `admin`
-  - [ ] `tea admin orgs`
-  - [ ] `tea admin repos`
-  - [ ] `tea admin runners`
-  - [ ] `tea admin users`
-- [ ] `tea api`
-- `branches`
-  - [ ] `tea branches list`
+### 공통 핵심 명령 (Core Commands)
 - [x] `tea clone` (대응: `gg repo clone`, `gg clone`)
 - `comment`
   - [x] `tea comment create` (대응: `gg issue comment`)
@@ -538,23 +535,6 @@
   - [ ] `tea logins edit`
   - [ ] `tea logins list`
   - [ ] `tea logins view`
-- [ ] `tea logout`
-- [ ] `tea man`
-- `milestones`
-  - [ ] `tea milestones create`
-  - [ ] `tea milestones delete`
-  - [ ] `tea milestones list`
-  - [ ] `tea milestones update`
-- `notifications`
-  - [ ] `tea notifications list`
-  - [ ] `tea notifications pin`
-  - [ ] `tea notifications read`
-- [ ] `tea open`
-- `organizations`
-  - [ ] `tea organizations create`
-  - [ ] `tea organizations delete`
-  - [ ] `tea organizations edit`
-  - [ ] `tea organizations list`
 - `pulls`
   - [ ] `tea pulls approve`
   - [ ] `tea pulls checkout`
@@ -580,15 +560,48 @@
   - [x] `tea repos list` (대응: `gg repo list`, `gg list`)
   - [ ] `tea repos search`
   - [x] `tea repos view` (대응: `gg repo view`, `gg view`)
+- [x] `tea help` (대응: `gg help`, `gg --help`, `gg -h`)
+- [x] `tea version` (대응: `gg version`, `gg --version`)
+
+<details>
+<summary>기타 및 플랫폼 고유 명령 (Admin, Times, Milestones 등)</summary>
+
+- `actions`
+  - [ ] `tea actions runs`
+  - [ ] `tea actions secrets`
+- `admin`
+  - [ ] `tea admin orgs`
+  - [ ] `tea admin repos`
+  - [ ] `tea admin runners`
+  - [ ] `tea admin users`
+- [ ] `tea api`
+- `branches`
+  - [ ] `tea branches list`
+- [ ] `tea logout`
+- [ ] `tea man`
+- `milestones`
+  - [ ] `tea milestones create`
+  - [ ] `tea milestones delete`
+  - [ ] `tea milestones list`
+  - [ ] `tea milestones update`
+- `notifications`
+  - [ ] `tea notifications list`
+  - [ ] `tea notifications pin`
+  - [ ] `tea notifications read`
+- [ ] `tea open`
+- `organizations`
+  - [ ] `tea organizations create`
+  - [ ] `tea organizations delete`
+  - [ ] `tea organizations edit`
+  - [ ] `tea organizations list`
 - `times`
   - [ ] `tea times add`
   - [ ] `tea times delete`
   - [ ] `tea times list`
   - [ ] `tea times reset`
 - [ ] `tea whoami`
-- [x] `tea help` (대응: `gg help`, `gg --help`, `gg -h`)
-- [x] `tea version` (대응: `gg version`, `gg --version`)
 
+</details>
 ---
 
 ## gg 고유 설정 기능 목록
