@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"archive/tar"
@@ -17,7 +17,7 @@ import (
 )
 
 func TestModulePathInGoMod(t *testing.T) {
-	data, err := os.ReadFile("go.mod")
+	data, err := os.ReadFile("../../go.mod")
 	if err != nil {
 		t.Fatalf("go.mod 읽기 실패: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestBuildAndPackageRelease(t *testing.T) {
 		version = "v0.1.0"
 	}
 
-	err := BuildAndPackageRelease(".", outDir, version)
+	err := BuildAndPackageRelease("../..", outDir, version)
 	if err != nil {
 		t.Fatalf("BuildAndPackageRelease 실패: %v", err)
 	}
@@ -230,7 +230,7 @@ func TestBuildAndPackageReleaseRefusesExistingAssets(t *testing.T) {
 				t.Fatalf("기존 asset 쓰기 실패: %v", err)
 			}
 
-			err := BuildAndPackageRelease(".", outDir, tag)
+			err := BuildAndPackageRelease("../..", outDir, tag)
 			if err == nil {
 				t.Fatal("기존 release asset이 있는데 빌드가 성공했습니다")
 			}
@@ -257,7 +257,7 @@ func TestBuildAndPackageReleaseRefusesExistingAssets(t *testing.T) {
 }
 
 func TestREADMEContent(t *testing.T) {
-	data, err := os.ReadFile("README.md")
+	data, err := os.ReadFile("../../README.md")
 	if err != nil {
 		t.Fatalf("README.md 읽기 실패: %v", err)
 	}
@@ -311,7 +311,7 @@ func TestREADMEContent(t *testing.T) {
 }
 
 func TestReleaseWorkflowGate(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join(".github", "workflows", "ci.yml"))
+	data, err := os.ReadFile(filepath.Join("..", "..", ".github", "workflows", "ci.yml"))
 	if err != nil {
 		t.Fatalf("ci.yml 읽기 실패: %v", err)
 	}
