@@ -16,7 +16,6 @@ import (
 
 var version = "dev"
 
-
 func main() { os.Exit(run(os.Args[1:])) }
 
 func run(args []string) int {
@@ -85,7 +84,6 @@ func getVersion() string {
 	}
 	return "dev"
 }
-
 
 func runConfig(req Request) error {
 	switch req.Action {
@@ -161,11 +159,20 @@ type executionPlan struct {
 }
 
 func resolvePlan(req Request) (executionPlan, error) {
-	if req.Action == "commit" {
-		return executionPlan{inv: Invocation{Bin: "git", Args: append([]string{"commit", "--no-gpg-sign"}, req.GitArgs...)}}, nil
-	}
-	if req.Action == "pull" || req.Action == "push" {
-		return executionPlan{inv: Invocation{Bin: "git", Args: append([]string{req.Action}, req.GitArgs...)}}, nil
+	if req.Resource == "repo" {
+		if action := commandDefs["repo"].action(req.Action); action != nil && action.passthrough {
+			argCount := len(req.GitArgs) + 1
+			if req.Action == "commit" {
+				argCount++
+			}
+			args := make([]string, 0, argCount)
+			args = append(args, req.Action)
+			if req.Action == "commit" {
+				args = append(args, "--no-gpg-sign")
+			}
+			args = append(args, req.GitArgs...)
+			return executionPlan{inv: Invocation{Bin: "git", Args: args}}, nil
+		}
 	}
 	if req.Action == "clone" && isHTTPURL(req.CloneURL) {
 		if !req.AllowInsecureHTTP {

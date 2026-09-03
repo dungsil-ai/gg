@@ -231,14 +231,20 @@ func TestREADMEContent(t *testing.T) {
 		"glab (GitLab CLI) 기능 목록",
 		"tea (Gitea CLI) 기능 목록",
 		"gg 고유 설정 기능 목록",
-		"- [x] `git clone`",
-		"- [x] `git pull`",
-		"- [x] `git push`",
+		"- [x] `git clone` (대응: `gg repo clone`, `gg clone`)",
+		"- [x] `git commit` (대응: `gg repo commit`, `gg commit`; 커밋 서명 비활성화)",
+		"- [x] `git pull` (대응: `gg repo pull`, `gg pull`)",
+		"- [x] `git push` (대응: `gg repo push`, `gg push`)",
 		"- [x] `gh issue create`",
 		"- [x] `gh pr create`",
 		"- [x] `glab mr create`",
 		"- [x] `tea pulls create`",
 		"- [x] `gg config list`",
+	}
+	for _, action := range gitPassthroughActionNames {
+		requiredSnippets = append(requiredSnippets,
+			"- [x] `git "+action+"` (대응: `gg repo "+action+"`, `gg "+action+"`)",
+		)
 	}
 
 	for _, snippet := range requiredSnippets {
@@ -378,4 +384,3 @@ func TestReleaseWorkflowGate(t *testing.T) {
 		}
 	}
 }
-

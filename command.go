@@ -13,14 +13,14 @@ func usageErr(m string) error      { return UsageError{Msg: m} }
 
 // Request는 파싱된 공통 명령이다.
 type Request struct {
-	Resource                   string // "repo" | "issue" | "pr"
-	Action                     string // list | view | create | comment | close | reopen | clone | pull | push | status | ready | merge
+	Resource                   string // "repo" | "issue" | "pr" | "config"
+	Action                     string // resource action 또는 git Main Porcelain action
 	RepoFlag                   string // --repo 값
 	RemoteFlag                 string // --remote 값
 	Number                     string // issue/pr 대상 번호
 	CloneURL                   string
 	CloneDir                   string
-	GitArgs                    []string // commit/pull/push는 검사 없이 git으로 전달
+	GitArgs                    []string // passthrough action은 검사 없이 git으로 전달
 	ConfigHost, ConfigProvider string
 
 	Title, Body, Base, Head, State, Limit, Description       string
@@ -71,6 +71,11 @@ globalFlags:
 		ad = commandDefs["repo"].action(head)
 	} else {
 		return req, usageErr("unknown command " + head)
+	}
+	// passthrough는 gg 저장소 문맥을 사용하지 않는다. action 뒤의 --repo와
+	// --remote는 parseRest가 raw Git 인자로 보존하지만, 명령 앞의 --repo는 거부한다.
+	if ad.passthrough && req.RepoFlag != "" {
+		return req, usageErr("--repo is not supported for " + req.Resource + " " + req.Action)
 	}
 	if err := parseRest(&req, ad, rest); err != nil {
 		return req, err

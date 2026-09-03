@@ -3,47 +3,47 @@
 ## git 기능 목록
 
 ### 주요 작업 및 저장소 조작 (Main Porcelain)
-- [ ] `git add`
-- [ ] `git am`
-- [ ] `git archive`
-- [ ] `git bisect`
-- [ ] `git branch`
-- [ ] `git bundle`
-- [ ] `git checkout`
-- [ ] `git cherry-pick`
-- [ ] `git citool`
-- [ ] `git clean`
+- [x] `git add` (대응: `gg repo add`, `gg add`)
+- [x] `git am` (대응: `gg repo am`, `gg am`)
+- [x] `git archive` (대응: `gg repo archive`, `gg archive`)
+- [x] `git bisect` (대응: `gg repo bisect`, `gg bisect`)
+- [x] `git branch` (대응: `gg repo branch`, `gg branch`)
+- [x] `git bundle` (대응: `gg repo bundle`, `gg bundle`)
+- [x] `git checkout` (대응: `gg repo checkout`, `gg checkout`)
+- [x] `git cherry-pick` (대응: `gg repo cherry-pick`, `gg cherry-pick`)
+- [x] `git citool` (대응: `gg repo citool`, `gg citool`)
+- [x] `git clean` (대응: `gg repo clean`, `gg clean`)
 - [x] `git clone` (대응: `gg repo clone`, `gg clone`)
 - [x] `git commit` (대응: `gg repo commit`, `gg commit`; 커밋 서명 비활성화)
-- [ ] `git describe`
-- [ ] `git diff`
-- [ ] `git fetch`
-- [ ] `git format-patch`
-- [ ] `git gc`
-- [ ] `git grep`
-- [ ] `git gui`
-- [ ] `git init`
-- [ ] `git log`
-- [ ] `git merge`
-- [ ] `git mv`
-- [ ] `git notes`
+- [x] `git describe` (대응: `gg repo describe`, `gg describe`)
+- [x] `git diff` (대응: `gg repo diff`, `gg diff`)
+- [x] `git fetch` (대응: `gg repo fetch`, `gg fetch`)
+- [x] `git format-patch` (대응: `gg repo format-patch`, `gg format-patch`)
+- [x] `git gc` (대응: `gg repo gc`, `gg gc`)
+- [x] `git grep` (대응: `gg repo grep`, `gg grep`)
+- [x] `git gui` (대응: `gg repo gui`, `gg gui`)
+- [x] `git init` (대응: `gg repo init`, `gg init`)
+- [x] `git log` (대응: `gg repo log`, `gg log`)
+- [x] `git merge` (대응: `gg repo merge`, `gg merge`)
+- [x] `git mv` (대응: `gg repo mv`, `gg mv`)
+- [x] `git notes` (대응: `gg repo notes`, `gg notes`)
 - [x] `git pull` (대응: `gg repo pull`, `gg pull`)
 - [x] `git push` (대응: `gg repo push`, `gg push`)
-- [ ] `git range-diff`
-- [ ] `git rebase`
-- [ ] `git reset`
-- [ ] `git restore`
-- [ ] `git revert`
-- [ ] `git rm`
-- [ ] `git shortlog`
-- [ ] `git show`
-- [ ] `git sparse-checkout`
-- [ ] `git stash`
-- [ ] `git status`
-- [ ] `git submodule`
-- [ ] `git switch`
-- [ ] `git tag`
-- [ ] `git worktree`
+- [x] `git range-diff` (대응: `gg repo range-diff`, `gg range-diff`)
+- [x] `git rebase` (대응: `gg repo rebase`, `gg rebase`)
+- [x] `git reset` (대응: `gg repo reset`, `gg reset`)
+- [x] `git restore` (대응: `gg repo restore`, `gg restore`)
+- [x] `git revert` (대응: `gg repo revert`, `gg revert`)
+- [x] `git rm` (대응: `gg repo rm`, `gg rm`)
+- [x] `git shortlog` (대응: `gg repo shortlog`, `gg shortlog`)
+- [x] `git show` (대응: `gg repo show`, `gg show`)
+- [x] `git sparse-checkout` (대응: `gg repo sparse-checkout`, `gg sparse-checkout`)
+- [x] `git stash` (대응: `gg repo stash`, `gg stash`)
+- [x] `git status` (대응: `gg repo status`, `gg status`)
+- [x] `git submodule` (대응: `gg repo submodule`, `gg submodule`)
+- [x] `git switch` (대응: `gg repo switch`, `gg switch`)
+- [x] `git tag` (대응: `gg repo tag`, `gg tag`)
+- [x] `git worktree` (대응: `gg repo worktree`, `gg worktree`)
 
 ### 보조 명령 및 유틸리티 (Ancillary Commands)
 - [ ] `git annotate`
@@ -638,6 +638,10 @@ gg config --help
 gg config set --help
 ```
 
+`gg <cmd> --help`와 `gg repo <cmd> --help`는 `list`, `view`, `create`, `clone`, `pull`, `push`에서 같은 gg help를 제공합니다. `gg repo commit --help`도 gg가 처리합니다.
+`gg commit --help`는 `--no-gpg-sign`을 추가해 git에 전달합니다. 신규 Git Main Porcelain passthrough 37개 명령은 `gg <cmd> --help`와 `gg repo <cmd> --help` 모두 명령 뒤에 둔 `--help`를 포함한 모든 인자를 git에 그대로 전달합니다.
+Git Main Porcelain passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없습니다.
+
 ### 사용 예시 (Usage Examples)
 
 #### PR / MR Ready & Draft 전환 (`gg pr ready`)
@@ -660,9 +664,6 @@ gg config set --help
   gg --repo https://github.com/owner/repo pr ready 42
   gg pr ready 42 --remote upstream --undo
   ```
-
-`repo`를 생략한 `list`, `view`, `create`, `clone`, `pull`, `push`도 같은 help를 제공합니다.
-단, `commit`은 생략 형태로 쓰면 `--help`를 포함한 모든 인자를 git에 그대로 전달합니다.
 
 # TOBE
 

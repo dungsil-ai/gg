@@ -253,6 +253,85 @@ func TestParseRequestKeepsPullRemoteArgument(t *testing.T) {
 	}
 }
 
+func TestParseRequestMainPorcelainPassthroughPreservesGitArgs(t *testing.T) {
+	rawArgs := []string{"--", "-starts-with-hyphen", "two words", "--repo", "https://example.invalid/o/r", "--help"}
+	for _, action := range gitPassthroughActionNames {
+		for _, form := range [][]string{nil, {"repo"}} {
+			args := append(append([]string{}, form...), action)
+			args = append(args, rawArgs...)
+			got, err := ParseRequest(args)
+			if err != nil {
+				t.Errorf("ParseRequest(%v): %v", args, err)
+				continue
+			}
+			want := Request{Resource: "repo", Action: action, GitArgs: rawArgs}
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("ParseRequest(%v) = %+v, want %+v", args, got, want)
+			}
+		}
+	}
+}
+
+func TestParseRequestPassthroughContextFlagPositions(t *testing.T) {
+	contextFlags := []struct {
+		name string
+		args []string
+	}{
+		{name: "--repo", args: []string{"--repo", "https://example.invalid/o/r"}},
+		{name: "--remote", args: []string{"--remote", "git-owned-remote"}},
+		{name: "--explain", args: []string{"--explain"}},
+	}
+	for _, ad := range commandDefs["repo"].actions {
+		if !ad.passthrough {
+			continue
+		}
+		for _, form := range [][]string{nil, {"repo"}} {
+			for _, contextFlag := range contextFlags {
+				testName := strings.Join(append(append([]string{}, form...), ad.name, contextFlag.name), " ")
+				t.Run(testName, func(t *testing.T) {
+					leading := append(append([]string{}, contextFlag.args...), form...)
+					leading = append(leading, ad.name)
+					_, err := ParseRequest(leading)
+					var ue UsageError
+					if !errors.As(err, &ue) || !strings.Contains(ue.Msg, contextFlag.name+" is not supported for repo "+ad.name) {
+						t.Errorf("ParseRequest(%v) = %v, want %s usage error", leading, err, contextFlag.name)
+					}
+
+					trailing := append(append([]string{}, form...), ad.name)
+					trailing = append(trailing, contextFlag.args...)
+					got, err := ParseRequest(trailing)
+					if err != nil {
+						t.Fatalf("ParseRequest(%v): %v", trailing, err)
+					}
+					want := Request{Resource: "repo", Action: ad.name, GitArgs: contextFlag.args}
+					if !reflect.DeepEqual(got, want) {
+						t.Errorf("ParseRequest(%v) = %+v, want %+v", trailing, got, want)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestMainPorcelainPassthroughActionSet(t *testing.T) {
+	want := []string{
+		"add", "am", "archive", "bisect", "branch", "bundle", "checkout", "cherry-pick",
+		"citool", "clean", "describe", "diff", "fetch", "format-patch", "gc", "grep", "gui",
+		"init", "log", "merge", "mv", "notes", "range-diff", "rebase", "reset", "restore",
+		"revert", "rm", "shortlog", "show", "sparse-checkout", "stash", "status", "submodule",
+		"switch", "tag", "worktree",
+	}
+	if !reflect.DeepEqual(gitPassthroughActionNames, want) {
+		t.Fatalf("gitPassthroughActionNames = %q, want %q", gitPassthroughActionNames, want)
+	}
+	for _, action := range want {
+		ad := commandDefs["repo"].action(action)
+		if !repoAliases[action] || ad == nil || !ad.passthrough {
+			t.Errorf("%s is not a repo passthrough alias: alias=%t action=%+v", action, repoAliases[action], ad)
+		}
+	}
+}
+
 func TestParseRequestErrors(t *testing.T) {
 	bad := [][]string{
 		{},                                      // 명령 없음
@@ -508,6 +587,38 @@ func TestPlanPullGoesToGit(t *testing.T) {
 	want := Invocation{Bin: "git", Args: []string{"pull", "--rebase"}}
 	if !reflect.DeepEqual(inv, want) {
 		t.Errorf("plan = %+v, want %+v", inv, want)
+	}
+}
+
+func TestPlanMainPorcelainPassthroughGoesToGit(t *testing.T) {
+	rawArgs := []string{"--", "-starts-with-hyphen", "two words"}
+	for _, action := range gitPassthroughActionNames {
+		inv, err := plan(Request{Resource: "repo", Action: action, GitArgs: rawArgs})
+		if err != nil {
+			t.Errorf("plan(%s): %v", action, err)
+			continue
+		}
+		want := Invocation{Bin: "git", Args: append([]string{action}, rawArgs...)}
+		if !reflect.DeepEqual(inv, want) {
+			t.Errorf("plan(%s) = %+v, want %+v", action, inv, want)
+		}
+	}
+}
+
+func TestPlanDoesNotRouteForgeActionsToGit(t *testing.T) {
+	t.Setenv("GG_HOME", t.TempDir())
+	for _, req := range []Request{
+		{Resource: "pr", Action: "status", Number: "7", RepoFlag: "https://github.com/o/r"},
+		{Resource: "pr", Action: "merge", Number: "7", RepoFlag: "https://github.com/o/r"},
+	} {
+		inv, err := plan(req)
+		if err != nil {
+			t.Errorf("plan(%s %s): %v", req.Resource, req.Action, err)
+			continue
+		}
+		if inv.Bin == "git" {
+			t.Errorf("plan(%s %s) = git %q; forge action must not use git passthrough", req.Resource, req.Action, inv.Args)
+		}
 	}
 }
 

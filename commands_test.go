@@ -90,13 +90,20 @@ func TestNestedHelpPaths(t *testing.T) {
 			t.Errorf("nestedHelp(%s --help) = %q, %v", name, help, ok)
 		}
 	}
-	// action 단계
+	// action 단계: git passthrough은 --help까지 git에 전달한다.
 	for _, name := range commandOrder {
 		rd := commandDefs[name]
 		for i := range rd.actions {
-			path := []string{name, rd.actions[i].name, "--help"}
+			ad := &rd.actions[i]
+			path := []string{name, ad.name, "--help"}
 			help, ok := nestedHelp(path)
-			if !ok || !strings.Contains(help, rd.actions[i].usage) {
+			if name == "repo" && isGitPassthroughAction(ad.name) {
+				if ok {
+					t.Errorf("nestedHelp(%v)가 git passthrough help를 가로챔: %q", path, help)
+				}
+				continue
+			}
+			if !ok || !strings.Contains(help, ad.usage) {
 				t.Errorf("nestedHelp(%v) = %q, %v", path, help, ok)
 			}
 		}
