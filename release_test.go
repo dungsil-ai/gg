@@ -401,6 +401,14 @@ func TestReleaseWorkflowGate(t *testing.T) {
 		{"already exists", "기존 Release 차단"},
 		{"HTTP 404", "Release 부재의 404 확인"},
 		{"Failed to verify release absence due to API error", "Release 조회 오류 차단"},
+		{"Verify Immutable Releases setting", "Immutable Releases 설정 검증 스텝"},
+		{"RELEASE_ADMIN_TOKEN: ${{ secrets.RELEASE_ADMIN_TOKEN }}", "Immutable Releases 관리자 secret"},
+		{"GH_TOKEN=\"$RELEASE_ADMIN_TOKEN\" gh api --method GET", "Immutable Releases GET 요청의 관리자 token"},
+		{"repos/${{ github.repository }}/immutable-releases", "Immutable Releases 설정 endpoint"},
+		{"RELEASE_ADMIN_TOKEN is required", "관리자 secret 누락 차단"},
+		{"Failed to verify GitHub Immutable Releases setting", "Immutable Releases API 오류 차단"},
+		{`"$IMMUTABLE_RELEASES_ENABLED" != "true"`, "Immutable Releases 비활성 상태 차단"},
+		{"must be enabled before publishing a release", "Immutable Releases 활성화 요구"},
 	}
 	publishStepIdx := strings.Index(releaseBlock, "gh release create")
 	if publishStepIdx == -1 {
@@ -417,10 +425,51 @@ func TestReleaseWorkflowGate(t *testing.T) {
 		}
 	}
 
-	// Immutable Releases는 관리자 설정이 실제로 강제한다. GITHUB_TOKEN으로는
-	// Administration (read)가 필요한 설정 endpoint를 조회할 수 없으므로 workflow에 두지 않는다.
-	if strings.Contains(strings.ToLower(releaseBlock), "immutable-releases") {
-		t.Error("release 잡이 GITHUB_TOKEN으로 조회할 수 없는 Immutable Releases 설정 endpoint를 포함합니다")
+	// Immutable Releases는 GITHUB_TOKEN이 아닌 최소 Administration (read) 권한의
+	// 전용 secret으로 조회하고, 누락·오류·비활성 상태를 모두 publish 전에 실패시켜야 한다.
+	immutableGateStart := strings.Index(releaseBlock, "- name: Verify Immutable Releases setting")
+	if immutableGateStart == -1 {
+		t.Error("release 잡에 Immutable Releases 설정 검증 스텝이 없습니다")
+	} else {
+		immutableGate := releaseBlock[immutableGateStart:]
+		if nextStepIdx := strings.Index(immutableGate, "\n      - name:"); nextStepIdx != -1 {
+			immutableGate = immutableGate[:nextStepIdx]
+		}
+		for _, requirement := range []struct {
+			fragment string
+			name     string
+		}{
+			{"RELEASE_ADMIN_TOKEN: ${{ secrets.RELEASE_ADMIN_TOKEN }}", "전용 관리자 secret"},
+			{"GH_TOKEN=\"$RELEASE_ADMIN_TOKEN\"", "관리자 token으로 API 호출"},
+			{"--method GET", "GET method"},
+			{"repos/${{ github.repository }}/immutable-releases", "Immutable Releases endpoint"},
+			{"RELEASE_ADMIN_TOKEN is required", "secret 누락 실패"},
+			{"Failed to verify GitHub Immutable Releases setting", "API 오류 실패"},
+			{`"$IMMUTABLE_RELEASES_ENABLED" != "true"`, "enabled=true 외 상태 실패"},
+			{"must be enabled before publishing a release", "비활성 설정 실패"},
+		} {
+			if !strings.Contains(immutableGate, requirement.fragment) {
+				t.Errorf("Immutable Releases gate에 %s(%q)가 없습니다", requirement.name, requirement.fragment)
+			}
+		}
+		if strings.Contains(immutableGate, "github.token") {
+			t.Error("Immutable Releases gate가 관리자 secret 대신 github.token을 사용합니다")
+		}
+	}
+
+	if publishStepIdx != -1 {
+		publishStepStart := strings.LastIndex(releaseBlock[:publishStepIdx], "- name: Publish GitHub Release")
+		if publishStepStart == -1 {
+			t.Error("GitHub Release 발행 스텝의 시작을 찾을 수 없습니다")
+		} else {
+			publishBlock := releaseBlock[publishStepStart:]
+			if !strings.Contains(publishBlock, "GH_TOKEN: ${{ github.token }}") {
+				t.Error("GitHub Release 발행은 github.token을 사용해야 합니다")
+			}
+			if strings.Contains(publishBlock, "RELEASE_ADMIN_TOKEN") {
+				t.Error("GitHub Release 발행에 관리자 token을 사용하면 안 됩니다")
+			}
+		}
 	}
 
 	// 6. Release 파일은 검증 뒤 빌드하고, 검증된 기존 tag로만 게시한다.

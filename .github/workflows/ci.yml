@@ -151,6 +151,33 @@ jobs:
             echo "$RELEASE_OUTPUT"
             exit 1
           fi
+      - name: Verify Immutable Releases setting
+        env:
+          RELEASE_ADMIN_TOKEN: ${{ secrets.RELEASE_ADMIN_TOKEN }}
+        run: |
+          if [ -z "${RELEASE_ADMIN_TOKEN:-}" ]; then
+            echo "Error: RELEASE_ADMIN_TOKEN is required to verify GitHub Immutable Releases."
+            exit 1
+          fi
+
+          set +e
+          IMMUTABLE_RELEASES_ENABLED=$(GH_TOKEN="$RELEASE_ADMIN_TOKEN" gh api --method GET "repos/${{ github.repository }}/immutable-releases" --jq '.enabled' 2>&1)
+          IMMUTABLE_RELEASES_STATUS=$?
+          set -e
+
+          if [ "$IMMUTABLE_RELEASES_STATUS" -ne 0 ]; then
+            echo "Error: Failed to verify GitHub Immutable Releases setting (exit code $IMMUTABLE_RELEASES_STATUS):"
+            echo "$IMMUTABLE_RELEASES_ENABLED"
+            exit 1
+          fi
+
+          if [ "$IMMUTABLE_RELEASES_ENABLED" != "true" ]; then
+            echo "Error: GitHub Immutable Releases must be enabled before publishing a release."
+            echo "API enabled value: $IMMUTABLE_RELEASES_ENABLED"
+            exit 1
+          fi
+
+          echo "Verified: GitHub Immutable Releases is enabled."
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
