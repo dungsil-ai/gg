@@ -174,10 +174,10 @@ func resolvePlan(req Request) (executionPlan, error) {
 		return executionPlan{}, err
 	}
 	teaLogin := ""
-	// pr status/ready와 label action은 provider를 고른 뒤 미지원을 확정하므로 tea
-	// login을 묻지 않는다.
+	// release 전체와 pr status/ready, label action은 provider를 고른 뒤 미지원을
+	// 확정하므로 tea login을 묻지 않는다.
 	unsupportedTeaAction := (req.Resource == "pr" && (req.Action == "status" || req.Action == "ready")) ||
-		req.Resource == "label"
+		req.Resource == "label" || req.Resource == "release"
 	if p == Tea && req.Action != "clone" && !unsupportedTeaAction {
 		if teaLogin = teaLoginName(repo.Host); teaLogin == "" {
 			return executionPlan{}, fmt.Errorf("no tea login for %s (run: tea login add)", repo.Host)
