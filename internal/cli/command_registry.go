@@ -1,9 +1,9 @@
 package cli
 
 // 이 파일은 gg가 지원하는 명령, action, flag의 유일한 정의 골격이자, cmd_repo.go /
-// cmd_issue.go / cmd_pr.go / cmd_release.go / cmd_config.go / cmd_git.go가 등록한
-// 정의를 취합하는 registry다. ParseRequest는 이 정의로 인자를 검사하고, help
-// 렌더링도 같은 정의를 쓴다.
+// cmd_issue.go / cmd_label.go / cmd_pr.go / cmd_release.go / cmd_config.go /
+// cmd_git.go가 등록한 정의를 취합하는 registry다. ParseRequest는 이 정의로 인자를
+// 검사하고, help 렌더링도 같은 정의를 쓴다.
 
 // actionDef는 resource가 지원하는 action 하나다.
 type actionDef struct {
@@ -60,18 +60,19 @@ func setNumber(req *Request, pos []string) error {
 var commandDefs = map[string]*resourceDef{
 	"repo":    repoResourceDef,
 	"issue":   issueResourceDef,
+	"label":   labelResourceDef,
 	"pr":      prResourceDef,
 	"release": releaseResourceDef,
 	"config":  configResourceDef,
 }
 
 // commandOrder는 최상위 help의 resource 표시 순서다.
-var commandOrder = []string{"repo", "issue", "pr", "release", "config"}
+var commandOrder = []string{"repo", "issue", "label", "pr", "release", "config"}
 
 // invocationTable은 "<resource> <action>" 키로 gh/glab/tea의 arg-builder를 모은다.
-// cmd_repo.go / cmd_issue.go / cmd_pr.go / cmd_release.go가 각자의 table을 등록하고
-// 여기서 취합한다.
-var invocationTable = mergeInvocationTables(repoInvocationTable, issueInvocationTable, prInvocationTable, releaseInvocationTable)
+// cmd_repo.go / cmd_issue.go / cmd_label.go / cmd_pr.go / cmd_release.go가 각자의
+// table을 등록하고 여기서 취합한다.
+var invocationTable = mergeInvocationTables(repoInvocationTable, issueInvocationTable, labelInvocationTable, prInvocationTable, releaseInvocationTable)
 
 func mergeInvocationTables(tables ...map[string]providerBuilders) map[string]providerBuilders {
 	merged := make(map[string]providerBuilders)

@@ -1,6 +1,9 @@
 package cli
 
-import "errors"
+import (
+	"errors"
+	"slices"
+)
 
 // Invocation은 실행할 자식 process다.
 type Invocation struct {
@@ -77,6 +80,10 @@ func dispatch(provider string, c invocationContext) (Invocation, error) {
 }
 
 func ghInvocation(req Request, r RepoURL) (Invocation, error) {
+	// label은 아직 glab만 중계한다. builder가 등록될 때까지 여기서 미지원을 확정한다.
+	if req.Resource == "label" {
+		return Invocation{}, usageErr("label " + req.Action + " is not supported for gh")
+	}
 	c := invocationContext{
 		req:    req,
 		r:      r,
@@ -112,6 +119,9 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	if req.Resource == "pr" && (req.Action == "status" || req.Action == "ready") {
 		return Invocation{}, usageErr("pr " + req.Action + " is not supported for tea")
 	}
+	if req.Resource == "label" {
+		return Invocation{}, usageErr("label " + req.Action + " is not supported for tea")
+	}
 	if req.Resource == "release" {
 		return Invocation{}, usageErr("release is not supported for tea")
 	}
@@ -129,7 +139,7 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 		req:    req,
 		r:      r,
 		res:    res,
-		target: append(append([]string{}, auth...), "--repo", r.Slug()),
+		target: slices.Concat(auth, []string{"--repo", r.Slug()}),
 		auth:   auth,
 	}
 	return dispatch("tea", c)

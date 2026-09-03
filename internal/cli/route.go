@@ -207,7 +207,7 @@ func DetectProvider(host string, cfg *Config, interactive bool) (Provider, error
 	if p, ok := defaultProviders[host]; ok {
 		return p, nil
 	}
-	if saved := Provider(cfg.Hosts[host]); saved == GH || saved == GLab || saved == Tea {
+	if saved, err := ParseProvider(cfg.Hosts[host]); err == nil {
 		if hasBin(saved) && hasLogin(saved, host) {
 			return saved, nil
 		}

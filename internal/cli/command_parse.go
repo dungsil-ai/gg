@@ -23,6 +23,7 @@ type Request struct {
 	ConfigHost, ConfigProvider string
 
 	Title, Body, Base, Head, State, Limit, Description       string
+	Name, Color                                              string
 	Tag, Notes, Ref, Pattern, Dir, Asset                     string // release: 태그, 노트, 태그 생성 기준 ref, download 필터·경로, asset 이름
 	Files                                                    []string
 	Draft, Undo, Public, Private, AllowInsecureHTTP, Explain bool

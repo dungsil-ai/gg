@@ -28,6 +28,10 @@ var (
 		bin: func(r *Request) *bool { return &r.Undo }}
 	descriptionFlag = flagDef{name: "--description", arg: "<text>", desc: "Set the description",
 		str: func(r *Request) *string { return &r.Description }}
+	nameFlag = flagDef{name: "--name", arg: "<text>", desc: "Set the label name",
+		str: func(r *Request) *string { return &r.Name }}
+	colorFlag = flagDef{name: "--color", arg: "<hex>", desc: "Set the label color",
+		str: func(r *Request) *string { return &r.Color }}
 	publicFlag = flagDef{name: "--public", desc: "Create a public repository",
 		bin: func(r *Request) *bool { return &r.Public }}
 	privateFlag = flagDef{name: "--private", desc: "Create a private repository",
