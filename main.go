@@ -31,6 +31,10 @@ func run(args []string) int {
 		fmt.Fprintln(os.Stdout, "gg "+getVersion())
 		return 0
 	}
+	if len(args) == 1 && (args[0] == "-verison" || args[0] == "-v") {
+		printAllVersions()
+		return 0
+	}
 	req, err := ParseRequest(args)
 	if err != nil {
 		return fail(err)
@@ -66,6 +70,18 @@ func run(args []string) int {
 		return fail(err)
 	}
 	return execChild(inv)
+}
+
+func printAllVersions() {
+	fmt.Fprintln(os.Stdout, "gg "+getVersion())
+	for _, name := range []string{"git", "gh", "glab", "tea"} {
+		out, err := runOut(name, "--version")
+		if err != nil || out == "" {
+			continue
+		}
+		out = strings.ReplaceAll(out, "\r\n", "\n")
+		fmt.Fprintln(os.Stdout, out)
+	}
 }
 func getVersion() string {
 	if version != "dev" && version != "" {

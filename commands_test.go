@@ -137,6 +137,8 @@ func TestTopLevelHelpContent(t *testing.T) {
 	wants := []string{
 		"gg config --help", "gg issue --help", "gg issue list --help", "gg pr create --help", "gg pr ready --help", "gg pr merge --help",
 		"--repo <URL>", "--remote <name>", "--explain", "-h, --help", "--version",
+		"--version         gg 버전만 표시",
+		"-v, -verison      단독 사용 시 gg와 설치된 git, gh, glab, tea 버전을 표시",
 	}
 	for _, name := range commandOrder {
 		wants = append(wants, commandDefs[name].summary)

@@ -419,7 +419,8 @@ Flags:
   --remote <name>   이 Git remote를 저장소 문맥으로 사용
   --explain         선택한 저장소 문맥, Provider, 실행할 CLI를 설명
   -h, --help        Show top-level help
-  --version         Show gg version`
+  --version         gg 버전만 표시
+  -v, -verison      단독 사용 시 gg와 설치된 git, gh, glab, tea 버전을 표시`
 
 // topLevelHelp는 최상위 help를 명령 정의에서 만든다.
 func topLevelHelp() string {
