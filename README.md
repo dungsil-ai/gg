@@ -340,13 +340,13 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `gh variable list`
   - [ ] `gh variable set`
 - `run`
-  - [ ] `gh run cancel`
+  - [x] `gh run cancel` (대응: `gg ci cancel`)
   - [ ] `gh run delete`
   - [ ] `gh run download`
-  - [ ] `gh run list`
-  - [ ] `gh run rerun`
-  - [ ] `gh run view`
-  - [ ] `gh run watch`
+  - [x] `gh run list` (대응: `gg ci list`)
+  - [x] `gh run rerun` (대응: `gg ci retry`)
+  - [x] `gh run view` (대응: `gg ci view`)
+  - [x] `gh run watch` (대응: `gg ci watch`)
 - `workflow`
   - [ ] `gh workflow disable`
   - [ ] `gh workflow enable`
@@ -481,14 +481,15 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 - [ ] `glab check-update`
 - `ci`
   - [ ] `glab ci artifacts`
+  - [x] `glab ci cancel` (대응: `gg ci cancel`)
   - [ ] `glab ci delete`
-  - [ ] `glab ci get`
+  - [x] `glab ci get` (대응: `gg ci view`)
   - [ ] `glab ci lint`
-  - [ ] `glab ci list`
-  - [ ] `glab ci retry`
+  - [x] `glab ci list` (대응: `gg ci list`)
+  - [x] `glab ci retry` (대응: `gg ci retry`)
   - [ ] `glab ci run`
   - [ ] `glab ci status`
-  - [ ] `glab ci trace`
+  - [x] `glab ci trace` (대응: `gg ci watch`)
   - [ ] `glab ci trigger`
   - [ ] `glab ci view`
 - `cluster`
@@ -668,6 +669,13 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gg issue blocked-by` (GitHub 지원; GitLab·Gitea 미지원) — 이슈에 blocked-by 의존성을 등록
   - [x] `gg issue type` (GitHub 지원; GitLab·Gitea 미지원) — 이슈 종류(issue type)를 설정
   - sub-issue와 blocked-by는 GitHub API가 body로 numeric database id를 요구하므로 gg가 `gh api repos/<owner>/<repo>/issues/<number> --jq .id`로 번호→id를 미리 조회한 뒤 `gh api`를 호출합니다. `--explain`은 이 조회를 실행하지 않습니다.
+- `ci`
+  - [x] `gg ci list` (GitHub: `gh run list`, GitLab: `glab ci list`; Gitea 미지원)
+  - [x] `gg ci view` (GitHub: `gh run view`, GitLab: `glab ci get`; id 생략 시 현재 branch의 최신 실행)
+  - [x] `gg ci watch` (GitHub: `gh run watch`, GitLab: `glab ci trace`; GitLab id는 job id)
+  - [x] `gg ci retry` (GitHub: `gh run rerun`, GitLab: `glab ci retry`; GitLab id는 job id)
+  - [x] `gg ci cancel` (GitHub: `gh run cancel`, GitLab: `glab ci cancel pipeline`; Gitea 미지원)
+  - [x] `gg actions` (`gg ci`의 alias)
 - `저장소 문맥`
   - [x] `--repo <URL>` (명시한 URL을 저장소 문맥으로 사용)
   - [x] `--remote <name>` (명시한 Git remote를 저장소 문맥으로 사용)
@@ -768,6 +776,36 @@ Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없�
   gg issue blocked-by 42 --blocker 7 --remote upstream
   ```
 - 같은 두 번호를 지정하는 자기 참조(`gg issue sub-issue 42 --parent 42`)는 usage 오류로 거부합니다.
+#### CI 실행 조회·제어 (`gg ci`, alias: `gg actions`)
+- CI 실행 목록:
+  ```bash
+  gg ci list
+  gg ci list --branch main --limit 10
+  ```
+  - GitHub: `gh run list -R <owner>/<repo> [--branch main] [--limit 10]` 호출
+  - GitLab: `glab ci list --repo <URL> [--ref main] [--per-page 10]` 호출
+- 하나의 CI 실행 보기 (id 생략 시 현재 branch의 최신 실행):
+  ```bash
+  gg ci view 1234567890
+  ```
+  - GitHub: `gh run view 1234567890 -R <owner>/<repo>` 호출
+  - GitLab: `glab ci get --pipeline-id 1234567890 --repo <URL>` 호출
+- 실행 로그 실시간 추적 (GitLab id는 job id):
+  ```bash
+  gg ci watch 1234567890
+  ```
+  - GitHub: `gh run watch 1234567890 -R <owner>/<repo>` 호출
+  - GitLab: `glab ci trace 1234567890 --repo <URL>` 호출
+- 재실행과 취소:
+  ```bash
+  gg ci retry 1234567890
+  gg ci cancel 1234567890
+  ```
+  - GitHub: `gh run rerun`, `gh run cancel` 호출
+  - GitLab: `glab ci retry`, `glab ci cancel pipeline` 호출
+- Gitea (`tea`):
+  - `gg ci` 전체는 미지원 오류(`ci is not supported for tea`)가 반환됩니다.
+- `gg actions`는 `gg ci`와 완전히 같은 동작을 합니다 (`gg actions list` 등).
 
 # TOBE
 

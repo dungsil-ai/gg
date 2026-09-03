@@ -137,6 +137,9 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	if req.Resource == "issue" && ghOnlyIssueActions[req.Action] {
 		return Invocation{}, usageErr("issue " + req.Action + " is not supported for tea")
 	}
+	if req.Resource == "ci" {
+		return Invocation{}, usageErr("ci is not supported for tea")
+	}
 	var res string
 	switch req.Resource {
 	case "repo":

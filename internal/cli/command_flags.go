@@ -56,6 +56,8 @@ var (
 		bin: func(r *Request) *bool { return &r.DeleteBranch }}
 	autoMergeFlag = flagDef{name: "--auto", desc: "Enable auto-merge after required approvals and CI pass",
 		bin: func(r *Request) *bool { return &r.Auto }}
+	branchFlag = flagDef{name: "--branch", arg: "<branch>", desc: "Filter by branch",
+		str: func(r *Request) *string { return &r.Branch }}
 	notesFlag = flagDef{name: "--notes", arg: "<text>", desc: "Set the release notes",
 		str: func(r *Request) *string { return &r.Notes }}
 	refFlag = flagDef{name: "--ref", arg: "<ref>", desc: "Branch or commit SHA to tag when the tag does not exist",

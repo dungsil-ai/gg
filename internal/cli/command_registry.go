@@ -1,7 +1,7 @@
 package cli
 
 // 이 파일은 gg가 지원하는 명령, action, flag의 유일한 정의 골격이자, cmd_repo.go /
-// cmd_issue.go / cmd_label.go / cmd_pr.go / cmd_release.go / cmd_config.go /
+// cmd_issue.go / cmd_label.go / cmd_pr.go / cmd_release.go / cmd_ci.go / cmd_config.go /
 // cmd_git.go가 등록한 정의를 취합하는 registry다. ParseRequest는 이 정의로 인자를
 // 검사하고, help 렌더링도 같은 정의를 쓴다.
 
@@ -52,6 +52,10 @@ func setState(req *Request, pos []string) error {
 }
 
 func setNumber(req *Request, pos []string) error {
+	// ci view처럼 positional이 선택인 action은 빈 pos로도 setPos에 들어온다.
+	if len(pos) == 0 {
+		return nil
+	}
 	req.Number = pos[0]
 	return nil
 }
@@ -63,16 +67,17 @@ var commandDefs = map[string]*resourceDef{
 	"label":   labelResourceDef,
 	"pr":      prResourceDef,
 	"release": releaseResourceDef,
+	"ci":      ciResourceDef,
 	"config":  configResourceDef,
 }
 
 // commandOrder는 최상위 help의 resource 표시 순서다.
-var commandOrder = []string{"repo", "issue", "label", "pr", "release", "config"}
+var commandOrder = []string{"repo", "issue", "label", "pr", "release", "ci", "config"}
 
 // invocationTable은 "<resource> <action>" 키로 gh/glab/tea의 arg-builder를 모은다.
-// cmd_repo.go / cmd_issue.go / cmd_label.go / cmd_pr.go / cmd_release.go가 각자의
+// cmd_repo.go / cmd_issue.go / cmd_label.go / cmd_pr.go / cmd_release.go / cmd_ci.go가 각자의
 // table을 등록하고 여기서 취합한다.
-var invocationTable = mergeInvocationTables(repoInvocationTable, issueInvocationTable, labelInvocationTable, prInvocationTable, releaseInvocationTable)
+var invocationTable = mergeInvocationTables(repoInvocationTable, issueInvocationTable, labelInvocationTable, prInvocationTable, releaseInvocationTable, ciInvocationTable)
 
 func mergeInvocationTables(tables ...map[string]providerBuilders) map[string]providerBuilders {
 	merged := make(map[string]providerBuilders)
@@ -94,7 +99,8 @@ type commandAlias struct {
 // commandAliases는 alias를 실제 구현이 등록된 canonical 명령 경로로 연결한다.
 var commandAliases = func() map[string]commandAlias {
 	aliases := map[string]commandAlias{
-		"mr": {resource: "pr"},
+		"mr":      {resource: "pr"},
+		"actions": {resource: "ci"},
 	}
 	for _, action := range commandDefs["repo"].actions {
 		if _, isResource := commandDefs[action.name]; isResource {
