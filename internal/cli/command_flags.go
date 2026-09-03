@@ -44,6 +44,24 @@ var (
 		bin: func(r *Request) *bool { return &r.DeleteBranch }}
 	autoMergeFlag = flagDef{name: "--auto", desc: "Enable auto-merge after required approvals and CI pass",
 		bin: func(r *Request) *bool { return &r.Auto }}
+	notesFlag = flagDef{name: "--notes", arg: "<text>", desc: "Set the release notes",
+		str: func(r *Request) *string { return &r.Notes }}
+	refFlag = flagDef{name: "--ref", arg: "<ref>", desc: "Branch or commit SHA to tag when the tag does not exist",
+		str: func(r *Request) *string { return &r.Ref }}
+	// release create/edit의 --draft는 pr의 --draft와 같은 Request 필드를 켜지만
+	// help 문구가 다르다. action별 정의로 나눠 받는다.
+	releaseDraftFlag = flagDef{name: "--draft", desc: "Save the release as a draft instead of publishing it",
+		bin: func(r *Request) *bool { return &r.Draft }}
+	prereleaseFlag = flagDef{name: "--prerelease", desc: "Mark the release as a prerelease",
+		bin: func(r *Request) *bool { return &r.Prerelease }}
+	yesFlag = flagDef{name: "--yes", desc: "Skip the confirmation prompt",
+		bin: func(r *Request) *bool { return &r.Yes }}
+	cleanupTagFlag = flagDef{name: "--cleanup-tag", desc: "Delete the tag along with the release",
+		bin: func(r *Request) *bool { return &r.CleanupTag }}
+	patternFlag = flagDef{name: "--pattern", arg: "<glob>", desc: "Download only assets that match the glob",
+		str: func(r *Request) *string { return &r.Pattern }}
+	dirFlag = flagDef{name: "--dir", arg: "<dir>", desc: "Directory to download assets into",
+		str: func(r *Request) *string { return &r.Dir }}
 )
 
 // 저장소 문맥과 설명 모드 flag. 파싱은 전역/flagLoop의 공통 분기가 하고,

@@ -252,14 +252,14 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `gh pr update-branch`
   - [x] `gh pr view` (대응: `gg pr view`)
 - `release`
-  - [ ] `gh release create`
-  - [ ] `gh release delete`
-  - [ ] `gh release delete-asset`
-  - [ ] `gh release download`
-  - [ ] `gh release edit`
-  - [ ] `gh release list`
-  - [ ] `gh release upload`
-  - [ ] `gh release view`
+  - [x] `gh release create` (대응: `gg release create`)
+  - [x] `gh release delete` (대응: `gg release delete`)
+  - [x] `gh release delete-asset` (대응: `gg release delete-asset`; GitLab 미지원)
+  - [x] `gh release download` (대응: `gg release download`)
+  - [x] `gh release edit` (대응: `gg release edit`; GitLab 미지원)
+  - [x] `gh release list` (대응: `gg release list`)
+  - [x] `gh release upload` (대응: `gg release upload`)
+  - [x] `gh release view` (대응: `gg release view`)
 - `repo`
   - [ ] `gh repo archive`
   - [ ] `gh repo autolink`
@@ -445,12 +445,12 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `glab mr update` (대응: `gg pr ready`)
   - [x] `glab mr view` (대응: `gg pr view`)
 - `release`
-  - [ ] `glab release create`
-  - [ ] `glab release delete`
-  - [ ] `glab release download`
-  - [ ] `glab release list`
-  - [ ] `glab release upload`
-  - [ ] `glab release view`
+  - [x] `glab release create` (대응: `gg release create`; `--draft`·`--prerelease` 미지원)
+  - [x] `glab release delete` (대응: `gg release delete`)
+  - [x] `glab release download` (대응: `gg release download`)
+  - [x] `glab release list` (대응: `gg release list`)
+  - [x] `glab release upload` (대응: `gg release upload`)
+  - [x] `glab release view` (대응: `gg release view`)
 - `repo`
   - [ ] `glab repo archive`
   - [x] `glab repo clone` (대응: `gg repo clone`, `gg clone`)
