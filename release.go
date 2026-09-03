@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -41,7 +42,18 @@ func ReleaseChecksumName(archiveName string) string {
 	return archiveName + ".sha256"
 }
 
+// releaseTagPattern은 ldflags에 주입하는 tag 형식을 제한해, go build -ldflags의
+// 공백 기준 인자 분리를 통한 링커 인자 주입을 막는다.
+var releaseTagPattern = regexp.MustCompile(`^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$`)
+
+func validReleaseTag(tag string) bool {
+	return releaseTagPattern.MatchString(tag)
+}
+
 func BuildAndPackageRelease(srcDir, outDir, tag string) (err error) {
+	if !validReleaseTag(tag) {
+		return fmt.Errorf("유효하지 않은 release tag: %q", tag)
+	}
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return fmt.Errorf("outDir 생성 실패: %w", err)
 	}

@@ -71,7 +71,7 @@ func runPRStatus(ep executionPlan) int {
 func captureChild(inv Invocation) (string, error) {
 	path, err := lookPath(inv.Bin)
 	if err != nil {
-		return "", fmt.Errorf("%s is not installed or not on PATH", inv.Bin)
+		return "", exitCodeError{Code: 127, Msg: fmt.Sprintf("%s is not installed or not on PATH", inv.Bin)}
 	}
 	cmd := exec.Command(path, inv.Args...)
 	var stdout strings.Builder
@@ -79,8 +79,10 @@ func captureChild(inv Invocation) (string, error) {
 	cmd.Stderr = osStderr
 	cmd.Env = append(osEnviron(), inv.Env...)
 	if err := cmd.Run(); err != nil {
-		if ee, ok := err.(*exec.ExitError); ok {
-			return "", exitCodeError{Code: ee.ExitCode(), Msg: fmt.Sprintf("%s failed with exit code %d", inv.Bin, ee.ExitCode())}
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			code := childExitCode(ee)
+			return "", exitCodeError{Code: code, Msg: fmt.Sprintf("%s failed with exit code %d", inv.Bin, code)}
 		}
 		return "", err
 	}
@@ -176,7 +178,7 @@ func ghCIRollup(checks []ghCheck) string {
 			return "pending"
 		case "unknown":
 			overall = "unknown"
-		case "pass":
+		case "pass", "neutral":
 			if overall == "" {
 				overall = "pass"
 			}
