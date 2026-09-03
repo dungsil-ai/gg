@@ -29,12 +29,13 @@ Usage:
   gg issue --help
   gg issue list --help
   gg pr create --help
+  gg pr status --help
   gg pr merge --help
 
 Commands:
   repo       List, view, create, or clone repositories
   issue      List, view, create, comment, close, or reopen issues
-  pr         List, view, create, or merge pull requests
+  pr         List, view, create, or merge pull requests, and check merge readiness
   config     Provider 설정 관리
   commit     Run git commit without signing
   pull       Run git pull
@@ -152,6 +153,36 @@ Flags:
 
 func main() { os.Exit(run(os.Args[1:])) }
 
+const prStatusHelp = `Show merge readiness for one pull request.
+
+Usage:
+  gg pr status <number> [flags]
+
+Output fields:
+  Draft      yes | no | unknown
+  Approval   approved | required | changes-requested | unknown
+  CI         pass | fail | pending | none | unknown
+  Conflict   yes | no | unknown
+  Mergeable  yes | no | unknown
+
+  unknown means the provider is still computing the value or gave no
+  usable value. It never turns into a safe value on its own.
+  The exit code is 0 whenever the lookup itself succeeds, even when
+  Mergeable is no or CI is fail.
+
+Example:
+  gg pr status 42
+  Draft: no
+  Approval: approved
+  CI: pass
+  Conflict: no
+  Mergeable: yes
+
+Flags:
+` + repositoryContextFlags + `
+  --explain         선택한 저장소 문맥, Provider, 실행할 CLI를 설명
+` + nestedHelpFlag
+
 func run(args []string) int {
 	if len(args) == 0 || (len(args) == 1 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h")) {
 		fmt.Fprintln(os.Stdout, topLevelHelp)
@@ -182,6 +213,13 @@ func run(args []string) int {
 		}
 		explain(os.Stdout, ep)
 		return 0
+	}
+	if req.Resource == "pr" && req.Action == "status" && !req.Explain {
+		ep, err := resolvePlan(req)
+		if err != nil {
+			return fail(err)
+		}
+		return runPRStatus(ep)
 	}
 	inv, err := plan(req)
 	if err != nil {
@@ -226,6 +264,8 @@ func nestedHelp(args []string) (string, bool) {
 		return issueReopenHelp, true
 	case "pr create --help":
 		return prCreateHelp, true
+	case "pr status --help":
+		return prStatusHelp, true
 	case "pr merge --help":
 		return prMergeHelp, true
 	}
@@ -346,7 +386,9 @@ func resolvePlan(req Request) (executionPlan, error) {
 		return executionPlan{}, err
 	}
 	teaLogin := ""
-	if p == Tea && req.Action != "clone" {
+	// pr status는 provider를 고르기 전에 미지원을 확정하므로 tea login을 묻지 않는다.
+	statusUnsupported := req.Resource == "pr" && req.Action == "status" && p == Tea
+	if p == Tea && req.Action != "clone" && !statusUnsupported {
 		if teaLogin = teaLoginName(repo.Host); teaLogin == "" {
 			return executionPlan{}, fmt.Errorf("no tea login for %s (run: tea login add)", repo.Host)
 		}
