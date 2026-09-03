@@ -67,6 +67,37 @@ func TestParseRequest(t *testing.T) {
 	}
 }
 
+func TestParseRequestRepoActionAliasUsesCanonicalCommand(t *testing.T) {
+	tests := []struct {
+		name  string
+		alias []string
+	}{
+		{name: "list", alias: []string{"list", "--limit", "5"}},
+		{name: "view", alias: []string{"view", "--repo", "https://github.com/o/r"}},
+		{name: "create", alias: []string{"create", "--repo", "https://gitea.com/o/r", "--private", "--description", "d"}},
+		{name: "clone", alias: []string{"clone", "https://github.com/o/r", "dst"}},
+		{name: "commit", alias: []string{"commit", "--allow-empty", "-m", "test"}},
+		{name: "pull", alias: []string{"pull", "--rebase", "origin", "main"}},
+		{name: "push", alias: []string{"push", "--force-with-lease", "origin", "main"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			canonicalArgs := append([]string{"repo"}, tt.alias...)
+			want, err := ParseRequest(canonicalArgs)
+			if err != nil {
+				t.Fatalf("ParseRequest(%v): %v", canonicalArgs, err)
+			}
+			got, err := ParseRequest(tt.alias)
+			if err != nil {
+				t.Fatalf("ParseRequest(%v): %v", tt.alias, err)
+			}
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("ParseRequest(%v) = %+v, want ParseRequest(%v) = %+v", tt.alias, got, canonicalArgs, want)
+			}
+		})
+	}
+}
+
 func TestParseRequestPRReady(t *testing.T) {
 	cases := []struct {
 		name string
@@ -326,8 +357,9 @@ func TestMainPorcelainPassthroughActionSet(t *testing.T) {
 	}
 	for _, action := range want {
 		ad := commandDefs["repo"].action(action)
-		if !repoAliases[action] || ad == nil || !ad.passthrough {
-			t.Errorf("%s is not a repo passthrough alias: alias=%t action=%+v", action, repoAliases[action], ad)
+		resource, aliasAction := resolveAlias(action)
+		if resource != "repo" || aliasAction != action || ad == nil || !ad.passthrough {
+			t.Errorf("%s alias = %s %s, action=%+v; want repo %s passthrough", action, resource, aliasAction, ad, action)
 		}
 	}
 }

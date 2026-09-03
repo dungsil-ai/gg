@@ -367,27 +367,36 @@ var commandDefs = map[string]*resourceDef{
 // commandOrder는 최상위 help의 resource 표시 순서다.
 var commandOrder = []string{"repo", "issue", "pr", "config"}
 
-// commandAliases는 alias를 실제 구현이 등록된 canonical 명령으로 연결한다.
-var commandAliases = map[string]string{
-	"mr": "pr",
+// commandAlias는 alias가 가리키는 canonical 명령 경로다.
+// action이 비어 있으면 resource alias이고, 있으면 resource action alias다.
+type commandAlias struct {
+	resource string
+	action   string
 }
 
-func resolveAlias(command string) string {
-	if canonical, ok := commandAliases[command]; ok {
-		return canonical
+// commandAliases는 alias를 실제 구현이 등록된 canonical 명령 경로로 연결한다.
+var commandAliases = func() map[string]commandAlias {
+	aliases := map[string]commandAlias{
+		"mr": {resource: "pr"},
 	}
-	return command
-}
-
-// repoAliases는 resource 없이 쓸 수 있는 repo action이다.
-var repoAliases = func() map[string]bool {
-	actions := commandDefs["repo"].actions
-	aliases := make(map[string]bool, len(actions))
-	for _, action := range actions {
-		aliases[action.name] = true
+	for _, action := range commandDefs["repo"].actions {
+		if _, isResource := commandDefs[action.name]; isResource {
+			continue
+		}
+		if _, exists := aliases[action.name]; exists {
+			continue
+		}
+		aliases[action.name] = commandAlias{resource: "repo", action: action.name}
 	}
 	return aliases
 }()
+
+func resolveAlias(command string) (resource, action string) {
+	if canonical, ok := commandAliases[command]; ok {
+		return canonical.resource, canonical.action
+	}
+	return command, ""
+}
 
 // topLevelAliases는 최상위 help Commands에 별도 항목으로 보이는 alias다.
 var topLevelAliases = []string{"commit", "pull", "push"}
@@ -518,21 +527,30 @@ func nestedHelp(args []string) (string, bool) {
 		hasLeadingGlobal = true
 		path = path[1:]
 	}
+	if len(path) == 0 {
+		return "", false
+	}
+
+	head, aliasAction := resolveAlias(path[0])
+	if aliasAction != "" {
+		if len(path) != 1 || !helpAliases[path[0]] {
+			return "", false
+		}
+		rd := commandDefs[head]
+		ad := rd.action(aliasAction)
+		if hasLeadingGlobal && ad.passthrough {
+			return "", false
+		}
+		return renderActionHelp(rd, ad), true
+	}
+
 	switch len(path) {
 	case 1:
-		if rd, ok := commandDefs[resolveAlias(path[0])]; ok {
+		if rd, ok := commandDefs[head]; ok {
 			return renderResourceHelp(rd), true
 		}
-		if helpAliases[path[0]] {
-			rd := commandDefs["repo"]
-			ad := rd.action(path[0])
-			if hasLeadingGlobal && ad.passthrough {
-				return "", false
-			}
-			return renderActionHelp(rd, ad), true
-		}
 	case 2:
-		if rd, ok := commandDefs[resolveAlias(path[0])]; ok {
+		if rd, ok := commandDefs[head]; ok {
 			if ad := rd.action(path[1]); ad != nil {
 				if (rd.name == "repo" && isGitPassthroughAction(ad.name)) || (hasLeadingGlobal && ad.passthrough) {
 					return "", false
