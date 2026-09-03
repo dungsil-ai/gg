@@ -9,9 +9,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime/debug"
-	"sort"
 	"strings"
-	"text/tabwriter"
 )
 
 var version = "dev"
@@ -99,63 +97,6 @@ func getVersion() string {
 		}
 	}
 	return "dev"
-}
-
-func runConfig(req Request) error {
-	switch req.Action {
-	case "list":
-		cfg, err := LoadConfig()
-		if err != nil {
-			return err
-		}
-		if len(cfg.Hosts) == 0 {
-			fmt.Fprintln(os.Stdout, "No provider settings.")
-			return nil
-		}
-		hosts := make([]string, 0, len(cfg.Hosts))
-		for host := range cfg.Hosts {
-			hosts = append(hosts, host)
-		}
-		sort.Strings(hosts)
-		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "HOST\tPROVIDER")
-		for _, host := range hosts {
-			fmt.Fprintf(w, "%s\t%s\n", host, cfg.Hosts[host])
-		}
-		return w.Flush()
-	case "set":
-		host, fixed, err := normalizeProviderSettingHost(req.ConfigHost)
-		if err != nil {
-			return err
-		}
-		if fixed {
-			return usageErr(host + " is a default domain and cannot be changed")
-		}
-		provider, err := ParseProvider(req.ConfigProvider)
-		if err != nil {
-			return err
-		}
-		return SaveProvider(host, provider)
-	case "unset":
-		host, fixed, err := normalizeProviderSettingHost(req.ConfigHost)
-		if err != nil {
-			return err
-		}
-		if fixed {
-			return nil
-		}
-		return UnsetProvider(host)
-	}
-	return usageErr("config does not support " + req.Action)
-}
-
-func normalizeProviderSettingHost(input string) (host string, fixed bool, err error) {
-	host, err = NormalizeConfigHost(input)
-	if err != nil {
-		return "", false, err
-	}
-	_, fixed = defaultProviders[host]
-	return host, fixed, nil
 }
 
 func fail(err error) int {
