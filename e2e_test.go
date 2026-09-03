@@ -488,7 +488,10 @@ func TestE2EConfigHelpDoesNotAdvertiseRemoteFlag(t *testing.T) {
 
 func TestE2ENestedHelpDoesNotAdvertiseUnsupportedShortFlag(t *testing.T) {
 	bin := buildGG(t)
-	for _, args := range [][]string{{"config", "--help"}, {"issue", "--help"}, {"issue", "list", "--help"}, {"pr", "create", "--help"}} {
+	for _, args := range [][]string{
+		{"config", "--help"}, {"issue", "--help"}, {"issue", "list", "--help"}, {"pr", "create", "--help"},
+		{"repo", "--help"}, {"repo", "list", "--help"}, {"repo", "commit", "--help"}, {"pr", "merge", "--help"},
+	} {
 		assertGGHelpOmits(t, bin, args, "-h, --help")
 	}
 }
@@ -499,7 +502,7 @@ func TestE2ENestedHelp(t *testing.T) {
 		args []string
 		want []string
 	}{
-		{[]string{"config", "--help"}, []string{"Usage:", "config list", "config set", "config unset", "Flags:", "--help"}},
+		{[]string{"config", "--help"}, []string{"Usage:", "list", "List Provider 설정", "set", "unset", "Flags:", "--help"}},
 		{[]string{"issue", "--help"}, []string{"Usage:", "list", "view", "create", "comment", "close", "reopen", "--repo", "--remote", "--help"}},
 		{[]string{"issue", "list", "--help"}, []string{"Usage:", "--state", "--limit", "--repo", "--remote", "--help"}},
 		{[]string{"issue", "comment", "--help"}, []string{"Usage:", "comment <number>", "--body", "--repo", "--remote", "--help"}},
@@ -509,6 +512,144 @@ func TestE2ENestedHelp(t *testing.T) {
 	}
 	for _, tt := range tests {
 		assertGGHelp(t, bin, tt.args, tt.want)
+	}
+}
+
+// TestE2EAllActionHelp는 정의된 모든 resource와 action의 --help가
+// stdout으로 나오고 usage와 정의된 flag를 모두 표시하는지 본다.
+func TestE2EAllActionHelp(t *testing.T) {
+	bin := buildGG(t)
+	for _, name := range commandOrder {
+		rd := commandDefs[name]
+
+		stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), name, "--help")
+		if code != 0 || stderr != "" {
+			t.Errorf("gg %s --help = stderr %q, exit %d", name, stderr, code)
+		}
+		for _, want := range []string{rd.desc, rd.usage, "Commands:", "Flags:"} {
+			if !strings.Contains(stdout, want) {
+				t.Errorf("gg %s --help stdout에 %q 없음:\n%s", name, want, stdout)
+			}
+		}
+
+		for i := range rd.actions {
+			ad := &rd.actions[i]
+			stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), name, ad.name, "--help")
+			if code != 0 || stderr != "" {
+				t.Errorf("gg %s %s --help = stderr %q, exit %d", name, ad.name, stderr, code)
+				continue
+			}
+			wants := []string{ad.summary + ".", ad.usage, "Flags:", "--help"}
+			for _, f := range actionFlags(ad) {
+				if f.arg != "" {
+					wants = append(wants, f.name+" "+f.arg)
+				} else {
+					wants = append(wants, f.name)
+				}
+			}
+			for _, want := range wants {
+				if !strings.Contains(stdout, want) {
+					t.Errorf("gg %s %s --help stdout에 %q 없음:\n%s", name, ad.name, want, stdout)
+				}
+			}
+		}
+	}
+}
+
+// TestE2ERepoOmittedHelpMatchesRepoForm은 repo를 생략한 명령의 help가
+// gg repo <action> --help와 같은 출력을 내는지 본다.
+func TestE2ERepoOmittedHelpMatchesRepoForm(t *testing.T) {
+	bin := buildGG(t)
+	for alias := range helpAliases {
+		omitted, _, code := runGGStreams(t, bin, t.TempDir(), alias, "--help")
+		prefixed, _, code2 := runGGStreams(t, bin, t.TempDir(), "repo", alias, "--help")
+		if code != 0 || code2 != 0 {
+			t.Fatalf("gg %s --help exits %d, gg repo %s --help exits %d", alias, code, alias, code2)
+		}
+		if omitted != prefixed {
+			t.Errorf("gg %s --help와 gg repo %s --help 출력이 다름:\n%q\n%q", alias, alias, omitted, prefixed)
+		}
+	}
+}
+
+// TestE2ECommitAliasPassesHelpToGit는 repo 생략 commit의 --help가
+// gg help가 아니라 git으로 전달되는지 본다.
+func TestE2ECommitAliasPassesHelpToGit(t *testing.T) {
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	writeFakeBin(t, fakeDir, "git", logFile)
+
+	out, code := runGG(t, bin, fakeDir, t.TempDir(), "commit", "--help")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, out)
+	}
+	if got := readLog(t, logFile); !strings.Contains(got, "git commit --no-gpg-sign --help") {
+		t.Errorf("git argv = %q, want git commit --no-gpg-sign --help", got)
+	}
+	if strings.Contains(out, "Usage:") {
+		t.Errorf("gg commit --help가 gg help를 출력함:\n%s", out)
+	}
+}
+
+// TestE2EPullPushHelpDoesNotRunGit은 repo 생략 pull/push의 --help가
+// git을 실행하지 않고 gg의 단계별 help를 stdout에 출력하는지 본다.
+func TestE2EPullPushHelpDoesNotRunGit(t *testing.T) {
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	writeFakeBin(t, fakeDir, "git", logFile)
+
+	for _, args := range [][]string{{"pull", "--help"}, {"repo", "pull", "--help"}, {"push", "--help"}} {
+		stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), args...)
+		if code != 0 || stderr != "" {
+			t.Fatalf("gg %v = stderr %q, exit %d", args, stderr, code)
+		}
+		for _, want := range []string{"Usage:", "Flags:", "--help"} {
+			if !strings.Contains(stdout, want) {
+				t.Errorf("gg %v stdout에 %q 없음:\n%s", args, want, stdout)
+			}
+		}
+	}
+	if got := readLog(t, logFile); got != "" {
+		t.Errorf("git should not run, got %q", got)
+	}
+}
+
+// TestE2EHelpAfterContextFlags는 저장소 문맥 flag 뒤에 --help가 와도
+// 해당 명령의 help가 나오는지 본다.
+func TestE2EHelpAfterContextFlags(t *testing.T) {
+	bin := buildGG(t)
+	for _, args := range [][]string{
+		{"--repo", "https://github.com/o/r", "issue", "list", "--help"},
+		{"--explain", "pr", "--help"},
+		{"--remote", "origin", "list", "--help"},
+	} {
+		stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), args...)
+		if code != 0 || stderr != "" {
+			t.Fatalf("gg %v = stderr %q, exit %d", args, stderr, code)
+		}
+		if !strings.Contains(stdout, "Usage:") || !strings.Contains(stdout, "Flags:") {
+			t.Errorf("gg %v stdout에 help 없음:\n%s", args, stdout)
+		}
+	}
+}
+
+// TestE2EUnknownFlagUsesStderrAndExitTwo는 알 수 없는 flag의
+// 오류 출력과 exit code 2 계약을 본다.
+func TestE2EUnknownFlagUsesStderrAndExitTwo(t *testing.T) {
+	bin := buildGG(t)
+	stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), "issue", "list", "--wat")
+	if code != 2 {
+		t.Errorf("exit = %d, want 2", code)
+	}
+	if stdout != "" {
+		t.Errorf("stdout = %q, want empty", stdout)
+	}
+	for _, want := range []string{"gg: unknown flag --wat", "Usage:"} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("stderr에 %q 없음:\n%s", want, stderr)
+		}
 	}
 }
 
@@ -650,7 +791,7 @@ func TestE2EPRCommandAliasMatchesCanonicalCommand(t *testing.T) {
 	})
 
 	t.Run("nested help", func(t *testing.T) {
-		actions := []string{"create", "status", "merge"}
+		actions := []string{"create", "status", "ready", "merge"}
 		for _, action := range actions {
 			t.Run(action, func(t *testing.T) {
 				canonicalOut, canonicalErr, canonicalCode := runGGStreams(t, bin, repo, "pr", action, "--help")
