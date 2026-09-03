@@ -120,6 +120,49 @@ func readGitPassthroughCalls(t *testing.T, logFile string) [][]string {
 	return calls
 }
 
+// writeFakeVersionBin은 --version 출력과 종료 코드를 정한 fake 실행 파일을 만든다.
+func writeFakeVersionBin(t *testing.T, dir, name, stdout, stderr string, exitCode int) {
+	t.Helper()
+	var path, body string
+	if runtime.GOOS == "windows" {
+		path = filepath.Join(dir, name+".cmd")
+		body = "@echo off\r\n" +
+			"if not \"%~1\"==\"--version\" exit /b 99\r\n" +
+			"if not \"%~2\"==\"\" exit /b 99\r\n"
+		if stdout != "" {
+			for _, line := range strings.Split(stdout, "\n") {
+				body += "echo " + line + "\r\n"
+			}
+		}
+		if stderr != "" {
+			for _, line := range strings.Split(stderr, "\n") {
+				body += "echo " + line + " 1>&2\r\n"
+			}
+		}
+		body += fmt.Sprintf("exit /b %d\r\n", exitCode)
+	} else {
+		path = filepath.Join(dir, name)
+		body = "#!/bin/sh\n" +
+			"if [ \"$#\" -ne 1 ] || [ \"$1\" != \"--version\" ]; then\n" +
+			"  exit 99\n" +
+			"fi\n"
+		if stdout != "" {
+			for _, line := range strings.Split(stdout, "\n") {
+				body += "printf '%s\\n' '" + line + "'\n"
+			}
+		}
+		if stderr != "" {
+			for _, line := range strings.Split(stderr, "\n") {
+				body += "printf '%s\\n' '" + line + "' >&2\n"
+			}
+		}
+		body += fmt.Sprintf("exit %d\n", exitCode)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // runGG는 fake PATH + 임시 GG_HOME으로 gg를 실행한다.
 func runGG(t *testing.T, bin, fakeDir, workDir string, args ...string) (string, int) {
 	t.Helper()
@@ -523,7 +566,7 @@ func assertGGHelp(t *testing.T, bin string, args, wants []string) {
 func TestE2ETopLevelHelp(t *testing.T) {
 	bin := buildGG(t)
 	for _, args := range [][]string{nil, {"help"}, {"--help"}, {"-h"}} {
-		assertGGHelp(t, bin, args, []string{"Usage:", "Commands:", "commit", "issue", "pr", "alias: mr", "config", "--repo", "--remote"})
+		assertGGHelp(t, bin, args, []string{"Usage:", "Commands:", "commit", "issue", "pr", "alias: mr", "config", "--repo", "--remote", "--version         gg 버전만 표시", "-v, -verison      단독 사용 시 gg와 설치된 git, gh, glab, tea 버전을 표시"})
 	}
 }
 
@@ -754,25 +797,106 @@ func TestE2EVersion(t *testing.T) {
 		t.Fatalf("release build 실패: %v\n%s", err, out)
 	}
 
-	for _, tt := range []struct {
-		name string
-		bin  string
-		want string
+	builds := []struct {
+		name    string
+		bin     string
+		version string
 	}{
-		{"local version", localBin, "gg dev\n"},
-		{"release version", releaseBin, "gg v0.1.0\n"},
-	} {
+		{"local", localBin, "dev"},
+		{"release", releaseBin, "v0.1.0"},
+	}
+	for _, build := range builds {
 		for _, args := range [][]string{{"version"}, {"--version"}} {
-			stdout, stderr, code := runGGStreams(t, tt.bin, t.TempDir(), args...)
-			if code != 0 || stdout != tt.want || stderr != "" {
-				t.Errorf("%s %v = stdout %q, stderr %q, exit %d; want stdout %q, empty stderr, exit 0", tt.name, args, stdout, stderr, code, tt.want)
+			stdout, stderr, code := runGGStreams(t, build.bin, t.TempDir(), args...)
+			want := "gg " + build.version + "\n"
+			if code != 0 || stdout != want || stderr != "" {
+				t.Errorf("%s %v = stdout %q, stderr %q, exit %d; want stdout %q, empty stderr, exit 0", build.name, args, stdout, stderr, code, want)
 			}
 		}
 	}
 
-	stdout, stderr, code := runGGStreams(t, localBin, t.TempDir(), "-v")
-	if code != 2 || stdout != "" || !strings.Contains(stderr, "unknown command -v") {
-		t.Errorf("-v = stdout %q, stderr %q, exit %d; want usage error", stdout, stderr, code)
+	runAggregate := func(t *testing.T, bin, pathValue string, args ...string) (string, string, int) {
+		t.Helper()
+		cmd := ggCommandWithHomeAndPath(bin, t.TempDir(), t.TempDir(), pathValue, args...)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		output := "stdout: " + stdout.String() + "\nstderr: " + stderr.String()
+		return stdout.String(), stderr.String(), processExitCode(t, err, output)
+	}
+
+	versionCases := []struct {
+		name  string
+		setup func(t *testing.T, dir string)
+		want  string
+	}{
+		{
+			name: "all successful tools show stdout in order",
+			setup: func(t *testing.T, dir string) {
+				writeFakeVersionBin(t, dir, "git", "git version 2.47.0\ngit build metadata", "git warning", 0)
+				writeFakeVersionBin(t, dir, "gh", "gh version 2.62.0\ngh build metadata", "gh warning", 0)
+				writeFakeVersionBin(t, dir, "glab", "glab version 1.49.0", "", 0)
+				writeFakeVersionBin(t, dir, "tea", "tea version 0.9.2", "", 0)
+			},
+			want: "git version 2.47.0\ngit build metadata\ngh version 2.62.0\ngh build metadata\nglab version 1.49.0\ntea version 0.9.2\n",
+		},
+		{
+			name: "missing and failing tools are skipped while later tools run",
+			setup: func(t *testing.T, dir string) {
+				writeFakeVersionBin(t, dir, "git", "git version 2.47.0", "", 0)
+				writeFakeVersionBin(t, dir, "glab", "glab version 1.49.0", "glab failed", 1)
+				writeFakeVersionBin(t, dir, "tea", "tea version 0.9.2", "", 0)
+			},
+			want: "git version 2.47.0\ntea version 0.9.2\n",
+		},
+		{
+			name: "successful stderr-only tool is skipped",
+			setup: func(t *testing.T, dir string) {
+				writeFakeVersionBin(t, dir, "git", "git version 2.47.0", "", 0)
+				writeFakeVersionBin(t, dir, "gh", "", "gh warning", 0)
+				writeFakeVersionBin(t, dir, "glab", "glab version 1.49.0", "", 0)
+				writeFakeVersionBin(t, dir, "tea", "tea version 0.9.2", "", 0)
+			},
+			want: "git version 2.47.0\nglab version 1.49.0\ntea version 0.9.2\n",
+		},
+		{
+			name: "all tools missing",
+			want: "",
+		},
+	}
+	for _, build := range builds {
+		for _, versionCase := range versionCases {
+			for _, args := range [][]string{{"-verison"}, {"-v"}} {
+				t.Run(build.name+"/"+versionCase.name+"/"+args[0], func(t *testing.T) {
+					fakeDir := t.TempDir()
+					if versionCase.setup != nil {
+						versionCase.setup(t, fakeDir)
+					}
+					stdout, stderr, code := runAggregate(t, build.bin, fakeDir, args...)
+					want := "gg " + build.version + "\n" + versionCase.want
+					if code != 0 || stdout != want || stderr != "" {
+						t.Errorf("%s %v = stdout %q, stderr %q, exit %d; want stdout %q, empty stderr, exit 0", versionCase.name, args, stdout, stderr, code, want)
+					}
+				})
+			}
+		}
+	}
+
+	stdout, stderr, code := runGGStreams(t, localBin, t.TempDir(), "-v", "extra")
+	if code != 2 || stdout != "" || !strings.Contains(stderr, "gg: unknown command -v") {
+		t.Errorf("-v extra = stdout %q, stderr %q, exit %d; want usage error", stdout, stderr, code)
+	}
+
+	gitDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	writeFakeBin(t, gitDir, "git", logFile)
+	out, code := runGG(t, localBin, gitDir, t.TempDir(), "commit", "-v")
+	if code != 0 || out != "" {
+		t.Errorf("gg commit -v = output %q, exit %d; want empty output, exit 0", out, code)
+	}
+	if got := readLog(t, logFile); got != "git commit --no-gpg-sign -v" {
+		t.Errorf("git argv = %q, want %q", got, "git commit --no-gpg-sign -v")
 	}
 }
 
@@ -1227,13 +1351,20 @@ func TestE2ECommitPassesThroughToGitWithNoGpgSign(t *testing.T) {
 	logFile := filepath.Join(t.TempDir(), "calls.log")
 	writeFakeBin(t, fakeDir, "git", logFile)
 
-	out, code := runGG(t, bin, fakeDir, t.TempDir(), "commit", "-m", "msg")
-	if code != 0 {
-		t.Fatalf("exit %d: %s", code, out)
-	}
-	got := readLog(t, logFile)
-	if !strings.Contains(got, "git commit --no-gpg-sign -m msg") {
-		t.Errorf("git argv = %q", got)
+	for _, tt := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"-m", "msg"}, "git commit --no-gpg-sign -m msg"},
+		{[]string{"-v"}, "git commit --no-gpg-sign -v"},
+	} {
+		out, code := runGG(t, bin, fakeDir, t.TempDir(), append([]string{"commit"}, tt.args...)...)
+		if code != 0 {
+			t.Fatalf("gg commit %v exit %d: %s", tt.args, code, out)
+		}
+		if got := readLog(t, logFile); !strings.Contains(got, tt.want) {
+			t.Errorf("gg commit %v git argv = %q, want %q", tt.args, got, tt.want)
+		}
 	}
 }
 

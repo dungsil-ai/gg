@@ -61,7 +61,7 @@
 - [ ] `git prune-packed`
 - [ ] `git rerere`
 - [ ] `git scalar`
-- [x] `git version` (대응: `gg version`, `gg --version`)
+- [x] `git version` (대응: 단독 `gg -verison`, 단독 `gg -v`)
 
 <details>
 <summary>외부 시스템 연동 (Interacting with Others)</summary>
@@ -233,7 +233,7 @@
   - [ ] `gh repo unarchive`
   - [x] `gh repo view` (대응: `gg repo view`, `gg view`)
 - [x] `gh help` (대응: `gg help`, `gg --help`, `gg -h`)
-- [x] `gh version` (대응: `gg version`, `gg --version`)
+- [x] `gh version` (대응: 단독 `gg -verison`, 단독 `gg -v`)
 
 <details>
 <summary>기타 및 플랫폼 고유 명령 (GitHub Actions, Codespaces, Project 등)</summary>
@@ -421,7 +421,7 @@
   - [ ] `glab repo transfer`
   - [x] `glab repo view` (대응: `gg repo view`, `gg view`)
 - [x] `glab help` (대응: `gg help`, `gg --help`, `gg -h`)
-- [x] `glab version` (대응: `gg version`, `gg --version`)
+- [x] `glab version` (대응: 단독 `gg -verison`, 단독 `gg -v`)
 
 <details>
 <summary>기타 및 플랫폼 고유 명령 (CI/CD, Incident, Duo, Snippet 등)</summary>
@@ -561,7 +561,7 @@
   - [ ] `tea repos search`
   - [x] `tea repos view` (대응: `gg repo view`, `gg view`)
 - [x] `tea help` (대응: `gg help`, `gg --help`, `gg -h`)
-- [x] `tea version` (대응: `gg version`, `gg --version`)
+- [x] `tea version` (대응: 단독 `gg -verison`, 단독 `gg -v`)
 
 <details>
 <summary>기타 및 플랫폼 고유 명령 (Admin, Times, Milestones 등)</summary>
