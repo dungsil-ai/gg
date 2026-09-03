@@ -68,6 +68,8 @@ var (
 		str: func(r *Request) *string { return &r.Head }}
 	draftFlag = flagDef{name: "--draft", desc: "Create a draft pull request",
 		bin: func(r *Request) *bool { return &r.Draft }}
+	undoFlag = flagDef{name: "--undo", desc: "Convert the pull request to a draft",
+		bin: func(r *Request) *bool { return &r.Undo }}
 	descriptionFlag = flagDef{name: "--description", arg: "<text>", desc: "Set the description",
 		str: func(r *Request) *string { return &r.Description }}
 	publicFlag = flagDef{name: "--public", desc: "Create a public repository",
@@ -269,6 +271,15 @@ var commandDefs = map[string]*resourceDef{
 				setPos: setNumber,
 			},
 			{
+				name: "ready", summary: "Mark a pull request as ready for review", usage: "gg pr ready <number> [flags]",
+				flags:    []flagDef{undoFlag},
+				showRepo: true, showRemote: true, showExplain: true,
+				remoteOK: true, explainOK: true,
+				minPos: 1, maxPos: 1,
+				posErr: "usage: gg pr ready <number>",
+				setPos: setNumber,
+			},
+			{
 				name: "merge", summary: "Merge a pull request", usage: "gg pr merge <number> [flags]",
 				flags:    []flagDef{mergeFlag, squashFlag, rebaseFlag, deleteBranchFlag, autoMergeFlag},
 				showRepo: true, showRemote: true, showExplain: true,
@@ -350,6 +361,7 @@ Usage:
   gg issue list --help
   gg pr create --help
   gg pr status --help
+  gg pr ready --help
   gg pr merge --help
 
 Commands:
