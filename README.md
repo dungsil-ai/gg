@@ -63,7 +63,9 @@
 - [ ] `git scalar`
 - [x] `git version` (대응: `gg version`, `gg --version`)
 
-### 외부 시스템 연동 (Interacting with Others)
+<details>
+<summary>외부 시스템 연동 (Interacting with Others)</summary>
+
 - [ ] `git archimport`
 - [ ] `git cvsexportcommit`
 - [ ] `git cvsimport`
@@ -75,7 +77,11 @@
 - [ ] `git send-email`
 - [ ] `git svn`
 
-### 저수준 제어 (Low-level / Plumbing)
+</details>
+
+<details>
+<summary>저수준 제어 (Low-level / Plumbing)</summary>
+
 - [ ] `git apply`
 - [ ] `git cat-file`
 - [ ] `git check-attr`
@@ -146,6 +152,8 @@
 - [ ] `git verify-pack`
 - [ ] `git verify-tag`
 - [ ] `git write-tree`
+
+</details>
 
 ---
 
