@@ -1,6 +1,9 @@
 package cli
 
-import "errors"
+import (
+	"errors"
+	"slices"
+)
 
 // Invocation은 실행할 자식 process다.
 type Invocation struct {
@@ -128,7 +131,7 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 		req:    req,
 		r:      r,
 		res:    res,
-		target: append(append([]string{}, auth...), "--repo", r.Slug()),
+		target: slices.Concat(auth, []string{"--repo", r.Slug()}),
 		auth:   auth,
 	}
 	return dispatch("tea", c)
