@@ -14,7 +14,7 @@ func usageErr(m string) error      { return UsageError{Msg: m} }
 // Request는 파싱된 공통 명령이다.
 type Request struct {
 	Resource                   string // "repo" | "issue" | "pr"
-	Action                     string // list | view | create | clone | comment | close | reopen | clone | pull | push
+	Action                     string // list | view | create | comment | close | reopen | clone | pull | push | status | ready | merge
 	RepoFlag                   string // --repo 값
 	RemoteFlag                 string // --remote 값
 	Number                     string // issue/pr 대상 번호
@@ -23,8 +23,8 @@ type Request struct {
 	GitArgs                    []string // commit/pull/push는 검사 없이 git으로 전달
 	ConfigHost, ConfigProvider string
 
-	Title, Body, Base, Head, State, Limit, Description string
-	Draft, Public, Private, AllowInsecureHTTP, Explain bool
+	Title, Body, Base, Head, State, Limit, Description       string
+	Draft, Undo, Public, Private, AllowInsecureHTTP, Explain bool
 
 	Merge, Squash, Rebase bool
 	DeleteBranch, Auto    bool
@@ -228,6 +228,13 @@ func ghInvocation(req Request, r RepoURL) (Invocation, error) {
 	case "pr status":
 		inv.Args = []string{"pr", "view", req.Number, "-R", r.Host + "/" + r.Slug(), "--json", ghStatusFields()}
 		inv.Env = nil
+	case "pr ready":
+		inv.Args = []string{"pr", "ready", req.Number}
+		if req.Undo {
+			inv.Args = append(inv.Args, "--undo")
+		}
+		inv.Args = append(inv.Args, target...)
+		inv.Env = nil
 	case "issue comment":
 		inv.Args = []string{"issue", "comment", req.Number, "--body", req.Body}
 		inv.Args = append(inv.Args, target...)
@@ -309,6 +316,14 @@ func glabInvocation(req Request, r RepoURL) (Invocation, error) {
 		inv.Args = append([]string{res, "view", req.Number}, target...)
 	case "pr status":
 		inv.Args = append([]string{res, "view", req.Number, "--output", "json"}, target...)
+	case "pr ready":
+		inv.Args = []string{"mr", "update", req.Number}
+		if req.Undo {
+			inv.Args = append(inv.Args, "--draft")
+		} else {
+			inv.Args = append(inv.Args, "--ready")
+		}
+		inv.Args = append(inv.Args, target...)
 	case "issue comment":
 		inv.Args = []string{"issue", "note", req.Number, "--message", req.Body}
 		inv.Args = append(inv.Args, target...)
@@ -351,12 +366,12 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	if req.Resource == "pr" && req.Action == "merge" {
 		return Invocation{}, errors.New("pr merge is not supported for tea")
 	}
+	if req.Resource == "pr" && (req.Action == "status" || req.Action == "ready") {
+		return Invocation{}, usageErr("pr " + req.Action + " is not supported for tea")
+	}
 	auth := []string{"--login", login}
 	target := append(append([]string{}, auth...), "--repo", r.Slug())
 	res := map[string]string{"repo": "repos", "issue": "issues", "pr": "pulls"}[req.Resource]
-	if req.Resource == "pr" && req.Action == "status" {
-		return Invocation{}, usageErr("pr status is not supported for tea")
-	}
 	switch req.Resource + " " + req.Action {
 	case "repo list":
 		inv.Args = appendKV(append([]string{"repos", "list"}, auth...), "--limit", req.Limit)

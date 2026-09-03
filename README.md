@@ -201,7 +201,7 @@
   - [x] `gh pr list` (대응: `gg pr list`)
   - [ ] `gh pr lock`
   - [x] `gh pr merge` (대응: `gg pr merge`)
-  - [ ] `gh pr ready`
+  - [x] `gh pr ready` (대응: `gg pr ready`)
   - [ ] `gh pr reopen`
   - [ ] `gh pr review`
   - [ ] `gh pr status`
@@ -399,7 +399,7 @@
   - [ ] `glab mr subscribe`
   - [ ] `glab mr todo`
   - [ ] `glab mr unsubscribe`
-  - [ ] `glab mr update`
+  - [x] `glab mr update` (대응: `gg pr ready`)
   - [x] `glab mr view` (대응: `gg pr view`)
 - `release`
   - [ ] `glab release create`
@@ -615,6 +615,7 @@
 
 - `pr`
   - [x] `gg pr status` (GitHub, GitLab 지원; Gitea 미지원)
+  - [x] `gg pr ready` (GitHub, GitLab 지원; Gitea 미지원)
 - `저장소 문맥`
   - [x] `--repo <URL>` (명시한 URL을 저장소 문맥으로 사용)
   - [x] `--remote <name>` (명시한 Git remote를 저장소 문맥으로 사용)
@@ -631,9 +632,33 @@ gg repo list --help
 gg issue --help
 gg issue list --help
 gg pr create --help
+gg pr ready --help
 gg config --help
 gg config set --help
 ```
+
+### 사용 예시 (Usage Examples)
+
+#### PR / MR Ready & Draft 전환 (`gg pr ready`)
+- PR을 Ready 상태로 전환:
+  ```bash
+  gg pr ready 42
+  ```
+  - GitHub: `gh pr ready 42 -R <owner>/<repo>` 호출
+  - GitLab: `glab mr update 42 --ready --repo <URL>` 호출
+- PR을 Draft 상태로 되돌리기 (`--undo`):
+  ```bash
+  gg pr ready 42 --undo
+  ```
+  - GitHub: `gh pr ready 42 --undo -R <owner>/<repo>` 호출
+  - GitLab: `glab mr update 42 --draft --repo <URL>` 호출
+- Gitea (`tea`):
+  - `tea` CLI는 PR Ready/Draft 전환 기능을 지원하지 않으므로 미지원 오류(`pr ready is not supported for tea`)가 반환됩니다.
+- 저장소 문맥 플래그와 함께 사용:
+  ```bash
+  gg --repo https://github.com/owner/repo pr ready 42
+  gg pr ready 42 --remote upstream --undo
+  ```
 
 `repo`를 생략한 `list`, `view`, `create`, `clone`, `pull`, `push`도 같은 help를 제공합니다.
 단, `commit`은 생략 형태로 쓰면 `--help`를 포함한 모든 인자를 git에 그대로 전달합니다.
