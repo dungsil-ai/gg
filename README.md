@@ -663,6 +663,11 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gg pr comment` (PR 댓글 입력; GitHub, GitLab, Gitea 지원)
   - [x] `gg pr comment list` / `gg pr comment edit` / `gg pr comment delete` (PR 댓글 조회·수정·삭제; GitHub, GitLab 지원 — `gh api`/`glab api` 중계. Gitea 미지원)
   - [x] `gg mr` (`gg pr`의 alias)
+- `issue` 관계 등록
+  - [x] `gg issue sub-issue` (GitHub 지원; GitLab·Gitea 미지원) — 이슈를 다른 이슈의 native sub-issue로 등록
+  - [x] `gg issue blocked-by` (GitHub 지원; GitLab·Gitea 미지원) — 이슈에 blocked-by 의존성을 등록
+  - [x] `gg issue type` (GitHub 지원; GitLab·Gitea 미지원) — 이슈 종류(issue type)를 설정
+  - sub-issue와 blocked-by는 GitHub API가 body로 numeric database id를 요구하므로 gg가 `gh api repos/<owner>/<repo>/issues/<number> --jq .id`로 번호→id를 미리 조회한 뒤 `gh api`를 호출합니다. `--explain`은 이 조회를 실행하지 않습니다.
 - `저장소 문맥`
   - [x] `--repo <URL>` (명시한 URL을 저장소 문맥으로 사용)
   - [x] `--remote <name>` (명시한 Git remote를 저장소 문맥으로 사용)
@@ -738,6 +743,31 @@ Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없�
   ```
   - GitHub: `gh api -X DELETE repos/<owner>/<repo>/issues/comments/1234` 호출
   - GitLab: `glab api -X DELETE projects/<owner>%2F<repo>/merge_requests/42/notes/1234` 호출
+
+#### Issue 관계 등록 (`gg issue sub-issue`, `gg issue blocked-by`, `gg issue type`)
+- 이슈를 parent의 sub-issue로 등록:
+  ```bash
+  gg issue sub-issue 42 --parent 7
+  ```
+  - GitHub: 번호 42의 numeric database id를 `gh api repos/<owner>/<repo>/issues/42 --jq .id`로 조회한 뒤 `gh api --method POST repos/<owner>/<repo>/issues/7/sub_issues -F sub_issue_id=<id>` 호출
+- 이슈에 blocked-by 의존성 등록:
+  ```bash
+  gg issue blocked-by 42 --blocker 7
+  ```
+  - GitHub: 번호 7의 numeric database id를 조회한 뒤 `gh api --method POST repos/<owner>/<repo>/issues/42/dependencies/blocked_by -F issue_id=<id>` 호출
+- 이슈 종류 설정:
+  ```bash
+  gg issue type 42 --name Bug
+  ```
+  - GitHub: `gh api --method PATCH repos/<owner>/<repo>/issues/42 -F type=Bug` 호출
+- GitLab과 Gitea:
+  - 관계 등록은 GitHub 고유 기능이라 미지원 오류(예: `issue sub-issue is not supported for glab`)가 반환됩니다.
+- 저장소 문맥 플래그와 함께 사용:
+  ```bash
+  gg --repo https://github.com/owner/repo issue sub-issue 42 --parent 7
+  gg issue blocked-by 42 --blocker 7 --remote upstream
+  ```
+- 같은 두 번호를 지정하는 자기 참조(`gg issue sub-issue 42 --parent 42`)는 usage 오류로 거부합니다.
 
 # TOBE
 

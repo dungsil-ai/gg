@@ -400,13 +400,13 @@ func TestParseRequestErrors(t *testing.T) {
 		{"issue", "comment", "1", "--body", ""}, // 빈 body
 		{"issue", "comment", "1", "--body", "   "}, // 공백 body
 		{"issue", "comment", "1", "2", "--body", "b"},
-		{"issue", "close"},                        // number 없음
-		{"issue", "close", "1", "2"},              // 인자 초과
-		{"issue", "reopen"},                       // number 없음
-		{"issue", "reopen", "1", "2"},             // 인자 초과
-		{"issue", "list", "--wat"},                // 알 수 없는 flag
-		{"pr", "list", "--state", "merged"},       // 지원 안 하는 state
-		{"pr", "create", "--title"},               // 값 없는 flag
+		{"issue", "close"},                         // number 없음
+		{"issue", "close", "1", "2"},               // 인자 초과
+		{"issue", "reopen"},                        // number 없음
+		{"issue", "reopen", "1", "2"},              // 인자 초과
+		{"issue", "list", "--wat"},                 // 알 수 없는 flag
+		{"pr", "list", "--state", "merged"},        // 지원 안 하는 state
+		{"pr", "create", "--title"},                // 값 없는 flag
 		{"pr", "comment"},                          // number 없음
 		{"pr", "comment", "1"},                     // body 없음
 		{"pr", "comment", "1", "--body", "   "},    // 공백 body
@@ -418,13 +418,13 @@ func TestParseRequestErrors(t *testing.T) {
 		{"pr", "comment", "delete"},                // number와 comment-id 없음
 		{"pr", "comment", "delete", "1"},           // comment-id 없음
 		{"pr", "comment", "delete", "1", "2", "3"}, // 인자 초과
-		{"label"},                                  // action 없음
-		{"label", "delete", "1"},                   // 지원 안 하는 action
-		{"label", "create"},                        // name 없음
-		{"label", "create", "--name", "  "},        // 공백 name
-		{"label", "create", "extra"},               // positional 인자
-		{"label", "list", "--wat"},                 // 알 수 없는 flag
-		{"label", "create", "--name"},              // 값 없는 flag
+		{"label"},                                 // action 없음
+		{"label", "delete", "1"},                  // 지원 안 하는 action
+		{"label", "create"},                       // name 없음
+		{"label", "create", "--name", "  "},       // 공백 name
+		{"label", "create", "extra"},              // positional 인자
+		{"label", "list", "--wat"},                // 알 수 없는 flag
+		{"label", "create", "--name"},             // 값 없는 flag
 		{"clone"},                                 // URL 없음
 		{"clone", "u", "d", "x"},                  // 인자 초과
 		{"create", "--public"},                    // --repo 없는 repo create

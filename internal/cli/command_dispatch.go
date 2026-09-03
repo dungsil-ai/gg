@@ -99,6 +99,11 @@ func glabInvocation(req Request, r RepoURL) (Invocation, error) {
 	if req.Resource == "release" && req.Action == "create" && (req.Draft || req.Prerelease) {
 		return Invocation{}, usageErr("release create --draft/--prerelease is not supported for glab")
 	}
+	// 관계 등록은 GitHub REST API 고유 기능이다. builder가 등록될 때까지 여기서
+	// 미지원을 확정한다.
+	if req.Resource == "issue" && ghOnlyIssueActions[req.Action] {
+		return Invocation{}, usageErr("issue " + req.Action + " is not supported for glab")
+	}
 	res := req.Resource
 	if res == "pr" {
 		res = "mr"
@@ -128,6 +133,9 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	// tea는 PR 댓글 추가만 지원하고 목록/수정/삭제 명령이 없다.
 	if req.Resource == "pr" && (req.Action == "comment list" || req.Action == "comment edit" || req.Action == "comment delete") {
 		return Invocation{}, usageErr("pr " + req.Action + " is not supported for tea")
+	}
+	if req.Resource == "issue" && ghOnlyIssueActions[req.Action] {
+		return Invocation{}, usageErr("issue " + req.Action + " is not supported for tea")
 	}
 	var res string
 	switch req.Resource {

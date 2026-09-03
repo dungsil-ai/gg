@@ -33,6 +33,9 @@ type Request struct {
 	Merge, Squash, Rebase bool
 	DeleteBranch, Auto    bool
 
+	Parent, Blocker, IssueType string // issue 관계 등록: 부모·blocker 번호와 issue 종류 이름
+	RelatedID                  string // plan 단계에서 gh로 조회한 관계 issue의 numeric database id
+
 	Help bool // action 단계의 --help 출력 요청 여부
 }
 
@@ -64,19 +67,19 @@ globalFlags:
 	var ad *actionDef
 	if rd, ok := commandDefs[head]; ok {
 		req.Resource = head
-			if aliasAction != "" {
-				req.Action = aliasAction
-			} else {
-				if len(rest) == 0 {
-					return req, usageErr(needsAction(head, rd))
-				}
-				req.Action, rest = rest[0], rest[1:]
-				// 2단어 action(pr comment list 등)은 이어지는 토큰을 action에 합친다.
-				if len(rest) > 0 && rd.action(req.Action+" "+rest[0]) != nil {
-					req.Action += " " + rest[0]
-					rest = rest[1:]
-				}
+		if aliasAction != "" {
+			req.Action = aliasAction
+		} else {
+			if len(rest) == 0 {
+				return req, usageErr(needsAction(head, rd))
 			}
+			req.Action, rest = rest[0], rest[1:]
+			// 2단어 action(pr comment list 등)은 이어지는 토큰을 action에 합친다.
+			if len(rest) > 0 && rd.action(req.Action+" "+rest[0]) != nil {
+				req.Action += " " + rest[0]
+				rest = rest[1:]
+			}
+		}
 		if ad = rd.action(req.Action); ad == nil {
 			return req, usageErr(head + " does not support " + req.Action)
 		}
