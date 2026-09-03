@@ -59,16 +59,18 @@ func setNumber(req *Request, pos []string) error {
 var commandDefs = map[string]*resourceDef{
 	"repo":   repoResourceDef,
 	"issue":  issueResourceDef,
+	"label":  labelResourceDef,
 	"pr":     prResourceDef,
 	"config": configResourceDef,
 }
 
 // commandOrder는 최상위 help의 resource 표시 순서다.
-var commandOrder = []string{"repo", "issue", "pr", "config"}
+var commandOrder = []string{"repo", "issue", "label", "pr", "config"}
 
 // invocationTable은 "<resource> <action>" 키로 gh/glab/tea의 arg-builder를 모은다.
-// cmd_repo.go / cmd_issue.go / cmd_pr.go가 각자의 table을 등록하고 여기서 취합한다.
-var invocationTable = mergeInvocationTables(repoInvocationTable, issueInvocationTable, prInvocationTable)
+// cmd_repo.go / cmd_issue.go / cmd_label.go / cmd_pr.go가 각자의 table을 등록하고
+// 여기서 취합한다.
+var invocationTable = mergeInvocationTables(repoInvocationTable, issueInvocationTable, labelInvocationTable, prInvocationTable)
 
 func mergeInvocationTables(tables ...map[string]providerBuilders) map[string]providerBuilders {
 	merged := make(map[string]providerBuilders)
