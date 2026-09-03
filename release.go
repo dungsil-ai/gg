@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -40,10 +41,23 @@ func ReleaseChecksumName(archiveName string) string {
 	return archiveName + ".sha256"
 }
 
-func BuildAndPackageRelease(srcDir, outDir, tag string) error {
+func BuildAndPackageRelease(srcDir, outDir, tag string) (err error) {
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return fmt.Errorf("outDir 생성 실패: %w", err)
 	}
+	if err := ensureReleaseAssetsAbsent(outDir, tag); err != nil {
+		return fmt.Errorf("기존 release asset을 덮어쓸 수 없습니다: %w", err)
+	}
+
+	created := make([]string, 0, len(ReleaseTargets)*2)
+	defer func() {
+		if err == nil {
+			return
+		}
+		for _, path := range created {
+			_ = os.Remove(path)
+		}
+	}()
 
 	for _, target := range ReleaseTargets {
 		binName := "gg"
@@ -88,6 +102,7 @@ func BuildAndPackageRelease(srcDir, outDir, tag string) error {
 				return fmt.Errorf("tar.gz 생성 실패 (%s): %w", archiveName, err)
 			}
 		}
+		created = append(created, archivePath)
 
 		archiveData, err := os.ReadFile(archivePath)
 		if err != nil {
@@ -100,43 +115,101 @@ func BuildAndPackageRelease(srcDir, outDir, tag string) error {
 
 		checksumName := ReleaseChecksumName(archiveName)
 		checksumPath := filepath.Join(outDir, checksumName)
-		if err := os.WriteFile(checksumPath, []byte(checksumContent), 0o644); err != nil {
+		if err := writeNewFile(checksumPath, []byte(checksumContent), 0o644); err != nil {
 			return fmt.Errorf("checksum 파일 쓰기 실패 (%s): %w", checksumName, err)
 		}
+		created = append(created, checksumPath)
 	}
 
 	return nil
 }
 
-func writeZip(zipPath, filename string, data []byte) error {
-	f, err := os.Create(zipPath)
-	if err != nil {
-		return err
+func ensureReleaseAssetsAbsent(outDir, tag string) error {
+	for _, target := range ReleaseTargets {
+		archiveName := ReleaseArchiveName(tag, target.OS, target.Arch)
+		for _, name := range [...]string{archiveName, ReleaseChecksumName(archiveName)} {
+			path := filepath.Join(outDir, name)
+			if _, err := os.Lstat(path); err == nil {
+				return fmt.Errorf("release asset이 이미 있습니다: %s", path)
+			} else if !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("release asset 확인 실패 (%s): %w", path, err)
+			}
+		}
 	}
-	defer f.Close()
-
-	zw := zip.NewWriter(f)
-	w, err := zw.Create(filename)
-	if err != nil {
-		_ = zw.Close()
-		return err
-	}
-	if _, err := w.Write(data); err != nil {
-		_ = zw.Close()
-		return err
-	}
-	return zw.Close()
+	return nil
 }
 
-func writeTarGz(tarGzPath, filename string, data []byte) error {
-	f, err := os.Create(tarGzPath)
+func writeNewFile(path string, data []byte, perm os.FileMode) (err error) {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); err == nil && closeErr != nil {
+			err = closeErr
+		}
+		if err != nil {
+			_ = os.Remove(path)
+		}
+	}()
+	_, err = f.Write(data)
+	return err
+}
+
+func writeZip(zipPath, filename string, data []byte) (err error) {
+	f, err := os.OpenFile(zipPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := f.Close(); err == nil && closeErr != nil {
+			err = closeErr
+		}
+		if err != nil {
+			_ = os.Remove(zipPath)
+		}
+	}()
+
+	zw := zip.NewWriter(f)
+	defer func() {
+		if closeErr := zw.Close(); err == nil && closeErr != nil {
+			err = closeErr
+		}
+	}()
+	w, err := zw.Create(filename)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(data)
+	return err
+}
+
+func writeTarGz(tarGzPath, filename string, data []byte) (err error) {
+	f, err := os.OpenFile(tarGzPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := f.Close(); err == nil && closeErr != nil {
+			err = closeErr
+		}
+		if err != nil {
+			_ = os.Remove(tarGzPath)
+		}
+	}()
 
 	gw := gzip.NewWriter(f)
+	defer func() {
+		if closeErr := gw.Close(); err == nil && closeErr != nil {
+			err = closeErr
+		}
+	}()
 	tw := tar.NewWriter(gw)
+	defer func() {
+		if closeErr := tw.Close(); err == nil && closeErr != nil {
+			err = closeErr
+		}
+	}()
 
 	hdr := &tar.Header{
 		Name: filename,
@@ -144,18 +217,8 @@ func writeTarGz(tarGzPath, filename string, data []byte) error {
 		Size: int64(len(data)),
 	}
 	if err := tw.WriteHeader(hdr); err != nil {
-		_ = tw.Close()
-		_ = gw.Close()
 		return err
 	}
-	if _, err := tw.Write(data); err != nil {
-		_ = tw.Close()
-		_ = gw.Close()
-		return err
-	}
-	if err := tw.Close(); err != nil {
-		_ = gw.Close()
-		return err
-	}
-	return gw.Close()
+	_, err = tw.Write(data)
+	return err
 }

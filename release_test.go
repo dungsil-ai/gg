@@ -216,6 +216,46 @@ func TestBuildAndPackageRelease(t *testing.T) {
 	}
 }
 
+func TestBuildAndPackageReleaseRefusesExistingAssets(t *testing.T) {
+	tag := "v0.1.0"
+	target := ReleaseTargets[0]
+	archiveName := ReleaseArchiveName(tag, target.OS, target.Arch)
+
+	for _, assetName := range []string{archiveName, ReleaseChecksumName(archiveName)} {
+		t.Run(assetName, func(t *testing.T) {
+			outDir := t.TempDir()
+			assetPath := filepath.Join(outDir, assetName)
+			original := []byte("existing release asset")
+			if err := os.WriteFile(assetPath, original, 0o644); err != nil {
+				t.Fatalf("기존 asset 쓰기 실패: %v", err)
+			}
+
+			err := BuildAndPackageRelease(".", outDir, tag)
+			if err == nil {
+				t.Fatal("기존 release asset이 있는데 빌드가 성공했습니다")
+			}
+			if !strings.Contains(err.Error(), assetName) {
+				t.Errorf("오류 %q에 기존 asset 이름 %q이 없습니다", err, assetName)
+			}
+
+			got, err := os.ReadFile(assetPath)
+			if err != nil {
+				t.Fatalf("기존 asset 읽기 실패: %v", err)
+			}
+			if !bytes.Equal(got, original) {
+				t.Errorf("기존 asset이 변경되었습니다: got %q, want %q", got, original)
+			}
+			entries, err := os.ReadDir(outDir)
+			if err != nil {
+				t.Fatalf("outDir 읽기 실패: %v", err)
+			}
+			if len(entries) != 1 || entries[0].Name() != assetName {
+				t.Errorf("기존 asset 외 파일이 생성되었습니다: %v", entries)
+			}
+		})
+	}
+}
+
 func TestREADMEContent(t *testing.T) {
 	data, err := os.ReadFile("README.md")
 	if err != nil {
@@ -320,7 +360,7 @@ func TestReleaseWorkflowGate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("release 잡 추출 실패: %v", err)
 	}
-	// 2. 트리거 계약: v* tag push 검증
+	// 2. tag push는 전달 신호이며, release 잡이 전용 release 커밋과 tag를 검증한다.
 	if !strings.Contains(headerBlock, `tags:`) || !strings.Contains(headerBlock, `"v*"`) {
 		t.Errorf("ci.yml push 트리거에 tags v* 항목이 없습니다")
 	}
@@ -332,42 +372,78 @@ func TestReleaseWorkflowGate(t *testing.T) {
 		}
 	}
 
-	// 4. release 잡 계약: verify 잡 성공 종속성, v* 태그 가드, permissions
+	// 4. release 잡은 필요한 실행 환경과 verify 의존성을 가져야 한다.
 	for _, expected := range []string{
 		"needs: verify",
 		"if: startsWith(github.ref, 'refs/tags/v')",
 		"contents: write",
+		"fetch-depth: 0",
 	} {
 		if !strings.Contains(releaseBlock, expected) {
 			t.Errorf("release 잡 블록에 필수 설정 %q가 없습니다", expected)
 		}
 	}
 
-	// 5. release 잡 스텝 순서 및 빌드/배포 명령 검증
-	buildStepIdx := strings.Index(releaseBlock, "TestBuildAndPackageRelease")
+	// 5. 게시 전에 지켜야 할 release provenance 및 불변성 gate를 고정한다.
+	gates := []struct {
+		fragment string
+		name     string
+	}{
+		{"does not match semantic versioning format", "Semantic Versioning tag 검증"},
+		{"does not point to current HEAD commit", "tag 대상 commit 검증"},
+		{"github.event.repository.default_branch", "default branch 이름 조회"},
+		{"git ls-remote --exit-code --refs origin", "원격 default branch tip 조회"},
+		{"is not the current tip of default branch", "default branch 현재 tip 검증"},
+		{"does not match expected release commit format", "release commit 제목 검증"},
+		{"is not an empty commit", "빈 release commit 검증"},
+		{"must be an annotated tag", "annotated tag 검증"},
+		{"releases/tags/", "기존 Release 조회"},
+		{"already exists", "기존 Release 차단"},
+		{"HTTP 404", "Release 부재의 404 확인"},
+		{"Failed to verify release absence due to API error", "Release 조회 오류 차단"},
+	}
 	publishStepIdx := strings.Index(releaseBlock, "gh release create")
-	if buildStepIdx == -1 {
-		t.Errorf("release 잡에 6개 타겟 빌드/패키징 스텝(TestBuildAndPackageRelease)이 없습니다")
-	}
 	if publishStepIdx == -1 {
-		t.Errorf("release 잡에 GitHub Release 발행 스텝(gh release create)이 없습니다")
+		t.Error("release 잡에 GitHub Release 발행 스텝(gh release create)이 없습니다")
 	}
-	if buildStepIdx != -1 && publishStepIdx != -1 && buildStepIdx >= publishStepIdx {
-		t.Errorf("release 잡에서 빌드/패키징 스텝이 배포 스텝보다 먼저 실행되어야 합니다")
+	for _, gate := range gates {
+		idx := strings.Index(releaseBlock, gate.fragment)
+		if idx == -1 {
+			t.Errorf("release 잡에 %s gate가 없습니다", gate.name)
+			continue
+		}
+		if publishStepIdx != -1 && idx >= publishStepIdx {
+			t.Errorf("%s gate가 GitHub Release 발행 뒤에 있습니다", gate.name)
+		}
 	}
 
+	// Immutable Releases는 관리자 설정이 실제로 강제한다. GITHUB_TOKEN으로는
+	// Administration (read)가 필요한 설정 endpoint를 조회할 수 없으므로 workflow에 두지 않는다.
+	if strings.Contains(strings.ToLower(releaseBlock), "immutable-releases") {
+		t.Error("release 잡이 GITHUB_TOKEN으로 조회할 수 없는 Immutable Releases 설정 endpoint를 포함합니다")
+	}
+
+	// 6. Release 파일은 검증 뒤 빌드하고, 검증된 기존 tag로만 게시한다.
+	buildStepIdx := strings.Index(releaseBlock, "TestBuildAndPackageRelease")
+	if buildStepIdx == -1 {
+		t.Error("release 잡에 6개 타겟 빌드/패키징 스텝(TestBuildAndPackageRelease)이 없습니다")
+	} else if publishStepIdx != -1 && buildStepIdx >= publishStepIdx {
+		t.Error("release 잡에서 빌드/패키징 스텝이 배포 스텝보다 먼저 실행되어야 합니다")
+	}
 	if !strings.Contains(releaseBlock, "GG_RELEASE_OUT_DIR: dist") || !strings.Contains(releaseBlock, "GG_RELEASE_VERSION: ${{ github.ref_name }}") {
 		t.Errorf("release 잡 빌드 스텝에 환경 변수 설정(GG_RELEASE_OUT_DIR, GG_RELEASE_VERSION)이 누락되었습니다")
 	}
-	if !strings.Contains(releaseBlock, `gh release create "${{ github.ref_name }}" dist/* --title "${{ github.ref_name }}" --generate-notes`) {
-		t.Errorf("release 잡 배포 명령이 올바르지 않습니다")
+	if !strings.Contains(releaseBlock, "--verify-tag") {
+		t.Error("release 잡 배포 명령이 기존 tag 검증(--verify-tag)을 하지 않습니다")
 	}
 
-	// 6. 범위 외 요소 금지: --draft, Windows signing, macOS notarization, GPG, Sigstore
+	// 7. 범위 외 요소 및 기존 release/asset을 바꾸는 옵션은 금지한다.
+
 	forbiddenItems := []struct {
 		pattern string
 		reason  string
 	}{
+		{"--clobber", "기존 Release asset 덮어쓰기 플래그"},
 		{"--draft", "Draft release 생성 플래그"},
 		{"signtool", "Windows code signing 도구"},
 		{"codesign", "macOS signing 도구"},
