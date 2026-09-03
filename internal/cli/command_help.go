@@ -159,6 +159,13 @@ func nestedHelp(args []string) (string, bool) {
 				return renderActionHelp(rd, ad), true
 			}
 		}
+	case 3:
+		// 2단어 action의 3단 경로다(gg pr comment list --help).
+		if rd, ok := commandDefs[head]; ok {
+			if ad := rd.action(path[1] + " " + path[2]); ad != nil {
+				return renderActionHelp(rd, ad), true
+			}
+		}
 	}
 	return "", false
 }
