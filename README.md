@@ -602,6 +602,21 @@
 
 ---
 
+모든 명령과 action은 `--help`를 지원합니다.
+
+```bash
+gg repo --help
+gg repo list --help
+gg issue --help
+gg issue list --help
+gg pr create --help
+gg config --help
+gg config set --help
+```
+
+`repo`를 생략한 `list`, `view`, `create`, `clone`, `pull`, `push`도 같은 help를 제공합니다.
+단, `commit`은 생략 형태로 쓰면 `--help`를 포함한 모든 인자를 git에 그대로 전달합니다.
+
 # TOBE
 
 - `gg`가 단일 CLI 인터페이스로 `git`, `gh`, `glab`, `tea`의 모든 공통 기능을 투명하게 중계하도록 구현 범위를 점진적으로 확장합니다.

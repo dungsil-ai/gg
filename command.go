@@ -28,11 +28,8 @@ type Request struct {
 
 	Merge, Squash, Rebase bool
 	DeleteBranch, Auto    bool
-}
 
-var repoActions = map[string]bool{
-	"list": true, "view": true, "create": true,
-	"clone": true, "commit": true, "pull": true, "push": true,
+	Help bool // --help: 파싱된 명령의 help를 출력한다
 }
 
 func ParseRequest(args []string) (Request, error) {
@@ -59,73 +56,35 @@ globalFlags:
 		return req, usageErr("missing command")
 	}
 	head, rest := args[0], args[1:]
-	switch {
-	case head == "config":
+	var ad *actionDef
+	if rd, ok := commandDefs[head]; ok {
 		req.Resource = head
 		if len(rest) == 0 {
-			return req, usageErr("config needs an action: list, set, unset")
+			return req, usageErr(needsAction(head, rd))
 		}
 		req.Action, rest = rest[0], rest[1:]
-		if req.Action != "list" && req.Action != "set" && req.Action != "unset" {
-			return req, usageErr("config does not support " + req.Action)
-		}
-	case head == "issue":
-		req.Resource = head
-		if len(rest) == 0 {
-			return req, usageErr(head + " needs an action: list, view, create, comment, close, reopen")
-		}
-		req.Action, rest = rest[0], rest[1:]
-		if req.Action != "list" && req.Action != "view" && req.Action != "create" && req.Action != "comment" && req.Action != "close" && req.Action != "reopen" {
+		if ad = rd.action(req.Action); ad == nil {
 			return req, usageErr(head + " does not support " + req.Action)
 		}
-	case head == "pr":
-		req.Resource = head
-		if len(rest) == 0 {
-			return req, usageErr(head + " needs an action: list, view, status, create, merge")
-		}
-		req.Action, rest = rest[0], rest[1:]
-		if req.Action != "list" && req.Action != "view" && req.Action != "status" && req.Action != "create" && req.Action != "merge" {
-
-			return req, usageErr(head + " does not support " + req.Action)
-		}
-	case head == "repo":
-		req.Resource = "repo"
-		if len(rest) == 0 || !repoActions[rest[0]] {
-			return req, usageErr("repo needs an action: list, view, create, clone, commit, pull, push")
-		}
-		req.Action, rest = rest[0], rest[1:]
-	case repoActions[head]: // gg list == gg repo list
+	} else if repoAliases[head] { // gg list == gg repo list
 		req.Resource, req.Action = "repo", head
-	default:
+		ad = commandDefs["repo"].action(head)
+	} else {
 		return req, usageErr("unknown command " + head)
 	}
-	if err := parseRest(&req, rest); err != nil {
+	if err := parseRest(&req, ad, rest); err != nil {
 		return req, err
 	}
 	if req.RepoFlag != "" && req.RemoteFlag != "" {
 		return req, usageErr("--repo and --remote cannot be used together")
 	}
-	if req.RemoteFlag != "" && !supportsRemote(req) {
+	if req.RemoteFlag != "" && !ad.remoteOK {
 		return req, usageErr("--remote is not supported for " + req.Resource + " " + req.Action)
 	}
-	if req.Explain && !supportsExplain(req) {
+	if req.Explain && !ad.explainOK {
 		return req, usageErr("--explain is not supported for " + req.Resource + " " + req.Action)
 	}
 	return req, nil
-}
-
-func supportsRemote(req Request) bool {
-	return req.Resource != "repo" || req.Action == "list" || req.Action == "view"
-}
-
-func supportsExplain(req Request) bool {
-	if req.Resource == "config" {
-		return false
-	}
-	if req.Resource == "repo" && (req.Action == "pull" || req.Action == "push") {
-		return false
-	}
-	return true
 }
 
 func setContextFlag(req *Request, flag, value string) error {
@@ -166,6 +125,10 @@ func flagLoop(req *Request, args []string, strs map[string]*string, bools map[st
 			req.Explain = true
 			continue
 		}
+		if a == "--help" {
+			req.Help = true
+			continue
+		}
 		if p, ok := bools[a]; ok {
 			*p = true
 			continue
@@ -183,142 +146,25 @@ func flagLoop(req *Request, args []string, strs map[string]*string, bools map[st
 	return pos, nil
 }
 
-func parseRest(req *Request, args []string) error {
-	switch req.Resource + " " + req.Action {
-	case "config list":
-		if len(args) != 0 {
-			return usageErr("usage: gg config list")
-		}
-		return nil
-	case "config set":
-		if len(args) != 2 {
-			return usageErr("usage: gg config set <host> <provider>")
-		}
-		req.ConfigHost, req.ConfigProvider = args[0], args[1]
-		return nil
-	case "config unset":
-		if len(args) != 1 {
-			return usageErr("usage: gg config unset <host>")
-		}
-		req.ConfigHost = args[0]
-		return nil
-	case "repo commit", "repo pull", "repo push":
+// parseRest는 action 정의대로 나머지 인자를 파싱한다.
+func parseRest(req *Request, ad *actionDef, args []string) error {
+	if ad.passthrough {
 		req.GitArgs = args
 		return nil
-	case "repo clone":
-		pos, err := flagLoop(req, args, nil, map[string]*bool{"--allow-insecure-http": &req.AllowInsecureHTTP})
-		if err != nil {
-			return err
-		}
-		if len(pos) < 1 || len(pos) > 2 {
-			return usageErr("usage: gg clone <URL> [DIR]")
-		}
-		req.CloneURL = pos[0]
-		if len(pos) == 2 {
-			req.CloneDir = pos[1]
-		}
-		return nil
-	case "repo list":
-		return noPositional(req, args, map[string]*string{"--limit": &req.Limit}, nil)
-	case "repo view":
-		return noPositional(req, args, nil, nil)
-	case "repo create":
-		err := noPositional(req, args,
-			map[string]*string{"--description": &req.Description},
-			map[string]*bool{"--public": &req.Public, "--private": &req.Private})
-		if err != nil {
-			return err
-		}
-		if req.RepoFlag == "" {
-			return usageErr("repo create needs --repo <new-repository-URL>")
-		}
-		if req.Public == req.Private {
-			return usageErr("repo create needs exactly one of --public or --private")
-		}
-		return nil
-	case "issue list", "pr list":
-		if err := noPositional(req, args, map[string]*string{
-			"--state": &req.State, "--limit": &req.Limit,
-		}, nil); err != nil {
-			return err
-		}
-		switch req.State {
-		case "", "open", "closed", "all":
-			return nil
-		}
-		return usageErr("--state must be open, closed, or all")
-	case "pr status":
-		pos, err := flagLoop(req, args, nil, nil)
-		if err != nil {
-			return err
-		}
-		if len(pos) != 1 {
-			return usageErr("usage: gg pr status <number>")
-		}
-		req.Number = pos[0]
-		return nil
-	case "issue view", "pr view", "issue close", "issue reopen":
-		pos, err := flagLoop(req, args, nil, nil)
-		if err != nil {
-			return err
-		}
-		if len(pos) != 1 {
-			return usageErr("usage: gg " + req.Resource + " " + req.Action + " <number>")
-		}
-		req.Number = pos[0]
-		return nil
-	case "issue comment":
-		pos, err := flagLoop(req, args, map[string]*string{"--body": &req.Body}, nil)
-		if err != nil {
-			return err
-		}
-		if len(pos) != 1 || strings.TrimSpace(req.Body) == "" {
-			return usageErr("usage: gg issue comment <number> --body <text>")
-		}
-		req.Number = pos[0]
-		return nil
-	case "issue create":
-		return noPositional(req, args, map[string]*string{
-			"--title": &req.Title, "--body": &req.Body,
-		}, nil)
-	case "pr create":
-		return noPositional(req, args, map[string]*string{
-			"--title": &req.Title, "--body": &req.Body,
-			"--base": &req.Base, "--head": &req.Head,
-		}, map[string]*bool{"--draft": &req.Draft})
-	case "pr merge":
-		pos, err := flagLoop(req, args, nil, map[string]*bool{
-			"--merge": &req.Merge, "--squash": &req.Squash, "--rebase": &req.Rebase,
-			"--delete-branch": &req.DeleteBranch, "--auto": &req.Auto,
-		})
-		if err != nil {
-			return err
-		}
-		if len(pos) != 1 {
-			return usageErr("usage: gg pr merge <number>")
-		}
-		methods := 0
-		for _, b := range []bool{req.Merge, req.Squash, req.Rebase} {
-			if b {
-				methods++
-			}
-		}
-		if methods > 1 {
-			return usageErr("--merge, --squash, --rebase are mutually exclusive; use at most one")
-		}
-		req.Number = pos[0]
-		return nil
 	}
-	return usageErr("unknown command")
-}
-
-func noPositional(req *Request, args []string, strs map[string]*string, bools map[string]*bool) error {
+	strs, bools := actionFlagMaps(ad, req)
 	pos, err := flagLoop(req, args, strs, bools)
 	if err != nil {
 		return err
 	}
-	if len(pos) != 0 {
+	if len(pos) < ad.minPos || (ad.maxPos >= 0 && len(pos) > ad.maxPos) {
+		if ad.posErr != "" {
+			return usageErr(ad.posErr)
+		}
 		return usageErr("unexpected argument " + pos[0])
+	}
+	if ad.setPos != nil {
+		return ad.setPos(req, pos)
 	}
 	return nil
 }

@@ -547,3 +547,76 @@ func TestExplainFormatting(t *testing.T) {
 		}
 	}
 }
+
+// TestParseRequestErrorMessages는 오류 메시지 계약을 고정한다.
+func TestParseRequestErrorMessages(t *testing.T) {
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"unknown"}, "unknown command unknown"},
+		{[]string{"config"}, "config needs an action: list, set, unset"},
+		{[]string{"issue"}, "issue needs an action: list, view, create, comment, close, reopen"},
+		{[]string{"pr"}, "pr needs an action: list, view, create, status, merge"},
+		{[]string{"repo"}, "repo needs an action: list, view, create, clone, commit, pull, push"},
+		{[]string{"issue", "delete", "1"}, "issue does not support delete"},
+		{[]string{"pr", "delete", "1"}, "pr does not support delete"},
+		{[]string{"issue", "list", "--wat"}, "unknown flag --wat"},
+		{[]string{"issue", "view"}, "usage: gg issue view <number>"},
+		{[]string{"pr", "view"}, "usage: gg pr view <number>"},
+		{[]string{"issue", "close"}, "usage: gg issue close <number>"},
+		{[]string{"issue", "comment", "1"}, "usage: gg issue comment <number> --body <text>"},
+		{[]string{"pr", "merge"}, "usage: gg pr merge <number>"},
+		{[]string{"pr", "merge", "1", "--merge", "--squash"}, "--merge, --squash, --rebase are mutually exclusive; use at most one"},
+		{[]string{"clone", "https://x.com/o/r", "d", "x"}, "usage: gg clone <URL> [DIR]"},
+		{[]string{"create", "--public"}, "repo create needs --repo <new-repository-URL>"},
+		{[]string{"create", "--repo", "https://x.com/o/r"}, "repo create needs exactly one of --public or --private"},
+		{[]string{"list", "extra"}, "unexpected argument extra"},
+		{[]string{"config", "list", "extra"}, "usage: gg config list"},
+		{[]string{"config", "set", "only-host"}, "usage: gg config set <host> <provider>"},
+		{[]string{"config", "unset"}, "usage: gg config unset <host>"},
+		{[]string{"issue", "list", "--state", "merged"}, "--state must be open, closed, or all"},
+		{[]string{"pr", "create", "--title"}, "--title needs a value"},
+		{[]string{"--remote", "upstream", "clone", "https://github.com/o/r"}, "--remote is not supported for repo clone"},
+		{[]string{"--explain", "pull"}, "--explain is not supported for repo pull"},
+		{[]string{"--explain", "config", "list"}, "--explain is not supported for config list"},
+		{[]string{"--repo", "https://github.com/o/r", "--remote", "upstream", "issue", "list"}, "--repo and --remote cannot be used together"},
+		{[]string{"--repo"}, "--repo needs a URL"},
+		{[]string{"--remote"}, "--remote needs a name"},
+	}
+	for _, c := range cases {
+		_, err := ParseRequest(c.args)
+		var ue UsageError
+		if !errors.As(err, &ue) {
+			t.Errorf("ParseRequest(%v): UsageError 기대, got %v", c.args, err)
+			continue
+		}
+		if !strings.Contains(ue.Msg, c.want) {
+			t.Errorf("ParseRequest(%v) = %q, want %q 포함", c.args, ue.Msg, c.want)
+		}
+	}
+}
+
+func TestParseRequestHelpFlag(t *testing.T) {
+	got, err := ParseRequest([]string{"issue", "list", "--limit", "5", "--help"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Help {
+		t.Errorf("issue list --help: Help = false, want true")
+	}
+
+	// git 전달 명령의 --help는 flag가 아니라 git 인자다
+	for _, args := range [][]string{{"pull", "--help"}, {"commit", "--help"}, {"push", "--help"}} {
+		got, err := ParseRequest(args)
+		if err != nil {
+			t.Fatalf("ParseRequest(%v): %v", args, err)
+		}
+		if got.Help {
+			t.Errorf("ParseRequest(%v): Help = true, want false", args)
+		}
+		if !reflect.DeepEqual(got.GitArgs, []string{"--help"}) {
+			t.Errorf("ParseRequest(%v): GitArgs = %v, want [--help]", args, got.GitArgs)
+		}
+	}
+}

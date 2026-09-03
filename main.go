@@ -15,177 +15,11 @@ import (
 )
 
 var version = "dev"
-
-const repositoryContextFlags = `  --repo <URL>      이 URL을 저장소 문맥으로 사용
-  --remote <name>   이 Git remote를 저장소 문맥으로 사용`
-const topLevelHelpFlag = `  -h, --help        Show top-level help`
-const nestedHelpFlag = `  --help            Show help`
-
-const topLevelHelp = `gg sends common Git forge commands to gh, glab, or tea.
-
-Usage:
-  gg [flags] <command>
-  gg config --help
-  gg issue --help
-  gg issue list --help
-  gg pr create --help
-  gg pr status --help
-  gg pr merge --help
-
-Commands:
-  repo       List, view, create, or clone repositories
-  issue      List, view, create, comment, close, or reopen issues
-  pr         List, view, create, or merge pull requests, and check merge readiness
-  config     Provider 설정 관리
-  commit     Run git commit without signing
-  pull       Run git pull
-  push       Run git push
-  version    Show gg version
-  help       Show this help
-
-Flags:
-` + repositoryContextFlags + `
-  --explain         선택한 저장소 문맥, Provider, 실행할 CLI를 설명
-` + topLevelHelpFlag + `
-  --version         Show gg version`
-
-const configHelp = `Manage Provider 설정 for self-hosted hosts.
-
-Usage:
-  gg config <command>
-
-Commands:
-  gg config list
-  gg config set <host> <gh|glab|tea>
-  gg config unset <host>
-
-Flags:
-` + nestedHelpFlag
-
-const issueHelp = `List, view, create, comment, close, or reopen issues.
-
-Usage:
-  gg issue <command> [flags]
-
-Commands:
-  list      List issues
-  view      View one issue
-  create    Create an issue
-  comment   Comment on an issue
-  close     Close an issue
-  reopen    Reopen an issue
-Flags:
-` + repositoryContextFlags + `
-  --explain         선택한 저장소 문맥, Provider, 실행할 CLI를 설명
-` + nestedHelpFlag
-
-const issueListHelp = `List issues.
-
-Usage:
-  gg issue list [flags]
-
-Flags:
-  --state <open|closed|all>   Filter by state
-  --limit <N>                 Limit the result count
-` + repositoryContextFlags + `
-  --explain                   선택한 저장소 문맥, Provider, 실행할 CLI를 설명
-` + nestedHelpFlag
-const issueCommentHelp = `Comment on an issue.
-
-Usage:
-  gg issue comment <number> [flags]
-
-Flags:
-  --body <text>     Set the body
-` + repositoryContextFlags + `
-  --explain         선택한 저장소 문맥, Provider, 실행할 CLI를 설명
-` + nestedHelpFlag
-
-const issueCloseHelp = `Close an issue.
-
-Usage:
-  gg issue close <number> [flags]
-
-Flags:
-` + repositoryContextFlags + `
-  --explain         선택한 저장소 문맥, Provider, 실행할 CLI를 설명
-` + nestedHelpFlag
-
-const issueReopenHelp = `Reopen an issue.
-
-Usage:
-  gg issue reopen <number> [flags]
-
-Flags:
-` + repositoryContextFlags + `
-  --explain         선택한 저장소 문맥, Provider, 실행할 CLI를 설명
-` + nestedHelpFlag
-
-const prCreateHelp = `Create a pull request.
-
-Usage:
-  gg pr create [flags]
-
-Flags:
-  --title <text>     Set the title
-  --body <text>      Set the body
-  --base <branch>    Set the base branch
-  --head <branch>    Set the head branch
-  --draft            Create a draft pull request
-` + repositoryContextFlags + `
-  --explain          선택한 저장소 문맥, Provider, 실행할 CLI를 설명
-` + nestedHelpFlag
-
-const prMergeHelp = `Merge a pull request.
-
-Usage:
-  gg pr merge <number> [flags]
-
-Flags:
-  --merge           Merge the pull request
-  --squash          Squash and merge the pull request
-  --rebase          Rebase and merge the pull request
-  --delete-branch   Delete the source branch after merging
-  --auto            Enable auto-merge after required approvals and CI pass
-` + repositoryContextFlags + `
-  --explain          선택한 저장소 문맥, Provider, 실행할 CLI를 설명
-` + nestedHelpFlag
-
 func main() { os.Exit(run(os.Args[1:])) }
-
-const prStatusHelp = `Show merge readiness for one pull request.
-
-Usage:
-  gg pr status <number> [flags]
-
-Output fields:
-  Draft      yes | no | unknown
-  Approval   approved | required | changes-requested | unknown
-  CI         pass | fail | pending | none | unknown
-  Conflict   yes | no | unknown
-  Mergeable  yes | no | unknown
-
-  unknown means the provider is still computing the value or gave no
-  usable value. It never turns into a safe value on its own.
-  The exit code is 0 whenever the lookup itself succeeds, even when
-  Mergeable is no or CI is fail.
-
-Example:
-  gg pr status 42
-  Draft: no
-  Approval: approved
-  CI: pass
-  Conflict: no
-  Mergeable: yes
-
-Flags:
-` + repositoryContextFlags + `
-  --explain         선택한 저장소 문맥, Provider, 실행할 CLI를 설명
-` + nestedHelpFlag
 
 func run(args []string) int {
 	if len(args) == 0 || (len(args) == 1 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h")) {
-		fmt.Fprintln(os.Stdout, topLevelHelp)
+		fmt.Fprintln(os.Stdout, topLevelHelp())
 		return 0
 	}
 	if help, ok := nestedHelp(args); ok {
@@ -199,6 +33,11 @@ func run(args []string) int {
 	req, err := ParseRequest(args)
 	if err != nil {
 		return fail(err)
+	}
+	if req.Help {
+		rd := commandDefs[req.Resource]
+		fmt.Fprintln(os.Stdout, renderActionHelp(rd, rd.action(req.Action)))
+		return 0
 	}
 	if req.Resource == "config" {
 		if err := runConfig(req); err != nil {
@@ -243,33 +82,6 @@ func getVersion() string {
 		}
 	}
 	return "dev"
-}
-
-func nestedHelp(args []string) (string, bool) {
-	if len(args) < 2 || args[len(args)-1] != "--help" {
-		return "", false
-	}
-	switch strings.Join(args, " ") {
-	case "config --help":
-		return configHelp, true
-	case "issue --help":
-		return issueHelp, true
-	case "issue list --help":
-		return issueListHelp, true
-	case "issue comment --help":
-		return issueCommentHelp, true
-	case "issue close --help":
-		return issueCloseHelp, true
-	case "issue reopen --help":
-		return issueReopenHelp, true
-	case "pr create --help":
-		return prCreateHelp, true
-	case "pr status --help":
-		return prStatusHelp, true
-	case "pr merge --help":
-		return prMergeHelp, true
-	}
-	return "", false
 }
 
 func runConfig(req Request) error {
@@ -333,7 +145,7 @@ func fail(err error) int {
 	fmt.Fprintln(os.Stderr, "gg:", err)
 	var ue UsageError
 	if errors.As(err, &ue) {
-		fmt.Fprintln(os.Stderr, topLevelHelp)
+		fmt.Fprintln(os.Stderr, topLevelHelp())
 		return 2
 	}
 	return 1
