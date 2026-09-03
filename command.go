@@ -225,6 +225,9 @@ func ghInvocation(req Request, r RepoURL) (Invocation, error) {
 	case "issue view", "pr view":
 		inv.Args = append([]string{res, "view", req.Number}, target...)
 		inv.Env = nil
+	case "pr status":
+		inv.Args = []string{"pr", "view", req.Number, "-R", r.Host + "/" + r.Slug(), "--json", ghStatusFields()}
+		inv.Env = nil
 	case "issue comment":
 		inv.Args = []string{"issue", "comment", req.Number, "--body", req.Body}
 		inv.Args = append(inv.Args, target...)
@@ -304,6 +307,8 @@ func glabInvocation(req Request, r RepoURL) (Invocation, error) {
 		inv.Args = appendKV(inv.Args, "--per-page", req.Limit)
 	case "issue view", "pr view":
 		inv.Args = append([]string{res, "view", req.Number}, target...)
+	case "pr status":
+		inv.Args = append([]string{res, "view", req.Number, "--output", "json"}, target...)
 	case "issue comment":
 		inv.Args = []string{"issue", "note", req.Number, "--message", req.Body}
 		inv.Args = append(inv.Args, target...)
@@ -349,6 +354,9 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	auth := []string{"--login", login}
 	target := append(append([]string{}, auth...), "--repo", r.Slug())
 	res := map[string]string{"repo": "repos", "issue": "issues", "pr": "pulls"}[req.Resource]
+	if req.Resource == "pr" && req.Action == "status" {
+		return Invocation{}, usageErr("pr status is not supported for tea")
+	}
 	switch req.Resource + " " + req.Action {
 	case "repo list":
 		inv.Args = appendKV(append([]string{"repos", "list"}, auth...), "--limit", req.Limit)

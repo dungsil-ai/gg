@@ -235,8 +235,8 @@ var commandDefs = map[string]*resourceDef{
 	},
 	"pr": {
 		name:    "pr",
-		summary: "List, view, create, or merge pull requests",
-		desc:    "List, view, create, or merge pull requests.",
+		summary: "List, view, create, or merge pull requests, and check merge readiness",
+		desc:    "List, view, create, or merge pull requests, and check merge readiness.",
 		usage:   "gg pr <command> [flags]",
 		actions: []actionDef{
 			{
@@ -259,6 +259,14 @@ var commandDefs = map[string]*resourceDef{
 				flags:    []flagDef{titleFlag, bodyFlag, baseFlag, headFlag, draftFlag},
 				showRepo: true, showRemote: true, showExplain: true,
 				remoteOK: true, explainOK: true,
+			},
+			{
+				name: "status", summary: "Show merge readiness for one pull request", usage: "gg pr status <number> [flags]",
+				showRepo: true, showRemote: true, showExplain: true,
+				remoteOK: true, explainOK: true,
+				minPos: 1, maxPos: 1,
+				posErr: "usage: gg pr status <number>",
+				setPos: setNumber,
 			},
 			{
 				name: "merge", summary: "Merge a pull request", usage: "gg pr merge <number> [flags]",
@@ -341,6 +349,7 @@ Usage:
   gg issue --help
   gg issue list --help
   gg pr create --help
+  gg pr status --help
   gg pr merge --help
 
 Commands:

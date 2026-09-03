@@ -557,7 +557,7 @@ func TestParseRequestErrorMessages(t *testing.T) {
 		{[]string{"unknown"}, "unknown command unknown"},
 		{[]string{"config"}, "config needs an action: list, set, unset"},
 		{[]string{"issue"}, "issue needs an action: list, view, create, comment, close, reopen"},
-		{[]string{"pr"}, "pr needs an action: list, view, create, merge"},
+		{[]string{"pr"}, "pr needs an action: list, view, create, status, merge"},
 		{[]string{"repo"}, "repo needs an action: list, view, create, clone, commit, pull, push"},
 		{[]string{"issue", "delete", "1"}, "issue does not support delete"},
 		{[]string{"pr", "delete", "1"}, "pr does not support delete"},

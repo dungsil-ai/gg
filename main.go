@@ -15,7 +15,6 @@ import (
 )
 
 var version = "dev"
-
 func main() { os.Exit(run(os.Args[1:])) }
 
 func run(args []string) int {
@@ -53,6 +52,13 @@ func run(args []string) int {
 		}
 		explain(os.Stdout, ep)
 		return 0
+	}
+	if req.Resource == "pr" && req.Action == "status" && !req.Explain {
+		ep, err := resolvePlan(req)
+		if err != nil {
+			return fail(err)
+		}
+		return runPRStatus(ep)
 	}
 	inv, err := plan(req)
 	if err != nil {
@@ -192,7 +198,9 @@ func resolvePlan(req Request) (executionPlan, error) {
 		return executionPlan{}, err
 	}
 	teaLogin := ""
-	if p == Tea && req.Action != "clone" {
+	// pr status는 provider를 고르기 전에 미지원을 확정하므로 tea login을 묻지 않는다.
+	statusUnsupported := req.Resource == "pr" && req.Action == "status" && p == Tea
+	if p == Tea && req.Action != "clone" && !statusUnsupported {
 		if teaLogin = teaLoginName(repo.Host); teaLogin == "" {
 			return executionPlan{}, fmt.Errorf("no tea login for %s (run: tea login add)", repo.Host)
 		}
