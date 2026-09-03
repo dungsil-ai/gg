@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"bytes"
@@ -24,7 +24,7 @@ func buildGG(t *testing.T) string {
 	if runtime.GOOS == "windows" {
 		bin += ".exe"
 	}
-	out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput()
+	out, err := exec.Command("go", "build", "-o", bin, "../..").CombinedOutput()
 	if err != nil {
 		t.Fatalf("build 실패: %v\n%s", err, out)
 	}
@@ -792,7 +792,7 @@ func TestE2EVersion(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		releaseBin += ".exe"
 	}
-	build := exec.Command("go", "build", "-ldflags", "-X main.version=v0.1.0", "-o", releaseBin, ".")
+	build := exec.Command("go", "build", "-ldflags", "-X main.version=v0.1.0", "-o", releaseBin, "../..")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("release build 실패: %v\n%s", err, out)
 	}

@@ -1,4 +1,4 @@
-package main
+package cli
 
 // flagDef는 action이 받는 flag 하나다.
 type flagDef struct {
