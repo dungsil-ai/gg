@@ -124,76 +124,76 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 <details>
 <summary>저수준 제어 (Low-level / Plumbing)</summary>
 
-- [ ] `git apply`
-- [ ] `git cat-file`
-- [ ] `git check-attr`
-- [ ] `git check-ignore`
-- [ ] `git check-mailmap`
-- [ ] `git check-ref-format`
-- [ ] `git checkout-index`
-- [ ] `git column`
-- [ ] `git commit-graph`
-- [ ] `git commit-tree`
-- [ ] `git credential`
-- [ ] `git credential-cache`
-- [ ] `git credential-store`
-- [ ] `git daemon`
-- [ ] `git diff-files`
-- [ ] `git diff-index`
-- [ ] `git diff-tree`
-- [ ] `git fast-export`
-- [ ] `git fast-import`
-- [ ] `git fetch-pack`
-- [ ] `git for-each-ref`
-- [ ] `git for-each-repo`
-- [ ] `git hash-object`
-- [ ] `git http-backend`
-- [ ] `git http-fetch`
-- [ ] `git http-push`
-- [ ] `git index-pack`
-- [ ] `git ls-files`
-- [ ] `git ls-remote`
-- [ ] `git ls-tree`
-- [ ] `git mailinfo`
-- [ ] `git mailsplit`
-- [ ] `git merge-base`
-- [ ] `git merge-file`
-- [ ] `git merge-index`
-- [ ] `git mktag`
-- [ ] `git mktree`
-- [ ] `git multi-pack-index`
-- [ ] `git name-rev`
-- [ ] `git pack-objects`
-- [ ] `git pack-redundant`
-- [ ] `git pack-refs`
-- [ ] `git patch-id`
-- [ ] `git prune`
-- [ ] `git read-tree`
-- [ ] `git receive-pack`
-- [ ] `git reflog`
-- [ ] `git remote`
-- [ ] `git repack`
-- [ ] `git replace`
-- [ ] `git rev-list`
-- [ ] `git rev-parse`
-- [ ] `git send-pack`
-- [ ] `git show-branch`
-- [ ] `git show-index`
-- [ ] `git show-ref`
-- [ ] `git stripspace`
-- [ ] `git symbolic-ref`
-- [ ] `git unpack-file`
-- [ ] `git unpack-objects`
-- [ ] `git update-index`
-- [ ] `git update-ref`
-- [ ] `git update-server-info`
-- [ ] `git upload-archive`
-- [ ] `git upload-pack`
-- [ ] `git var`
-- [ ] `git verify-commit`
-- [ ] `git verify-pack`
-- [ ] `git verify-tag`
-- [ ] `git write-tree`
+- [x] `git apply` (대응: `gg repo apply`, `gg apply`)
+- [x] `git cat-file` (대응: `gg repo cat-file`, `gg cat-file`)
+- [x] `git check-attr` (대응: `gg repo check-attr`, `gg check-attr`)
+- [x] `git check-ignore` (대응: `gg repo check-ignore`, `gg check-ignore`)
+- [x] `git check-mailmap` (대응: `gg repo check-mailmap`, `gg check-mailmap`)
+- [x] `git check-ref-format` (대응: `gg repo check-ref-format`, `gg check-ref-format`)
+- [x] `git checkout-index` (대응: `gg repo checkout-index`, `gg checkout-index`)
+- [x] `git column` (대응: `gg repo column`, `gg column`)
+- [x] `git commit-graph` (대응: `gg repo commit-graph`, `gg commit-graph`)
+- [x] `git commit-tree` (대응: `gg repo commit-tree`, `gg commit-tree`)
+- [x] `git credential` (대응: `gg repo credential`, `gg credential`)
+- [x] `git credential-cache` (대응: `gg repo credential-cache`, `gg credential-cache`)
+- [x] `git credential-store` (대응: `gg repo credential-store`, `gg credential-store`)
+- [x] `git daemon` (대응: `gg repo daemon`, `gg daemon`)
+- [x] `git diff-files` (대응: `gg repo diff-files`, `gg diff-files`)
+- [x] `git diff-index` (대응: `gg repo diff-index`, `gg diff-index`)
+- [x] `git diff-tree` (대응: `gg repo diff-tree`, `gg diff-tree`)
+- [x] `git fast-export` (대응: `gg repo fast-export`, `gg fast-export`)
+- [x] `git fast-import` (대응: `gg repo fast-import`, `gg fast-import`)
+- [x] `git fetch-pack` (대응: `gg repo fetch-pack`, `gg fetch-pack`)
+- [x] `git for-each-ref` (대응: `gg repo for-each-ref`, `gg for-each-ref`)
+- [x] `git for-each-repo` (대응: `gg repo for-each-repo`, `gg for-each-repo`)
+- [x] `git hash-object` (대응: `gg repo hash-object`, `gg hash-object`)
+- [x] `git http-backend` (대응: `gg repo http-backend`, `gg http-backend`)
+- [x] `git http-fetch` (대응: `gg repo http-fetch`, `gg http-fetch`)
+- [x] `git http-push` (대응: `gg repo http-push`, `gg http-push`)
+- [x] `git index-pack` (대응: `gg repo index-pack`, `gg index-pack`)
+- [x] `git ls-files` (대응: `gg repo ls-files`, `gg ls-files`)
+- [x] `git ls-remote` (대응: `gg repo ls-remote`, `gg ls-remote`)
+- [x] `git ls-tree` (대응: `gg repo ls-tree`, `gg ls-tree`)
+- [x] `git mailinfo` (대응: `gg repo mailinfo`, `gg mailinfo`)
+- [x] `git mailsplit` (대응: `gg repo mailsplit`, `gg mailsplit`)
+- [x] `git merge-base` (대응: `gg repo merge-base`, `gg merge-base`)
+- [x] `git merge-file` (대응: `gg repo merge-file`, `gg merge-file`)
+- [x] `git merge-index` (대응: `gg repo merge-index`, `gg merge-index`)
+- [x] `git mktag` (대응: `gg repo mktag`, `gg mktag`)
+- [x] `git mktree` (대응: `gg repo mktree`, `gg mktree`)
+- [x] `git multi-pack-index` (대응: `gg repo multi-pack-index`, `gg multi-pack-index`)
+- [x] `git name-rev` (대응: `gg repo name-rev`, `gg name-rev`)
+- [x] `git pack-objects` (대응: `gg repo pack-objects`, `gg pack-objects`)
+- [x] `git pack-redundant` (대응: `gg repo pack-redundant`, `gg pack-redundant`)
+- [x] `git pack-refs` (대응: `gg repo pack-refs`, `gg pack-refs`)
+- [x] `git patch-id` (대응: `gg repo patch-id`, `gg patch-id`)
+- [x] `git prune` (대응: `gg repo prune`, `gg prune`)
+- [x] `git read-tree` (대응: `gg repo read-tree`, `gg read-tree`)
+- [x] `git receive-pack` (대응: `gg repo receive-pack`, `gg receive-pack`)
+- [x] `git reflog` (대응: `gg repo reflog`, `gg reflog`)
+- [x] `git remote` (대응: `gg repo remote`, `gg remote`)
+- [x] `git repack` (대응: `gg repo repack`, `gg repack`)
+- [x] `git replace` (대응: `gg repo replace`, `gg replace`)
+- [x] `git rev-list` (대응: `gg repo rev-list`, `gg rev-list`)
+- [x] `git rev-parse` (대응: `gg repo rev-parse`, `gg rev-parse`)
+- [x] `git send-pack` (대응: `gg repo send-pack`, `gg send-pack`)
+- [x] `git show-branch` (대응: `gg repo show-branch`, `gg show-branch`)
+- [x] `git show-index` (대응: `gg repo show-index`, `gg show-index`)
+- [x] `git show-ref` (대응: `gg repo show-ref`, `gg show-ref`)
+- [x] `git stripspace` (대응: `gg repo stripspace`, `gg stripspace`)
+- [x] `git symbolic-ref` (대응: `gg repo symbolic-ref`, `gg symbolic-ref`)
+- [x] `git unpack-file` (대응: `gg repo unpack-file`, `gg unpack-file`)
+- [x] `git unpack-objects` (대응: `gg repo unpack-objects`, `gg unpack-objects`)
+- [x] `git update-index` (대응: `gg repo update-index`, `gg update-index`)
+- [x] `git update-ref` (대응: `gg repo update-ref`, `gg update-ref`)
+- [x] `git update-server-info` (대응: `gg repo update-server-info`, `gg update-server-info`)
+- [x] `git upload-archive` (대응: `gg repo upload-archive`, `gg upload-archive`)
+- [x] `git upload-pack` (대응: `gg repo upload-pack`, `gg upload-pack`)
+- [x] `git var` (대응: `gg repo var`, `gg var`)
+- [x] `git verify-commit` (대응: `gg repo verify-commit`, `gg verify-commit`)
+- [x] `git verify-pack` (대응: `gg repo verify-pack`, `gg verify-pack`)
+- [x] `git verify-tag` (대응: `gg repo verify-tag`, `gg verify-tag`)
+- [x] `git write-tree` (대응: `gg repo write-tree`, `gg write-tree`)
 
 </details>
 

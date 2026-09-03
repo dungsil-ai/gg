@@ -353,6 +353,17 @@ func TestGitPassthroughActionSet(t *testing.T) {
 		"switch", "tag", "worktree",
 		"annotate", "blame", "bugreport", "count-objects", "diagnose", "difftool", "fsck",
 		"instaweb", "maintenance", "merge-tree", "mergetool", "prune-packed", "rerere", "scalar",
+		"apply", "cat-file", "check-attr", "check-ignore", "check-mailmap", "check-ref-format",
+		"checkout-index", "column", "commit-graph", "commit-tree", "credential", "credential-cache",
+		"credential-store", "daemon", "diff-files", "diff-index", "diff-tree", "fast-export",
+		"fast-import", "fetch-pack", "for-each-ref", "for-each-repo", "hash-object", "http-backend",
+		"http-fetch", "http-push", "index-pack", "ls-files", "ls-remote", "ls-tree", "mailinfo",
+		"mailsplit", "merge-base", "merge-file", "merge-index", "mktag", "mktree", "multi-pack-index",
+		"name-rev", "pack-objects", "pack-redundant", "pack-refs", "patch-id", "prune", "read-tree",
+		"receive-pack", "reflog", "remote", "repack", "replace", "rev-list", "rev-parse", "send-pack",
+		"show-branch", "show-index", "show-ref", "stripspace", "symbolic-ref", "unpack-file",
+		"unpack-objects", "update-index", "update-ref", "update-server-info", "upload-archive",
+		"upload-pack", "var", "verify-commit", "verify-pack", "verify-tag", "write-tree",
 	}
 	if !reflect.DeepEqual(gitPassthroughActionNames, want) {
 		t.Fatalf("gitPassthroughActionNames = %q, want %q", gitPassthroughActionNames, want)
