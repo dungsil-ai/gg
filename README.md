@@ -1,180 +1,599 @@
-# gg
+# TODO
 
-`gg`는 Git 저장소 host를 보고 같은 명령을 provider CLI(`gh`, `glab`, `tea`)로 보내는 도구입니다.
+## git 기능 목록
 
-## 설치
+### 주요 작업 및 저장소 조작 (Main Porcelain)
+- [ ] `git add`
+- [ ] `git am`
+- [ ] `git archive`
+- [ ] `git bisect`
+- [ ] `git branch`
+- [ ] `git bundle`
+- [ ] `git checkout`
+- [ ] `git cherry-pick`
+- [ ] `git citool`
+- [ ] `git clean`
+- [x] `git clone` (대응: `gg repo clone`, `gg clone`)
+- [ ] `git commit`
+- [ ] `git describe`
+- [ ] `git diff`
+- [ ] `git fetch`
+- [ ] `git format-patch`
+- [ ] `git gc`
+- [ ] `git grep`
+- [ ] `git gui`
+- [ ] `git init`
+- [ ] `git log`
+- [ ] `git merge`
+- [ ] `git mv`
+- [ ] `git notes`
+- [x] `git pull` (대응: `gg repo pull`, `gg pull`)
+- [x] `git push` (대응: `gg repo push`, `gg push`)
+- [ ] `git range-diff`
+- [ ] `git rebase`
+- [ ] `git reset`
+- [ ] `git restore`
+- [ ] `git revert`
+- [ ] `git rm`
+- [ ] `git shortlog`
+- [ ] `git show`
+- [ ] `git sparse-checkout`
+- [ ] `git stash`
+- [ ] `git status`
+- [ ] `git submodule`
+- [ ] `git switch`
+- [ ] `git tag`
+- [ ] `git worktree`
 
-### 1. Release 파일로 설치
+### 보조 명령 및 유틸리티 (Ancillary Commands)
+- [ ] `git annotate`
+- [ ] `git blame`
+- [ ] `git bugreport`
+- [ ] `git count-objects`
+- [ ] `git diagnose`
+- [ ] `git difftool`
+- [ ] `git fsck`
+- [x] `git help` (대응: `gg help`, `gg --help`, `gg -h`)
+- [ ] `git instaweb`
+- [ ] `git maintenance`
+- [ ] `git merge-tree`
+- [ ] `git mergetool`
+- [ ] `git prune-packed`
+- [ ] `git rerere`
+- [ ] `git scalar`
+- [x] `git version` (대응: `gg version`, `gg --version`)
 
-GitHub Releases에서 사용하는 OS와 CPU에 맞는 Release 파일을 내려받습니다.
+### 외부 시스템 연동 (Interacting with Others)
+- [ ] `git archimport`
+- [ ] `git cvsexportcommit`
+- [ ] `git cvsimport`
+- [ ] `git cvsserver`
+- [ ] `git imap-send`
+- [ ] `git p4`
+- [ ] `git quiltimport`
+- [ ] `git request-pull`
+- [ ] `git send-email`
+- [ ] `git svn`
 
-- **Windows** (zip):
-  - `gg_0.1.0_windows_amd64.zip`
-  - `gg_0.1.0_windows_arm64.zip`
-- **Linux** (tar.gz):
-  - `gg_0.1.0_linux_amd64.tar.gz`
-  - `gg_0.1.0_linux_arm64.tar.gz`
-- **macOS** (tar.gz):
-  - `gg_0.1.0_darwin_amd64.tar.gz`
-  - `gg_0.1.0_darwin_arm64.tar.gz`
+### 저수준 제어 (Low-level / Plumbing)
+- [ ] `git apply`
+- [ ] `git cat-file`
+- [ ] `git check-attr`
+- [ ] `git check-ignore`
+- [ ] `git check-mailmap`
+- [ ] `git check-ref-format`
+- [ ] `git checkout-index`
+- [ ] `git column`
+- [ ] `git commit-graph`
+- [ ] `git commit-tree`
+- [ ] `git credential`
+- [ ] `git credential-cache`
+- [ ] `git credential-store`
+- [ ] `git daemon`
+- [ ] `git diff-files`
+- [ ] `git diff-index`
+- [ ] `git diff-tree`
+- [ ] `git fast-export`
+- [ ] `git fast-import`
+- [ ] `git fetch-pack`
+- [ ] `git for-each-ref`
+- [ ] `git for-each-repo`
+- [ ] `git hash-object`
+- [ ] `git http-backend`
+- [ ] `git http-fetch`
+- [ ] `git http-push`
+- [ ] `git index-pack`
+- [ ] `git ls-files`
+- [ ] `git ls-remote`
+- [ ] `git ls-tree`
+- [ ] `git mailinfo`
+- [ ] `git mailsplit`
+- [ ] `git merge-base`
+- [ ] `git merge-file`
+- [ ] `git merge-index`
+- [ ] `git mktag`
+- [ ] `git mktree`
+- [ ] `git multi-pack-index`
+- [ ] `git name-rev`
+- [ ] `git pack-objects`
+- [ ] `git pack-redundant`
+- [ ] `git pack-refs`
+- [ ] `git patch-id`
+- [ ] `git prune`
+- [ ] `git read-tree`
+- [ ] `git receive-pack`
+- [ ] `git reflog`
+- [ ] `git remote`
+- [ ] `git repack`
+- [ ] `git replace`
+- [ ] `git rev-list`
+- [ ] `git rev-parse`
+- [ ] `git send-pack`
+- [ ] `git show-branch`
+- [ ] `git show-index`
+- [ ] `git show-ref`
+- [ ] `git stripspace`
+- [ ] `git symbolic-ref`
+- [ ] `git unpack-file`
+- [ ] `git unpack-objects`
+- [ ] `git update-index`
+- [ ] `git update-ref`
+- [ ] `git update-server-info`
+- [ ] `git upload-archive`
+- [ ] `git upload-pack`
+- [ ] `git var`
+- [ ] `git verify-commit`
+- [ ] `git verify-pack`
+- [ ] `git verify-tag`
+- [ ] `git write-tree`
 
-각 archive 옆에 있는 `.sha256` 파일로 SHA-256 checksum을 확인합니다.
+---
 
-```bash
-# Linux
-sha256sum -c gg_0.1.0_linux_amd64.tar.gz.sha256
+## gh (GitHub CLI) 기능 목록
 
-# macOS
-shasum -a 256 -c gg_0.1.0_darwin_amd64.tar.gz.sha256
+### Core Commands
+- `auth`
+  - [ ] `gh auth login`
+  - [ ] `gh auth logout`
+  - [ ] `gh auth refresh`
+  - [ ] `gh auth setup-git`
+  - [ ] `gh auth status`
+  - [ ] `gh auth switch`
+  - [ ] `gh auth token`
+- `browse`
+  - [ ] `gh browse`
+- `cache`
+  - [ ] `gh cache delete`
+  - [ ] `gh cache list`
+- `codespace`
+  - [ ] `gh codespace code`
+  - [ ] `gh codespace cp`
+  - [ ] `gh codespace create`
+  - [ ] `gh codespace delete`
+  - [ ] `gh codespace edit`
+  - [ ] `gh codespace jupyter`
+  - [ ] `gh codespace list`
+  - [ ] `gh codespace logs`
+  - [ ] `gh codespace ports`
+  - [ ] `gh codespace rebuild`
+  - [ ] `gh codespace ssh`
+  - [ ] `gh codespace stop`
+  - [ ] `gh codespace view`
+- `gist`
+  - [ ] `gh gist clone`
+  - [ ] `gh gist create`
+  - [ ] `gh gist delete`
+  - [ ] `gh gist edit`
+  - [ ] `gh gist list`
+  - [ ] `gh gist rename`
+  - [ ] `gh gist view`
+- `issue`
+  - [ ] `gh issue close`
+  - [ ] `gh issue comment`
+  - [x] `gh issue create` (대응: `gg issue create`)
+  - [ ] `gh issue delete`
+  - [ ] `gh issue develop`
+  - [ ] `gh issue edit`
+  - [x] `gh issue list` (대응: `gg issue list`)
+  - [ ] `gh issue lock`
+  - [ ] `gh issue pin`
+  - [ ] `gh issue reopen`
+  - [ ] `gh issue status`
+  - [ ] `gh issue transfer`
+  - [ ] `gh issue unlock`
+  - [ ] `gh issue unpin`
+  - [x] `gh issue view` (대응: `gg issue view`)
+- `org`
+  - [ ] `gh org list`
+- `pr`
+  - [ ] `gh pr checkout`
+  - [ ] `gh pr checks`
+  - [ ] `gh pr close`
+  - [ ] `gh pr comment`
+  - [x] `gh pr create` (대응: `gg pr create`)
+  - [ ] `gh pr diff`
+  - [ ] `gh pr edit`
+  - [x] `gh pr list` (대응: `gg pr list`)
+  - [ ] `gh pr lock`
+  - [ ] `gh pr merge`
+  - [ ] `gh pr ready`
+  - [ ] `gh pr reopen`
+  - [ ] `gh pr review`
+  - [ ] `gh pr status`
+  - [ ] `gh pr unlock`
+  - [ ] `gh pr update-branch`
+  - [x] `gh pr view` (대응: `gg pr view`)
+- `project`
+  - [ ] `gh project close`
+  - [ ] `gh project copy`
+  - [ ] `gh project create`
+  - [ ] `gh project delete`
+  - [ ] `gh project edit`
+  - [ ] `gh project field-create`
+  - [ ] `gh project field-delete`
+  - [ ] `gh project field-list`
+  - [ ] `gh project item-add`
+  - [ ] `gh project item-archive`
+  - [ ] `gh project item-create`
+  - [ ] `gh project item-delete`
+  - [ ] `gh project item-edit`
+  - [ ] `gh project item-list`
+  - [ ] `gh project link`
+  - [ ] `gh project list`
+  - [ ] `gh project mark-template`
+  - [ ] `gh project unlink`
+  - [ ] `gh project view`
+- `release`
+  - [ ] `gh release create`
+  - [ ] `gh release delete`
+  - [ ] `gh release delete-asset`
+  - [ ] `gh release download`
+  - [ ] `gh release edit`
+  - [ ] `gh release list`
+  - [ ] `gh release upload`
+  - [ ] `gh release view`
+- `repo`
+  - [ ] `gh repo archive`
+  - [ ] `gh repo autolink`
+  - [x] `gh repo clone` (대응: `gg repo clone`, `gg clone`)
+  - [x] `gh repo create` (대응: `gg repo create`, `gg create`)
+  - [ ] `gh repo delete`
+  - [ ] `gh repo deploy-key`
+  - [ ] `gh repo edit`
+  - [ ] `gh repo fork`
+  - [x] `gh repo list` (대응: `gg repo list`, `gg list`)
+  - [ ] `gh repo rename`
+  - [ ] `gh repo set-default`
+  - [ ] `gh repo sync`
+  - [ ] `gh repo unarchive`
+  - [x] `gh repo view` (대응: `gg repo view`, `gg view`)
+- `secret`
+  - [ ] `gh secret delete`
+  - [ ] `gh secret list`
+  - [ ] `gh secret set`
+- `variable`
+  - [ ] `gh variable delete`
+  - [ ] `gh variable get`
+  - [ ] `gh variable list`
+  - [ ] `gh variable set`
 
-# Windows (PowerShell)
-(Get-FileHash .\gg_0.1.0_windows_amd64.zip -Algorithm SHA256).Hash -eq ((Get-Content .\gg_0.1.0_windows_amd64.zip.sha256).Split(" ")[0]).ToUpper()
-```
+### GitHub Actions Commands
+- `run`
+  - [ ] `gh run cancel`
+  - [ ] `gh run delete`
+  - [ ] `gh run download`
+  - [ ] `gh run list`
+  - [ ] `gh run rerun`
+  - [ ] `gh run view`
+  - [ ] `gh run watch`
+- `workflow`
+  - [ ] `gh workflow disable`
+  - [ ] `gh workflow enable`
+  - [ ] `gh workflow list`
+  - [ ] `gh workflow run`
+  - [ ] `gh workflow view`
 
-압축을 풀고 `gg` (Windows는 `gg.exe`) 실행 파일을 `PATH`에 등록된 경로로 이동합니다.
+### Additional Commands
+- `alias`
+  - [ ] `gh alias delete`
+  - [ ] `gh alias import`
+  - [ ] `gh alias list`
+  - [ ] `gh alias set`
+- [ ] `gh api`
+- `attestation`
+  - [ ] `gh attestation download`
+  - [ ] `gh attestation trusted-root`
+  - [ ] `gh attestation verify`
+- [ ] `gh completion`
+- `config`
+  - [ ] `gh config clear-cache`
+  - [ ] `gh config get`
+  - [ ] `gh config list`
+  - [ ] `gh config set`
+- `extension`
+  - [ ] `gh extension browse`
+  - [ ] `gh extension create`
+  - [ ] `gh extension exec`
+  - [ ] `gh extension install`
+  - [ ] `gh extension list`
+  - [ ] `gh extension remove`
+  - [ ] `gh extension search`
+  - [ ] `gh extension upgrade`
+- `gpg-key`
+  - [ ] `gh gpg-key add`
+  - [ ] `gh gpg-key delete`
+  - [ ] `gh gpg-key list`
+- `label`
+  - [ ] `gh label clone`
+  - [ ] `gh label create`
+  - [ ] `gh label delete`
+  - [ ] `gh label edit`
+  - [ ] `gh label list`
+- `ruleset`
+  - [ ] `gh ruleset check`
+  - [ ] `gh ruleset list`
+  - [ ] `gh ruleset view`
+- `search`
+  - [ ] `gh search code`
+  - [ ] `gh search commits`
+  - [ ] `gh search issues`
+  - [ ] `gh search prs`
+  - [ ] `gh search repos`
+- `ssh-key`
+  - [ ] `gh ssh-key add`
+  - [ ] `gh ssh-key delete`
+  - [ ] `gh ssh-key list`
+- [ ] `gh status`
+- [x] `gh help` (대응: `gg help`, `gg --help`, `gg -h`)
+- [x] `gh version` (대응: `gg version`, `gg --version`)
 
-### 2. go install로 설치
+---
 
-Go 1.22 이상이 설치되어 있다면 다음 명령으로 설치할 수 있습니다.
+## glab (GitLab CLI) 기능 목록
 
-```bash
-go install github.com/dungsil-ai/gg@latest
-```
+### Core & Additional Commands
+- `alias`
+  - [ ] `glab alias delete`
+  - [ ] `glab alias list`
+  - [ ] `glab alias set`
+- [ ] `glab api`
+- `ask`
+  - [ ] `glab ask git`
+- `auth`
+  - [ ] `glab auth login`
+  - [ ] `glab auth logout`
+  - [ ] `glab auth status`
+- `changelog`
+  - [ ] `glab changelog generate`
+- [ ] `glab check-update`
+- `ci`
+  - [ ] `glab ci artifacts`
+  - [ ] `glab ci delete`
+  - [ ] `glab ci get`
+  - [ ] `glab ci lint`
+  - [ ] `glab ci list`
+  - [ ] `glab ci retry`
+  - [ ] `glab ci run`
+  - [ ] `glab ci status`
+  - [ ] `glab ci trace`
+  - [ ] `glab ci trigger`
+  - [ ] `glab ci view`
+- `cluster`
+  - [ ] `glab cluster agent`
+- [ ] `glab completion`
+- `config`
+  - [ ] `glab config get`
+  - [ ] `glab config init`
+  - [ ] `glab config set`
+- `duo`
+  - [ ] `glab duo ask`
+- `incident`
+  - [ ] `glab incident close`
+  - [ ] `glab incident list`
+  - [ ] `glab incident note`
+  - [ ] `glab incident reopen`
+  - [ ] `glab incident subscribe`
+  - [ ] `glab incident unsubscribe`
+  - [ ] `glab incident view`
+- `issue`
+  - [ ] `glab issue board`
+  - [ ] `glab issue close`
+  - [x] `glab issue create` (대응: `gg issue create`)
+  - [ ] `glab issue delete`
+  - [x] `glab issue list` (대응: `gg issue list`)
+  - [ ] `glab issue note`
+  - [ ] `glab issue reopen`
+  - [ ] `glab issue subscribe`
+  - [ ] `glab issue todo`
+  - [ ] `glab issue unsubscribe`
+  - [ ] `glab issue update`
+  - [x] `glab issue view` (대응: `gg issue view`)
+- `label`
+  - [ ] `glab label create`
+  - [ ] `glab label list`
+- `mr`
+  - [ ] `glab mr approve`
+  - [ ] `glab mr approvers`
+  - [ ] `glab mr checkout`
+  - [ ] `glab mr close`
+  - [x] `glab mr create` (대응: `gg pr create`)
+  - [ ] `glab mr delete`
+  - [ ] `glab mr diff`
+  - [x] `glab mr list` (대응: `gg pr list`)
+  - [ ] `glab mr merge`
+  - [ ] `glab mr note`
+  - [ ] `glab mr rebase`
+  - [ ] `glab mr reopen`
+  - [ ] `glab mr revoke`
+  - [ ] `glab mr subscribe`
+  - [ ] `glab mr todo`
+  - [ ] `glab mr unsubscribe`
+  - [ ] `glab mr update`
+  - [x] `glab mr view` (대응: `gg pr view`)
+- `release`
+  - [ ] `glab release create`
+  - [ ] `glab release delete`
+  - [ ] `glab release download`
+  - [ ] `glab release list`
+  - [ ] `glab release upload`
+  - [ ] `glab release view`
+- `repo`
+  - [ ] `glab repo archive`
+  - [x] `glab repo clone` (대응: `gg repo clone`, `gg clone`)
+  - [ ] `glab repo contributors`
+  - [x] `glab repo create` (대응: `gg repo create`, `gg create`)
+  - [ ] `glab repo delete`
+  - [ ] `glab repo fork`
+  - [x] `glab repo list` (대응: `gg repo list`, `gg list`)
+  - [ ] `glab repo mirror`
+  - [ ] `glab repo search`
+  - [ ] `glab repo transfer`
+  - [x] `glab repo view` (대응: `gg repo view`, `gg view`)
+- `schedule`
+  - [ ] `glab schedule create`
+  - [ ] `glab schedule delete`
+  - [ ] `glab schedule list`
+  - [ ] `glab schedule run`
+  - [ ] `glab schedule update`
+  - [ ] `glab schedule variable`
+- `snippet`
+  - [ ] `glab snippet create`
+  - [ ] `glab snippet delete`
+  - [ ] `glab snippet list`
+  - [ ] `glab snippet view`
+- `ssh-key`
+  - [ ] `glab ssh-key add`
+  - [ ] `glab ssh-key delete`
+  - [ ] `glab ssh-key list`
+- `stack`
+  - [ ] `glab stack diff`
+  - [ ] `glab stack first`
+  - [ ] `glab stack init`
+  - [ ] `glab stack last`
+  - [ ] `glab stack navigate`
+  - [ ] `glab stack next`
+  - [ ] `glab stack prev`
+  - [ ] `glab stack save`
+  - [ ] `glab stack sync`
+- `token`
+  - [ ] `glab token create`
+  - [ ] `glab token list`
+  - [ ] `glab token revoke`
+- `user`
+  - [ ] `glab user events`
+  - [ ] `glab user status`
+- `variable`
+  - [ ] `glab variable delete`
+  - [ ] `glab variable export`
+  - [ ] `glab variable get`
+  - [ ] `glab variable list`
+  - [ ] `glab variable set`
+  - [ ] `glab variable update`
+- [x] `glab help` (대응: `gg help`, `gg --help`, `gg -h`)
+- [x] `glab version` (대응: `gg version`, `gg --version`)
 
-## 첫 실행과 help
+---
 
-도움말을 보려면 다음 명령 중 하나를 실행합니다.
+## tea (Gitea CLI) 기능 목록
 
-```bash
-gg
-gg help
-gg --help
-gg -h
-```
+### Subcommands
+- `actions`
+  - [ ] `tea actions runs`
+  - [ ] `tea actions secrets`
+- `admin`
+  - [ ] `tea admin orgs`
+  - [ ] `tea admin repos`
+  - [ ] `tea admin runners`
+  - [ ] `tea admin users`
+- [ ] `tea api`
+- `branches`
+  - [ ] `tea branches list`
+- [x] `tea clone` (대응: `gg repo clone`, `gg clone`)
+- `comment`
+  - [ ] `tea comment create`
+  - [ ] `tea comment list`
+- `issues`
+  - [ ] `tea issues close`
+  - [x] `tea issues create` (대응: `gg issue create`)
+  - [ ] `tea issues delete`
+  - [x] `tea issues list` (대응: `gg issue list`)
+  - [x] `tea issues open` (대응: `gg issue view`)
+  - [ ] `tea issues reopen`
+- `labels`
+  - [ ] `tea labels create`
+  - [ ] `tea labels delete`
+  - [ ] `tea labels list`
+  - [ ] `tea labels update`
+- `logins`
+  - [ ] `tea logins add`
+  - [ ] `tea logins delete`
+  - [ ] `tea logins edit`
+  - [ ] `tea logins list`
+  - [ ] `tea logins view`
+- [ ] `tea logout`
+- [ ] `tea man`
+- `milestones`
+  - [ ] `tea milestones create`
+  - [ ] `tea milestones delete`
+  - [ ] `tea milestones list`
+  - [ ] `tea milestones update`
+- `notifications`
+  - [ ] `tea notifications list`
+  - [ ] `tea notifications pin`
+  - [ ] `tea notifications read`
+- [ ] `tea open`
+- `organizations`
+  - [ ] `tea organizations create`
+  - [ ] `tea organizations delete`
+  - [ ] `tea organizations edit`
+  - [ ] `tea organizations list`
+- `pulls`
+  - [ ] `tea pulls approve`
+  - [ ] `tea pulls checkout`
+  - [ ] `tea pulls clean`
+  - [ ] `tea pulls close`
+  - [x] `tea pulls create` (대응: `gg pr create`)
+  - [x] `tea pulls list` (대응: `gg pr list`)
+  - [ ] `tea pulls merge`
+  - [x] `tea pulls open` (대응: `gg pr view`)
+  - [ ] `tea pulls reject`
+  - [ ] `tea pulls reopen`
+- `releases`
+  - [ ] `tea releases create`
+  - [ ] `tea releases delete`
+  - [ ] `tea releases download`
+  - [ ] `tea releases edit`
+  - [ ] `tea releases list`
+- `repos`
+  - [x] `tea repos create` (대응: `gg repo create`, `gg create`)
+  - [ ] `tea repos delete`
+  - [ ] `tea repos flags`
+  - [ ] `tea repos fork`
+  - [x] `tea repos list` (대응: `gg repo list`, `gg list`)
+  - [ ] `tea repos search`
+  - [x] `tea repos view` (대응: `gg repo view`, `gg view`)
+- `times`
+  - [ ] `tea times add`
+  - [ ] `tea times delete`
+  - [ ] `tea times list`
+  - [ ] `tea times reset`
+- [ ] `tea whoami`
+- [x] `tea help` (대응: `gg help`, `gg --help`, `gg -h`)
+- [x] `tea version` (대응: `gg version`, `gg --version`)
 
-버전을 확인하려면 다음 명령을 실행합니다.
+---
 
-```bash
-gg version
-gg --version
-```
+## gg 고유 설정 기능 목록
 
-각 하위 명령의 도움말을 확인할 수도 있습니다.
+- `config`
+  - [x] `gg config list`
+  - [x] `gg config set`
+  - [x] `gg config unset`
 
-```bash
-gg config --help
-gg issue --help
-gg issue list --help
-gg issue comment --help
-gg issue close --help
-gg issue reopen --help
-gg pr create --help
-gg pr merge --help
+---
 
-## 저장소 문맥 선택 (--remote)
+# TOBE
 
-`gg`는 현재 Git 저장소의 remote 정보를 읽어 저장소 문맥을 자동으로 선택합니다.
-
-대상 remote를 직접 지정하려면 `--remote` flag를 사용합니다.
-
-```bash
-# upstream remote를 저장소 문맥으로 사용
-gg --remote upstream issue list
-
-# 명령 뒤에 --remote를 붙여도 동작합니다
-gg pr create --remote origin
-```
-
-저장소 URL을 직접 지정하려면 `--repo` flag를 사용합니다.
-
-```bash
-gg --repo https://github.com/dungsil-ai/gg issue list
-```
-
-### PR 병합 준비 상태
-
-`gg pr status <number>`는 한 PR의 병합 준비 상태를 한 화면에서 보여줍니다. GitHub와 GitLab에서 같은 필드 이름과 값 범위를 사용합니다.
-
-```bash
-gg pr status 42
-```
-
-```text
-Draft: no
-Approval: approved
-CI: pass
-Conflict: no
-Mergeable: yes
-```
-
-### 출력 값의 뜻
-
-| 필드 | 값 | 뜻 |
-| --- | --- | --- |
-| `Draft` | `yes`, `no`, `unknown` | Draft PR인지 |
-| `Approval` | `approved`, `required`, `changes-requested`, `unknown` | 승인 상태 |
-| `CI` | `pass`, `fail`, `pending`, `none`, `unknown` | CI 검사 상태. `none`은 실행된 검사가 없다는 뜻 |
-| `Conflict` | `yes`, `no`, `unknown` | base 브랜치와 충돌이 있는지 |
-| `Mergeable` | `yes`, `no`, `unknown` | 지금 병합할 수 있는지 |
-
-`unknown`은 provider가 아직 계산 중이거나 값을 주지 않았다는 뜻이며, 임의의 안전한 값(`no`, `pass`)으로 바꿔 판단하지 않습니다.
-
-상태 조회 자체가 성공하면 병합 불가, CI 실패, 승인 대기여도 exit code는 0입니다. 조회가 실패할 때만 0이 아닌 exit code를 냅니다.
-
-`tea`(Gitea)는 이 명령을 지원하지 않습니다.
-
-# Issue 관리
-
-```bash
-# Issue 댓글 작성
-gg issue comment 18 --body "구현 완료되었습니다."
-
-# Issue 닫기
-gg issue close 18
-
-# Issue 다시 열기
-gg issue reopen 18
-```
-
-## PR 병합
-
-```bash
-# PR 병합 (provider 기본 방식)
-gg pr merge 42
-
-# 병합 방식 지정: --merge, --squash, --rebase 중 하나
-gg pr merge 42 --squash
-
-# 병합 뒤 source branch 삭제
-gg pr merge 42 --squash --delete-branch
-
-# 필수 승인과 CI가 끝난 뒤 자동 병합
-gg pr merge 42 --auto
-```
-
-GitHub에서는 `gh pr merge`, GitLab에서는 `glab mr merge`로 보냅니다. Gitea(`tea`)는 아직 PR 병합을 지원하지 않습니다.
-
-## Provider 설정
-
-Self-hosted host에 사용할 provider(`gh`, `glab`, `tea`)를 지정할 수 있습니다.
-
-기본 domain(`github.com`, `gitlab.com`, `gitea.com`)은 Provider 설정 없이 자동으로 연결됩니다.
-
-### Provider 설정 목록 확인
-
-```bash
-gg config list
-```
-
-### Provider 설정 추가 및 변경
-
-```bash
-gg config set git.example.com glab
-gg config set code.internal.net tea
-```
-
-### Provider 설정 삭제
-
-```bash
-gg config unset git.example.com
-```
+- `gg`가 단일 CLI 인터페이스로 `git`, `gh`, `glab`, `tea`의 모든 공통 기능을 투명하게 중계하도록 구현 범위를 점진적으로 확장합니다.
+- 체크리스트에서 `[x]`로 표시된 항목은 현재 `gg` 명령으로 실행 경로가 연결된 기능이며, `[ ]`로 표시된 항목은 향후 라우팅 및 플래그 매핑을 추가해야 하는 구현 대상입니다.
+- Git Forge 간의 기능 차이를 추상화하여 저장소 원격지(GitHub, GitLab, Gitea, Self-hosted)에 구애받지 않고 일관된 개발자 경험을 제공하는 것을 목표로 합니다.
