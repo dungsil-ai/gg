@@ -14,7 +14,7 @@
 - [ ] `git citool`
 - [ ] `git clean`
 - [x] `git clone` (대응: `gg repo clone`, `gg clone`)
-- [ ] `git commit`
+- [x] `git commit` (대응: `gg repo commit`, `gg commit`; 커밋 서명 비활성화)
 - [ ] `git describe`
 - [ ] `git diff`
 - [ ] `git fetch`
@@ -188,8 +188,8 @@
   - [ ] `gh gist rename`
   - [ ] `gh gist view`
 - `issue`
-  - [ ] `gh issue close`
-  - [ ] `gh issue comment`
+  - [x] `gh issue close` (대응: `gg issue close`)
+  - [x] `gh issue comment` (대응: `gg issue comment`)
   - [x] `gh issue create` (대응: `gg issue create`)
   - [ ] `gh issue delete`
   - [ ] `gh issue develop`
@@ -197,7 +197,7 @@
   - [x] `gh issue list` (대응: `gg issue list`)
   - [ ] `gh issue lock`
   - [ ] `gh issue pin`
-  - [ ] `gh issue reopen`
+  - [x] `gh issue reopen` (대응: `gg issue reopen`)
   - [ ] `gh issue status`
   - [ ] `gh issue transfer`
   - [ ] `gh issue unlock`
@@ -215,7 +215,7 @@
   - [ ] `gh pr edit`
   - [x] `gh pr list` (대응: `gg pr list`)
   - [ ] `gh pr lock`
-  - [ ] `gh pr merge`
+  - [x] `gh pr merge` (대응: `gg pr merge`)
   - [ ] `gh pr ready`
   - [ ] `gh pr reopen`
   - [ ] `gh pr review`
@@ -397,12 +397,12 @@
   - [ ] `glab incident view`
 - `issue`
   - [ ] `glab issue board`
-  - [ ] `glab issue close`
+  - [x] `glab issue close` (대응: `gg issue close`)
   - [x] `glab issue create` (대응: `gg issue create`)
   - [ ] `glab issue delete`
   - [x] `glab issue list` (대응: `gg issue list`)
-  - [ ] `glab issue note`
-  - [ ] `glab issue reopen`
+  - [x] `glab issue note` (대응: `gg issue comment`)
+  - [x] `glab issue reopen` (대응: `gg issue reopen`)
   - [ ] `glab issue subscribe`
   - [ ] `glab issue todo`
   - [ ] `glab issue unsubscribe`
@@ -420,7 +420,7 @@
   - [ ] `glab mr delete`
   - [ ] `glab mr diff`
   - [x] `glab mr list` (대응: `gg pr list`)
-  - [ ] `glab mr merge`
+  - [x] `glab mr merge` (대응: `gg pr merge`)
   - [ ] `glab mr note`
   - [ ] `glab mr rebase`
   - [ ] `glab mr reopen`
@@ -510,15 +510,15 @@
   - [ ] `tea branches list`
 - [x] `tea clone` (대응: `gg repo clone`, `gg clone`)
 - `comment`
-  - [ ] `tea comment create`
+  - [x] `tea comment create` (대응: `gg issue comment`)
   - [ ] `tea comment list`
 - `issues`
-  - [ ] `tea issues close`
+  - [x] `tea issues close` (대응: `gg issue close`)
   - [x] `tea issues create` (대응: `gg issue create`)
   - [ ] `tea issues delete`
   - [x] `tea issues list` (대응: `gg issue list`)
   - [x] `tea issues open` (대응: `gg issue view`)
-  - [ ] `tea issues reopen`
+  - [x] `tea issues reopen` (대응: `gg issue reopen`)
 - `labels`
   - [ ] `tea labels create`
   - [ ] `tea labels delete`
@@ -589,6 +589,16 @@
   - [x] `gg config list`
   - [x] `gg config set`
   - [x] `gg config unset`
+
+## gg 고유 기능 목록
+
+- `pr`
+  - [x] `gg pr status` (GitHub, GitLab 지원; Gitea 미지원)
+- `저장소 문맥`
+  - [x] `--repo <URL>` (명시한 URL을 저장소 문맥으로 사용)
+  - [x] `--remote <name>` (명시한 Git remote를 저장소 문맥으로 사용)
+- `실행 설명`
+  - [x] `--explain` (선택한 저장소 문맥, Provider, 실행할 CLI 출력)
 
 ---
 
