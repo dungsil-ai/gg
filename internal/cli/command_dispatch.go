@@ -94,6 +94,11 @@ func ghInvocation(req Request, r RepoURL) (Invocation, error) {
 }
 
 func glabInvocation(req Request, r RepoURL) (Invocation, error) {
+	// glab release create에는 draft와 prerelease 개념이 없다. 조용히 무시하면
+	// 사용자가 예상과 다르게 공개 release를 만들게 되므로 사용법 오류로 막는다.
+	if req.Resource == "release" && req.Action == "create" && (req.Draft || req.Prerelease) {
+		return Invocation{}, usageErr("release create --draft/--prerelease is not supported for glab")
+	}
 	res := req.Resource
 	if res == "pr" {
 		res = "mr"
@@ -116,6 +121,9 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	}
 	if req.Resource == "label" {
 		return Invocation{}, usageErr("label " + req.Action + " is not supported for tea")
+	}
+	if req.Resource == "release" {
+		return Invocation{}, usageErr("release is not supported for tea")
 	}
 	// tea는 PR 댓글 추가만 지원하고 목록/수정/삭제 명령이 없다.
 	if req.Resource == "pr" && (req.Action == "comment list" || req.Action == "comment edit" || req.Action == "comment delete") {
