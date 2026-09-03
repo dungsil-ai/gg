@@ -46,7 +46,138 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
+      - name: Verify release commit and tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          echo "Tag: $TAG"
+
+          if ! echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Error: Tag '$TAG' does not match semantic versioning format '^v[0-9]+\.[0-9]+\.[0-9]+$'."
+            exit 1
+          fi
+
+          TAG_REF="refs/tags/$TAG"
+          if ! TAG_OBJECT_TYPE=$(git cat-file -t "$TAG_REF"); then
+            echo "Error: Failed to resolve tag '$TAG'."
+            exit 1
+          fi
+          echo "Tag object type: $TAG_OBJECT_TYPE"
+          if [ "$TAG_OBJECT_TYPE" != "tag" ]; then
+            echo "Error: Tag '$TAG' must be an annotated tag."
+            exit 1
+          fi
+
+          TAG_TARGET=$(git rev-parse "${TAG_REF}^{}")
+          HEAD_COMMIT=$(git rev-parse HEAD)
+          echo "Tag target commit: $TAG_TARGET"
+          echo "HEAD commit: $HEAD_COMMIT"
+
+          if [ "$TAG_TARGET" != "$HEAD_COMMIT" ]; then
+            echo "Error: Tag '$TAG' does not point to current HEAD commit."
+            exit 1
+          fi
+
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          if [ -z "$DEFAULT_BRANCH" ]; then
+            echo "Error: Repository default branch is empty."
+            exit 1
+          fi
+
+          DEFAULT_BRANCH_REF="refs/heads/$DEFAULT_BRANCH"
+          set +e
+          DEFAULT_BRANCH_OUTPUT=$(git ls-remote --exit-code --refs origin "$DEFAULT_BRANCH_REF" 2>&1)
+          DEFAULT_BRANCH_STATUS=$?
+          set -e
+
+          if [ "$DEFAULT_BRANCH_STATUS" -ne 0 ]; then
+            echo "Error: Failed to resolve current tip of default branch '$DEFAULT_BRANCH' (exit code $DEFAULT_BRANCH_STATUS):"
+            echo "$DEFAULT_BRANCH_OUTPUT"
+            exit 1
+          fi
+
+          DEFAULT_BRANCH_TIP=${DEFAULT_BRANCH_OUTPUT%%$'\t'*}
+          echo "Default branch: $DEFAULT_BRANCH"
+          echo "Default branch tip: $DEFAULT_BRANCH_TIP"
+          if [ "$HEAD_COMMIT" != "$DEFAULT_BRANCH_TIP" ]; then
+            echo "Error: Release commit '$HEAD_COMMIT' is not the current tip of default branch '$DEFAULT_BRANCH' ('$DEFAULT_BRANCH_TIP')."
+            exit 1
+          fi
+
+          COMMIT_MSG=$(git log -1 --format=%s "$HEAD_COMMIT")
+          EXPECTED_MSG="release: $TAG"
+          echo "Commit subject: $COMMIT_MSG"
+          echo "Expected subject: $EXPECTED_MSG"
+
+          if [ "$COMMIT_MSG" != "$EXPECTED_MSG" ]; then
+            echo "Error: Commit subject '$COMMIT_MSG' does not match expected release commit format '$EXPECTED_MSG'."
+            exit 1
+          fi
+
+          HEAD_TREE=$(git rev-parse "${HEAD_COMMIT}^{tree}")
+          PARENT_TREE=$(git rev-parse "${HEAD_COMMIT}~1^{tree}" 2>/dev/null || echo "")
+          echo "HEAD tree: $HEAD_TREE"
+          echo "Parent tree: $PARENT_TREE"
+
+          if [ -z "$PARENT_TREE" ]; then
+            echo "Error: Release commit '$HEAD_COMMIT' has no parent commit."
+            exit 1
+          fi
+
+          if [ "$HEAD_TREE" != "$PARENT_TREE" ]; then
+            echo "Error: Release commit '$HEAD_COMMIT' is not an empty commit (tree changed from parent)."
+            exit 1
+          fi
+      - name: Verify release does not already exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Checking if release for tag '${{ github.ref_name }}' already exists..."
+          set +e
+          RELEASE_OUTPUT=$(gh api "repos/${{ github.repository }}/releases/tags/${{ github.ref_name }}" 2>&1)
+          RELEASE_STATUS=$?
+          set -e
+
+          if [ $RELEASE_STATUS -eq 0 ]; then
+            echo "Error: GitHub Release for tag '${{ github.ref_name }}' already exists."
+            echo "Modifying or overwriting existing releases is prohibited."
+            exit 1
+          elif echo "$RELEASE_OUTPUT" | grep -q "HTTP 404"; then
+            echo "Verified: No existing release found for tag '${{ github.ref_name }}' (404 Not Found)."
+          else
+            echo "Error: Failed to verify release absence due to API error (exit code $RELEASE_STATUS):"
+            echo "$RELEASE_OUTPUT"
+            exit 1
+          fi
+      - name: Verify Immutable Releases setting
+        env:
+          RELEASE_ADMIN_TOKEN: ${{ secrets.RELEASE_ADMIN_TOKEN }}
+        run: |
+          if [ -z "${RELEASE_ADMIN_TOKEN:-}" ]; then
+            echo "Error: RELEASE_ADMIN_TOKEN is required to verify GitHub Immutable Releases."
+            exit 1
+          fi
+
+          set +e
+          IMMUTABLE_RELEASES_ENABLED=$(GH_TOKEN="$RELEASE_ADMIN_TOKEN" gh api --method GET "repos/${{ github.repository }}/immutable-releases" --jq '.enabled' 2>&1)
+          IMMUTABLE_RELEASES_STATUS=$?
+          set -e
+
+          if [ "$IMMUTABLE_RELEASES_STATUS" -ne 0 ]; then
+            echo "Error: Failed to verify GitHub Immutable Releases setting (exit code $IMMUTABLE_RELEASES_STATUS):"
+            echo "$IMMUTABLE_RELEASES_ENABLED"
+            exit 1
+          fi
+
+          if [ "$IMMUTABLE_RELEASES_ENABLED" != "true" ]; then
+            echo "Error: GitHub Immutable Releases must be enabled before publishing a release."
+            echo "API enabled value: $IMMUTABLE_RELEASES_ENABLED"
+            exit 1
+          fi
+
+          echo "Verified: GitHub Immutable Releases is enabled."
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
@@ -64,4 +195,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" dist/* --title "${{ github.ref_name }}" --generate-notes
+          gh release create "${{ github.ref_name }}" dist/* --title "${{ github.ref_name }}" --generate-notes --verify-tag

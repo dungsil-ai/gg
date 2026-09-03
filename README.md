@@ -1,5 +1,47 @@
 # TODO
 
+## 설치
+
+`gg`는 두 가지 방법으로 설치할 수 있습니다.
+
+### GitHub Release 파일
+
+[Releases](https://github.com/dungsil-ai/gg/releases) 페이지에서 사용 중인 OS/CPU 종류에 맞는 Release 파일을 내려받습니다. Archive는 `gg_<version>_<os>_<arch>.<ext>` 이름을 쓰며 Windows는 `.zip`, Linux와 macOS는 `.tar.gz`입니다. 각 Release 파일 옆에는 같은 이름에 `.sha256`을 붙인 checksum 파일이 따로 있습니다. 압축을 풀기 전에 checksum을 검증합니다.
+
+```bash
+# 예시: Linux amd64
+sha256sum -c gg_<version>_linux_amd64.tar.gz.sha256
+```
+
+### go install
+
+```bash
+go install github.com/dungsil-ai/gg@latest
+```
+
+---
+
+## 릴리즈 절차
+
+준비자는 저장소 default branch(`main`)에서 변경사항을 stage하지 않은 상태로 다음 순서를 실행합니다.
+
+```bash
+gg commit --allow-empty -m "release: vMAJOR.MINOR.PATCH"
+gg tag -a vMAJOR.MINOR.PATCH -m "Release vMAJOR.MINOR.PATCH"
+gg push --atomic origin HEAD:refs/heads/main refs/tags/vMAJOR.MINOR.PATCH
+```
+
+전용 빈 릴리즈 커밋을 만들고, 그 `HEAD`에 annotated tag를 만든 뒤, 커밋과 tag를 같은 원격 transaction으로 atomic push합니다. `--atomic`은 두 ref 중 하나라도 원격이 거부하면 나머지도 갱신하지 않아 partial push를 막습니다. 원격이 atomic push를 지원하지 않아도 non-atomic fallback이나 force push는 쓰지 않습니다.
+
+release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게시합니다.
+
+- 저장소에서 GitHub Immutable Releases 설정이 활성화되어 있어야 합니다.
+- `RELEASE_ADMIN_TOKEN` secret(`Administration: read` 권한)이 등록되어 있어야 합니다.
+- 같은 tag의 기존 Release가 존재하지 않아야 합니다.
+- 같은 version을 다시 쓰거나 tag를 이동하거나 force push하는 것은 금지합니다.
+
+---
+
 ## git 기능 목록
 
 ### 주요 작업 및 저장소 조작 (Main Porcelain)
