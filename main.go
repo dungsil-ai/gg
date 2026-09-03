@@ -35,7 +35,7 @@ Usage:
 Commands:
   repo       List, view, create, or clone repositories
   issue      List, view, create, comment, close, or reopen issues
-  pr         List, view, create, or merge pull requests, and check merge readiness
+  pr         List, view, create, or merge pull requests, and check merge readiness (alias: mr)
   config     Provider 설정 관리
   commit     Run git commit without signing
   pull       Run git pull
@@ -249,24 +249,25 @@ func nestedHelp(args []string) (string, bool) {
 	if len(args) < 2 || args[len(args)-1] != "--help" {
 		return "", false
 	}
-	switch strings.Join(args, " ") {
-	case "config --help":
+	head := resolveAlias(args[0])
+	switch {
+	case len(args) == 2 && head == "config":
 		return configHelp, true
-	case "issue --help":
+	case len(args) == 2 && head == "issue":
 		return issueHelp, true
-	case "issue list --help":
+	case len(args) == 3 && head == "issue" && args[1] == "list":
 		return issueListHelp, true
-	case "issue comment --help":
+	case len(args) == 3 && head == "issue" && args[1] == "comment":
 		return issueCommentHelp, true
-	case "issue close --help":
+	case len(args) == 3 && head == "issue" && args[1] == "close":
 		return issueCloseHelp, true
-	case "issue reopen --help":
+	case len(args) == 3 && head == "issue" && args[1] == "reopen":
 		return issueReopenHelp, true
-	case "pr create --help":
+	case len(args) == 3 && head == "pr" && args[1] == "create":
 		return prCreateHelp, true
-	case "pr status --help":
+	case len(args) == 3 && head == "pr" && args[1] == "status":
 		return prStatusHelp, true
-	case "pr merge --help":
+	case len(args) == 3 && head == "pr" && args[1] == "merge":
 		return prMergeHelp, true
 	}
 	return "", false

@@ -67,6 +67,58 @@ func TestParseRequest(t *testing.T) {
 	}
 }
 
+func TestParseRequestCommandAliasUsesCanonicalCommand(t *testing.T) {
+	tests := []struct {
+		name      string
+		canonical []string
+		alias     []string
+	}{
+		{
+			name:      "list with global and command flags",
+			canonical: []string{"--repo", "https://github.com/o/r", "pr", "list", "--state", "all", "--limit", "3"},
+			alias:     []string{"--repo", "https://github.com/o/r", "mr", "list", "--state", "all", "--limit", "3"},
+		},
+		{
+			name:      "view with remote",
+			canonical: []string{"pr", "view", "42", "--remote", "upstream"},
+			alias:     []string{"mr", "view", "42", "--remote", "upstream"},
+		},
+		{
+			name:      "status",
+			canonical: []string{"pr", "status", "42", "--repo", "https://github.com/o/r"},
+			alias:     []string{"mr", "status", "42", "--repo", "https://github.com/o/r"},
+		},
+		{
+			name:      "create",
+			canonical: []string{"pr", "create", "--title", "t", "--body", "b", "--base", "main", "--head", "feature", "--draft"},
+			alias:     []string{"mr", "create", "--title", "t", "--body", "b", "--base", "main", "--head", "feature", "--draft"},
+		},
+		{
+			name:      "merge",
+			canonical: []string{"pr", "merge", "42", "--squash", "--delete-branch", "--auto"},
+			alias:     []string{"mr", "merge", "42", "--squash", "--delete-branch", "--auto"},
+		},
+		{
+			name:      "explain before alias command",
+			canonical: []string{"--explain", "pr", "list"},
+			alias:     []string{"--explain", "mr", "list"},
+		},
+	}
+	for _, tt := range tests {
+		want, err := ParseRequest(tt.canonical)
+		if err != nil {
+			t.Fatalf("ParseRequest(%v): %v", tt.canonical, err)
+		}
+		got, err := ParseRequest(tt.alias)
+		if err != nil {
+			t.Fatalf("ParseRequest(%v): %v", tt.alias, err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("ParseRequest(%v) = %+v, want ParseRequest(%v) = %+v", tt.alias, got, tt.canonical, want)
+		}
+	}
+}
+
 func TestParseRequestRepositoryContextRemoteBeforeAndAfterCommand(t *testing.T) {
 	want := Request{Resource: "issue", Action: "list", RemoteFlag: "upstream"}
 	for _, args := range [][]string{
@@ -146,28 +198,28 @@ func TestParseRequestKeepsPullRemoteArgument(t *testing.T) {
 
 func TestParseRequestErrors(t *testing.T) {
 	bad := [][]string{
-		{},                                  // 명령 없음
-		{"unknown"},                         // 알 수 없는 자원
-		{"issue"},                           // action 없음
-		{"issue", "delete", "1"},                   // 지원 안 하는 action
-		{"issue", "view"},                          // number 없음
-		{"issue", "view", "1", "2"},                // 인자 초과
-		{"issue", "comment"},                       // number 없음
-		{"issue", "comment", "1"},                  // body 없음
-		{"issue", "comment", "1", "--body", ""},    // 빈 body
+		{},                                      // 명령 없음
+		{"unknown"},                             // 알 수 없는 자원
+		{"issue"},                               // action 없음
+		{"issue", "delete", "1"},                // 지원 안 하는 action
+		{"issue", "view"},                       // number 없음
+		{"issue", "view", "1", "2"},             // 인자 초과
+		{"issue", "comment"},                    // number 없음
+		{"issue", "comment", "1"},               // body 없음
+		{"issue", "comment", "1", "--body", ""}, // 빈 body
 		{"issue", "comment", "1", "--body", "   "}, // 공백 body
 		{"issue", "comment", "1", "2", "--body", "b"},
-		{"issue", "close"},                  // number 없음
-		{"issue", "close", "1", "2"},        // 인자 초과
-		{"issue", "reopen"},                 // number 없음
-		{"issue", "reopen", "1", "2"},       // 인자 초과
-		{"issue", "list", "--wat"},          // 알 수 없는 flag
-		{"pr", "list", "--state", "merged"}, // 지원 안 하는 state
-		{"pr", "create", "--title"},         // 값 없는 flag
-		{"clone"},                           // URL 없음
-		{"clone", "u", "d", "x"},            // 인자 초과
-		{"create", "--public"},              // --repo 없는 repo create
-		{"create", "--repo", "https://x.com/o/r"},                          // 공개 범위 없음
+		{"issue", "close"},                        // number 없음
+		{"issue", "close", "1", "2"},              // 인자 초과
+		{"issue", "reopen"},                       // number 없음
+		{"issue", "reopen", "1", "2"},             // 인자 초과
+		{"issue", "list", "--wat"},                // 알 수 없는 flag
+		{"pr", "list", "--state", "merged"},       // 지원 안 하는 state
+		{"pr", "create", "--title"},               // 값 없는 flag
+		{"clone"},                                 // URL 없음
+		{"clone", "u", "d", "x"},                  // 인자 초과
+		{"create", "--public"},                    // --repo 없는 repo create
+		{"create", "--repo", "https://x.com/o/r"}, // 공개 범위 없음
 		{"create", "--repo", "https://x.com/o/r", "--public", "--private"}, // 둘 다 지정
 		{"list", "extra"}, // list에 positional
 		{"config"},

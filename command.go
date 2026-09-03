@@ -30,6 +30,18 @@ type Request struct {
 	DeleteBranch, Auto    bool
 }
 
+// commandAliases는 alias를 실제 구현이 등록된 canonical 명령으로 연결한다.
+var commandAliases = map[string]string{
+	"mr": "pr",
+}
+
+func resolveAlias(command string) string {
+	if canonical, ok := commandAliases[command]; ok {
+		return canonical
+	}
+	return command
+}
+
 var repoActions = map[string]bool{
 	"list": true, "view": true, "create": true,
 	"clone": true, "commit": true, "pull": true, "push": true,
@@ -58,7 +70,7 @@ globalFlags:
 	if len(args) == 0 {
 		return req, usageErr("missing command")
 	}
-	head, rest := args[0], args[1:]
+	head, rest := resolveAlias(args[0]), args[1:]
 	switch {
 	case head == "config":
 		req.Resource = head

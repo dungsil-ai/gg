@@ -594,6 +594,7 @@
 
 - `pr`
   - [x] `gg pr status` (GitHub, GitLab 지원; Gitea 미지원)
+  - [x] `gg mr` (`gg pr`의 alias)
 - `저장소 문맥`
   - [x] `--repo <URL>` (명시한 URL을 저장소 문맥으로 사용)
   - [x] `--remote <name>` (명시한 Git remote를 저장소 문맥으로 사용)
