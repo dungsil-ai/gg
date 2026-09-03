@@ -237,7 +237,7 @@ var commandDefs = map[string]*resourceDef{
 	},
 	"pr": {
 		name:    "pr",
-		summary: "List, view, create, or merge pull requests, and check merge readiness",
+		summary: "List, view, create, or merge pull requests, and check merge readiness (alias: mr)",
 		desc:    "List, view, create, or merge pull requests, and check merge readiness.",
 		usage:   "gg pr <command> [flags]",
 		actions: []actionDef{
@@ -336,6 +336,18 @@ var commandDefs = map[string]*resourceDef{
 
 // commandOrder는 최상위 help의 resource 표시 순서다.
 var commandOrder = []string{"repo", "issue", "pr", "config"}
+
+// commandAliases는 alias를 실제 구현이 등록된 canonical 명령으로 연결한다.
+var commandAliases = map[string]string{
+	"mr": "pr",
+}
+
+func resolveAlias(command string) string {
+	if canonical, ok := commandAliases[command]; ok {
+		return canonical
+	}
+	return command
+}
 
 // repoAliases는 resource 없이 쓸 수 있는 repo action이다.
 var repoAliases = map[string]bool{
@@ -469,7 +481,7 @@ func nestedHelp(args []string) (string, bool) {
 	}
 	switch len(path) {
 	case 1:
-		if rd, ok := commandDefs[path[0]]; ok {
+		if rd, ok := commandDefs[resolveAlias(path[0])]; ok {
 			return renderResourceHelp(rd), true
 		}
 		if helpAliases[path[0]] {
@@ -477,7 +489,7 @@ func nestedHelp(args []string) (string, bool) {
 			return renderActionHelp(rd, rd.action(path[0])), true
 		}
 	case 2:
-		if rd, ok := commandDefs[path[0]]; ok {
+		if rd, ok := commandDefs[resolveAlias(path[0])]; ok {
 			if ad := rd.action(path[1]); ad != nil {
 				return renderActionHelp(rd, ad), true
 			}

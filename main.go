@@ -16,6 +16,7 @@ import (
 
 var version = "dev"
 
+
 func main() { os.Exit(run(os.Args[1:])) }
 
 func run(args []string) int {
@@ -84,6 +85,7 @@ func getVersion() string {
 	}
 	return "dev"
 }
+
 
 func runConfig(req Request) error {
 	switch req.Action {

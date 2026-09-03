@@ -450,7 +450,7 @@ func assertGGHelp(t *testing.T, bin string, args, wants []string) {
 func TestE2ETopLevelHelp(t *testing.T) {
 	bin := buildGG(t)
 	for _, args := range [][]string{nil, {"help"}, {"--help"}, {"-h"}} {
-		assertGGHelp(t, bin, args, []string{"Usage:", "Commands:", "commit", "issue", "pr", "config", "--repo", "--remote"})
+		assertGGHelp(t, bin, args, []string{"Usage:", "Commands:", "commit", "issue", "pr", "alias: mr", "config", "--repo", "--remote"})
 	}
 }
 
@@ -733,6 +733,85 @@ func TestE2EGitHubIssueList(t *testing.T) {
 	if !strings.Contains(got, "gh issue list -R github.com/o/r --limit 3") {
 		t.Errorf("gh argv = %q", got)
 	}
+}
+
+func TestE2EPRCommandAliasMatchesCanonicalCommand(t *testing.T) {
+	bin, fakeDir, logFile := setupFakeGH(t)
+	repo := tempRepo(t, "https://github.com/o/r.git")
+
+	t.Run("provider invocation", func(t *testing.T) {
+		canonicalArgs := []string{"pr", "list", "--state", "closed", "--limit", "3"}
+		aliasArgs := []string{"mr", "list", "--state", "closed", "--limit", "3"}
+		canonicalOut, canonicalCode := runGG(t, bin, fakeDir, repo, canonicalArgs...)
+		if canonicalCode != 0 {
+			t.Fatalf("gg %v: exit %d, output %q", canonicalArgs, canonicalCode, canonicalOut)
+		}
+		canonicalLog := readLog(t, logFile)
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		aliasOut, aliasCode := runGG(t, bin, fakeDir, repo, aliasArgs...)
+		aliasLog := readLog(t, logFile)
+		if aliasOut != canonicalOut || aliasCode != canonicalCode || aliasLog != canonicalLog {
+			t.Errorf("gg %v = output %q, exit %d, invocation %q; want gg %v = output %q, exit %d, invocation %q", aliasArgs, aliasOut, aliasCode, aliasLog, canonicalArgs, canonicalOut, canonicalCode, canonicalLog)
+		}
+	})
+
+	t.Run("usage error", func(t *testing.T) {
+		cases := []struct {
+			name          string
+			canonicalArgs []string
+			aliasArgs     []string
+		}{
+			{
+				name:          "missing action",
+				canonicalArgs: []string{"pr"},
+				aliasArgs:     []string{"mr"},
+			},
+			{
+				name:          "unsupported action",
+				canonicalArgs: []string{"pr", "unsupported"},
+				aliasArgs:     []string{"mr", "unsupported"},
+			},
+			{
+				name:          "unknown flag",
+				canonicalArgs: []string{"pr", "list", "--unknown"},
+				aliasArgs:     []string{"mr", "list", "--unknown"},
+			},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				canonicalOut, canonicalErr, canonicalCode := runGGStreams(t, bin, repo, tc.canonicalArgs...)
+				aliasOut, aliasErr, aliasCode := runGGStreams(t, bin, repo, tc.aliasArgs...)
+				if aliasOut != canonicalOut || aliasErr != canonicalErr || aliasCode != canonicalCode {
+					t.Errorf("gg %v = stdout %q, stderr %q, exit %d; want gg %v = stdout %q, stderr %q, exit %d", tc.aliasArgs, aliasOut, aliasErr, aliasCode, tc.canonicalArgs, canonicalOut, canonicalErr, canonicalCode)
+				}
+			})
+		}
+	})
+
+	t.Run("nested help", func(t *testing.T) {
+		actions := []string{"create", "status", "ready", "merge"}
+		for _, action := range actions {
+			t.Run(action, func(t *testing.T) {
+				canonicalOut, canonicalErr, canonicalCode := runGGStreams(t, bin, repo, "pr", action, "--help")
+				aliasOut, aliasErr, aliasCode := runGGStreams(t, bin, repo, "mr", action, "--help")
+				if aliasOut != canonicalOut || aliasErr != canonicalErr || aliasCode != canonicalCode {
+					t.Errorf("gg mr %s --help = stdout %q, stderr %q, exit %d; want gg pr %s --help = stdout %q, stderr %q, exit %d", action, aliasOut, aliasErr, aliasCode, action, canonicalOut, canonicalErr, canonicalCode)
+				}
+			})
+		}
+	})
+
+	t.Run("top-level help omits duplicate alias", func(t *testing.T) {
+		stdout, stderr, code := runGGStreams(t, bin, repo, "--help")
+		if code != 0 || stderr != "" {
+			t.Fatalf("gg --help = stdout %q, stderr %q, exit %d", stdout, stderr, code)
+		}
+		if strings.Contains(stdout, "\n  mr ") {
+			t.Errorf("gg --help should only list canonical commands:\n%s", stdout)
+		}
+	})
 }
 
 func TestE2ERepositoryContextRemoteBeforeAndAfterCommand(t *testing.T) {

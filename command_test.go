@@ -119,6 +119,63 @@ func TestParseRequestPRReady(t *testing.T) {
 	}
 }
 
+func TestParseRequestCommandAliasUsesCanonicalCommand(t *testing.T) {
+	tests := []struct {
+		name      string
+		canonical []string
+		alias     []string
+	}{
+		{
+			name:      "list with global and command flags",
+			canonical: []string{"--repo", "https://github.com/o/r", "pr", "list", "--state", "all", "--limit", "3"},
+			alias:     []string{"--repo", "https://github.com/o/r", "mr", "list", "--state", "all", "--limit", "3"},
+		},
+		{
+			name:      "view with remote",
+			canonical: []string{"pr", "view", "42", "--remote", "upstream"},
+			alias:     []string{"mr", "view", "42", "--remote", "upstream"},
+		},
+		{
+			name:      "status",
+			canonical: []string{"pr", "status", "42", "--repo", "https://github.com/o/r"},
+			alias:     []string{"mr", "status", "42", "--repo", "https://github.com/o/r"},
+		},
+		{
+			name:      "ready",
+			canonical: []string{"pr", "ready", "42", "--undo", "--repo", "https://github.com/o/r"},
+			alias:     []string{"mr", "ready", "42", "--undo", "--repo", "https://github.com/o/r"},
+		},
+		{
+			name:      "create",
+			canonical: []string{"pr", "create", "--title", "t", "--body", "b", "--base", "main", "--head", "feature", "--draft"},
+			alias:     []string{"mr", "create", "--title", "t", "--body", "b", "--base", "main", "--head", "feature", "--draft"},
+		},
+		{
+			name:      "merge",
+			canonical: []string{"pr", "merge", "42", "--squash", "--delete-branch", "--auto"},
+			alias:     []string{"mr", "merge", "42", "--squash", "--delete-branch", "--auto"},
+		},
+		{
+			name:      "explain before alias command",
+			canonical: []string{"--explain", "pr", "list"},
+			alias:     []string{"--explain", "mr", "list"},
+		},
+	}
+	for _, tt := range tests {
+		want, err := ParseRequest(tt.canonical)
+		if err != nil {
+			t.Fatalf("ParseRequest(%v): %v", tt.canonical, err)
+		}
+		got, err := ParseRequest(tt.alias)
+		if err != nil {
+			t.Fatalf("ParseRequest(%v): %v", tt.alias, err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("ParseRequest(%v) = %+v, want ParseRequest(%v) = %+v", tt.alias, got, tt.canonical, want)
+		}
+	}
+}
+
 func TestParseRequestRepositoryContextRemoteBeforeAndAfterCommand(t *testing.T) {
 	want := Request{Resource: "issue", Action: "list", RemoteFlag: "upstream"}
 	for _, args := range [][]string{

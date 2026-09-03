@@ -55,7 +55,7 @@ globalFlags:
 	if len(args) == 0 {
 		return req, usageErr("missing command")
 	}
-	head, rest := args[0], args[1:]
+	head, rest := resolveAlias(args[0]), args[1:]
 	var ad *actionDef
 	if rd, ok := commandDefs[head]; ok {
 		req.Resource = head
