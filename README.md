@@ -39,6 +39,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 - `RELEASE_ADMIN_TOKEN` secret(`Administration: read` 권한)이 등록되어 있어야 합니다.
 - 같은 tag의 기존 Release가 존재하지 않아야 합니다.
 - 같은 version을 다시 쓰거나 tag를 이동하거나 force push하는 것은 금지합니다.
+- tag는 유의적 버전 형식(`vMAJOR.MINOR.PATCH`, 선택적 접미사 허용)이어야 하며, `BuildAndPackageRelease`가 ldflags 주입 전에 이를 검증합니다.
 
 ---
 
@@ -657,6 +658,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 
 - `pr`
   - [x] `gg pr status` (GitHub, GitLab 지원; Gitea 미지원)
+  - exit code 계약: 조회 자체가 실패할 때만 0이 아닌 exit code를 냅니다 — 하위 CLI(gh/glab) 미설치 시 127, 자식이 신호로 종료되면 128+신호 코드, 그 외 조회 실패 시 1. 조회 성공 시 병합 불가·CI 실패·승인 대기는 결과 값이며 exit 0입니다. CI 값 범위는 pass|fail|pending|none|unknown이고, NEUTRAL/SKIPPED 체크는 pass로 셉니다.
   - [x] `gg pr ready` (GitHub, GitLab 지원; Gitea 미지원)
   - [x] `gg mr` (`gg pr`의 alias)
 - `저장소 문맥`
