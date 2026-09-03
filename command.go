@@ -55,20 +55,22 @@ globalFlags:
 	if len(args) == 0 {
 		return req, usageErr("missing command")
 	}
-	head, rest := resolveAlias(args[0]), args[1:]
+	head, aliasAction := resolveAlias(args[0])
+	rest := args[1:]
 	var ad *actionDef
 	if rd, ok := commandDefs[head]; ok {
 		req.Resource = head
-		if len(rest) == 0 {
-			return req, usageErr(needsAction(head, rd))
+		if aliasAction != "" {
+			req.Action = aliasAction
+		} else {
+			if len(rest) == 0 {
+				return req, usageErr(needsAction(head, rd))
+			}
+			req.Action, rest = rest[0], rest[1:]
 		}
-		req.Action, rest = rest[0], rest[1:]
 		if ad = rd.action(req.Action); ad == nil {
 			return req, usageErr(head + " does not support " + req.Action)
 		}
-	} else if repoAliases[head] { // gg list == gg repo list
-		req.Resource, req.Action = "repo", head
-		ad = commandDefs["repo"].action(head)
 	} else {
 		return req, usageErr("unknown command " + head)
 	}
