@@ -168,6 +168,9 @@ func parseRest(req *Request, ad *actionDef, args []string) error {
 		if ad.posErr != "" {
 			return usageErr(ad.posErr)
 		}
+		if len(pos) == 0 {
+			return usageErr(req.Resource + " " + req.Action + " needs an argument")
+		}
 		return usageErr("unexpected argument " + pos[0])
 	}
 	if ad.setPos != nil {
@@ -202,90 +205,6 @@ func appendKV(args []string, flag, val string) []string {
 	return append(args, flag, val)
 }
 
-func ghInvocation(req Request, r RepoURL) (Invocation, error) {
-	inv := Invocation{Bin: "gh"}
-	if r.Host != "github.com" {
-		inv.Env = []string{"GH_HOST=" + r.Host}
-	}
-	target := []string{"-R", r.Host + "/" + r.Slug()}
-	res := map[string]string{"repo": "repo", "issue": "issue", "pr": "pr"}[req.Resource]
-	switch req.Resource + " " + req.Action {
-	case "repo list":
-		inv.Args = appendKV([]string{"repo", "list"}, "--limit", req.Limit)
-	case "repo view":
-		inv.Args = []string{"repo", "view", r.HTTPS()}
-		inv.Env = nil // URL이 host를 지정하므로 GH_HOST 불필요
-	case "repo create":
-		inv.Args = []string{"repo", "create", r.Slug(), visFlag(req)}
-		inv.Args = appendKV(inv.Args, "--description", req.Description)
-	case "repo clone":
-		inv.Args = []string{"repo", "clone", req.CloneURL}
-		if req.CloneDir != "" {
-			inv.Args = append(inv.Args, req.CloneDir)
-		}
-		inv.Env = nil
-	case "issue list", "pr list":
-		inv.Args = append([]string{res, "list"}, target...)
-		inv.Args = appendKV(inv.Args, "--state", req.State)
-		inv.Args = appendKV(inv.Args, "--limit", req.Limit)
-		inv.Env = nil
-	case "issue view", "pr view":
-		inv.Args = append([]string{res, "view", req.Number}, target...)
-		inv.Env = nil
-	case "pr status":
-		inv.Args = []string{"pr", "view", req.Number, "-R", r.Host + "/" + r.Slug(), "--json", ghStatusFields()}
-		inv.Env = nil
-	case "pr ready":
-		inv.Args = []string{"pr", "ready", req.Number}
-		if req.Undo {
-			inv.Args = append(inv.Args, "--undo")
-		}
-		inv.Args = append(inv.Args, target...)
-		inv.Env = nil
-	case "issue comment":
-		inv.Args = []string{"issue", "comment", req.Number, "--body", req.Body}
-		inv.Args = append(inv.Args, target...)
-		inv.Env = nil
-	case "issue close", "issue reopen":
-		inv.Args = append([]string{"issue", req.Action, req.Number}, target...)
-		inv.Env = nil
-	case "pr merge":
-		inv.Args = []string{"pr", "merge", req.Number}
-		if req.Merge {
-			inv.Args = append(inv.Args, "--merge")
-		}
-		if req.Squash {
-			inv.Args = append(inv.Args, "--squash")
-		}
-		if req.Rebase {
-			inv.Args = append(inv.Args, "--rebase")
-		}
-		if req.DeleteBranch {
-			inv.Args = append(inv.Args, "--delete-branch")
-		}
-		if req.Auto {
-			inv.Args = append(inv.Args, "--auto")
-		}
-		inv.Args = append(inv.Args, target...)
-		inv.Env = nil
-	case "issue create", "pr create":
-		inv.Args = append([]string{res, "create"}, target...)
-		inv.Args = appendKV(inv.Args, "--title", req.Title)
-		inv.Args = appendKV(inv.Args, "--body", req.Body)
-		if req.Resource == "pr" {
-			inv.Args = appendKV(inv.Args, "--base", req.Base)
-			inv.Args = appendKV(inv.Args, "--head", req.Head)
-			if req.Draft {
-				inv.Args = append(inv.Args, "--draft")
-			}
-		}
-		inv.Env = nil
-	default:
-		return Invocation{}, usageErr(req.Resource + " does not support " + req.Action)
-	}
-	return inv, nil
-}
-
 func visFlag(req Request) string {
 	if req.Private {
 		return "--private"
@@ -293,132 +212,345 @@ func visFlag(req Request) string {
 	return "--public"
 }
 
-func glabInvocation(req Request, r RepoURL) (Invocation, error) {
-	inv := Invocation{Bin: "glab"}
-	target := []string{"--repo", r.HTTPS()}
-	res := map[string]string{"repo": "repo", "issue": "issue", "pr": "mr"}[req.Resource]
-	stateFlags := map[string]string{"closed": "--closed", "all": "--all"}
-	switch req.Resource + " " + req.Action {
-	case "repo list":
-		inv.Args = appendKV([]string{"repo", "list"}, "--per-page", req.Limit)
-		inv.Env = []string{"GITLAB_HOST=" + r.Host}
-	case "repo view":
-		inv.Args = []string{"repo", "view", r.HTTPS()}
-	case "repo create":
-		inv.Args = []string{"repo", "create", r.Slug(), visFlag(req)}
-		inv.Args = appendKV(inv.Args, "--description", req.Description)
-		inv.Env = []string{"GITLAB_HOST=" + r.Host}
-	case "repo clone":
-		inv.Args = []string{"repo", "clone", req.CloneURL}
-		if req.CloneDir != "" {
-			inv.Args = append(inv.Args, req.CloneDir)
+// invocationContext는 provider별 arg-builder가 쓸 값을 담는다. res/target/auth는
+// provider마다 다르게 계산되며, 각 builder는 자신에게 필요한 필드만 읽는다.
+type invocationContext struct {
+	req    Request
+	r      RepoURL
+	res    string   // 이 provider에서의 resource 이름(예: gh/tea "pr", glab "mr")
+	target []string // issue/pr 계열에서 저장소를 가리키는 인자
+	auth   []string // tea 전용 --login 인자; gh/glab은 nil
+}
+
+// invocationBuilder는 하나의 provider가 "resource action" 하나를 Args/Env로
+// 옮긴다. env가 nil이면 추가 환경변수가 없다는 뜻이다.
+type invocationBuilder func(c invocationContext) (args, env []string)
+
+// providerBuilders는 "resource action" 하나에 대한 gh/glab/tea builder를 모은다.
+// 필드가 nil인 provider는 그 action을 지원하지 않는다.
+type providerBuilders struct {
+	gh, glab, tea invocationBuilder
+}
+
+var listBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "list"}, c.target...)
+		args = appendKV(args, "--state", c.req.State)
+		args = appendKV(args, "--limit", c.req.Limit)
+		return args, nil
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "list"}, c.target...)
+		switch c.req.State {
+		case "closed":
+			args = append(args, "--closed")
+		case "all":
+			args = append(args, "--all")
 		}
-	case "issue list", "pr list":
-		inv.Args = append([]string{res, "list"}, target...)
-		if f := stateFlags[req.State]; f != "" {
-			inv.Args = append(inv.Args, f)
-		}
-		inv.Args = appendKV(inv.Args, "--per-page", req.Limit)
-	case "issue view", "pr view":
-		inv.Args = append([]string{res, "view", req.Number}, target...)
-	case "pr status":
-		inv.Args = append([]string{res, "view", req.Number, "--output", "json"}, target...)
-	case "pr ready":
-		inv.Args = []string{"mr", "update", req.Number}
-		if req.Undo {
-			inv.Args = append(inv.Args, "--draft")
-		} else {
-			inv.Args = append(inv.Args, "--ready")
-		}
-		inv.Args = append(inv.Args, target...)
-	case "issue comment":
-		inv.Args = []string{"issue", "note", req.Number, "--message", req.Body}
-		inv.Args = append(inv.Args, target...)
-	case "issue close", "issue reopen":
-		inv.Args = append([]string{"issue", req.Action, req.Number}, target...)
-	case "pr merge":
-		inv.Args = []string{"mr", "merge", req.Number}
-		if req.Squash {
-			inv.Args = append(inv.Args, "--squash")
-		}
-		if req.DeleteBranch {
-			inv.Args = append(inv.Args, "--remove-source-branch")
-		}
-		if req.Auto {
-			inv.Args = append(inv.Args, "--auto-merge")
-		} else {
-			// pipeline 성공 대기 자동 병합을 명시적으로 끈다
-			inv.Args = append(inv.Args, "--when-pipeline-succeeds=false")
-		}
-		inv.Args = append(inv.Args, target...)
-	case "issue create", "pr create":
-		inv.Args = append([]string{res, "create"}, target...)
-		inv.Args = appendKV(inv.Args, "--title", req.Title)
-		inv.Args = appendKV(inv.Args, "--description", req.Body)
-		if req.Resource == "pr" {
-			inv.Args = appendKV(inv.Args, "--target-branch", req.Base)
-			inv.Args = appendKV(inv.Args, "--source-branch", req.Head)
-			if req.Draft {
-				inv.Args = append(inv.Args, "--draft")
+		return appendKV(args, "--per-page", c.req.Limit), nil
+	},
+	tea: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "list"}, c.target...)
+		args = appendKV(args, "--state", c.req.State)
+		args = appendKV(args, "--limit", c.req.Limit)
+		return args, nil
+	},
+}
+
+var viewBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "view", c.req.Number}, c.target...), nil
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "view", c.req.Number}, c.target...), nil
+	},
+	tea: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, c.req.Number}, c.target...), nil
+	},
+}
+
+var closeReopenBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		return append([]string{"issue", c.req.Action, c.req.Number}, c.target...), nil
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		return append([]string{"issue", c.req.Action, c.req.Number}, c.target...), nil
+	},
+	tea: func(c invocationContext) (args, env []string) {
+		return append([]string{"issues", c.req.Action, c.req.Number}, c.target...), nil
+	},
+}
+
+var createBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "create"}, c.target...)
+		args = appendKV(args, "--title", c.req.Title)
+		args = appendKV(args, "--body", c.req.Body)
+		if c.req.Resource == "pr" {
+			args = appendKV(args, "--base", c.req.Base)
+			args = appendKV(args, "--head", c.req.Head)
+			if c.req.Draft {
+				args = append(args, "--draft")
 			}
 		}
-	default:
-		return Invocation{}, usageErr(req.Resource + " does not support " + req.Action)
+		return args, nil
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "create"}, c.target...)
+		args = appendKV(args, "--title", c.req.Title)
+		args = appendKV(args, "--description", c.req.Body)
+		if c.req.Resource == "pr" {
+			args = appendKV(args, "--target-branch", c.req.Base)
+			args = appendKV(args, "--source-branch", c.req.Head)
+			if c.req.Draft {
+				args = append(args, "--draft")
+			}
+		}
+		return args, nil
+	},
+	tea: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "create"}, c.target...)
+		args = appendKV(args, "--title", c.req.Title)
+		args = appendKV(args, "--description", c.req.Body)
+		if c.req.Resource == "pr" {
+			args = appendKV(args, "--base", c.req.Base)
+			args = appendKV(args, "--head", c.req.Head)
+			if c.req.Draft {
+				args = append(args, "--draft")
+			}
+		}
+		return args, nil
+	},
+}
+
+// invocationTable은 "<resource> <action>" 키로 gh/glab/tea의 arg-builder를 모은다.
+// tea의 pr merge/status/ready는 teaInvocation의 사전 가드에서 걸러지므로 여기에는
+// 등록하지 않는다 — provider별 예외는 감추지 않고 그 함수에 명시적으로 남긴다.
+var invocationTable = map[string]providerBuilders{
+	"repo list": {
+		gh: func(c invocationContext) (args, env []string) {
+			args = appendKV([]string{"repo", "list"}, "--limit", c.req.Limit)
+			if c.r.Host != "github.com" {
+				env = []string{"GH_HOST=" + c.r.Host}
+			}
+			return args, env
+		},
+		glab: func(c invocationContext) (args, env []string) {
+			return appendKV([]string{"repo", "list"}, "--per-page", c.req.Limit), []string{"GITLAB_HOST=" + c.r.Host}
+		},
+		tea: func(c invocationContext) (args, env []string) {
+			return appendKV(append([]string{"repos", "list"}, c.auth...), "--limit", c.req.Limit), nil
+		},
+	},
+	"repo view": {
+		gh: func(c invocationContext) (args, env []string) {
+			return []string{"repo", "view", c.r.HTTPS()}, nil
+		},
+		glab: func(c invocationContext) (args, env []string) {
+			return []string{"repo", "view", c.r.HTTPS()}, nil
+		},
+		tea: func(c invocationContext) (args, env []string) {
+			return append([]string{"repos", c.r.Slug()}, c.auth...), nil
+		},
+	},
+	"repo create": {
+		gh: func(c invocationContext) (args, env []string) {
+			args = []string{"repo", "create", c.r.Slug(), visFlag(c.req)}
+			args = appendKV(args, "--description", c.req.Description)
+			if c.r.Host != "github.com" {
+				env = []string{"GH_HOST=" + c.r.Host}
+			}
+			return args, env
+		},
+		glab: func(c invocationContext) (args, env []string) {
+			args = []string{"repo", "create", c.r.Slug(), visFlag(c.req)}
+			args = appendKV(args, "--description", c.req.Description)
+			return args, []string{"GITLAB_HOST=" + c.r.Host}
+		},
+		tea: func(c invocationContext) (args, env []string) {
+			args = append([]string{"repos", "create"}, c.auth...)
+			args = append(args, "--owner", c.r.Owner, "--name", c.r.Name)
+			if c.req.Private {
+				args = append(args, "--private")
+			}
+			return appendKV(args, "--description", c.req.Description), nil
+		},
+	},
+	"repo clone": {
+		gh: func(c invocationContext) (args, env []string) {
+			args = []string{"repo", "clone", c.req.CloneURL}
+			if c.req.CloneDir != "" {
+				args = append(args, c.req.CloneDir)
+			}
+			return args, nil
+		},
+		glab: func(c invocationContext) (args, env []string) {
+			args = []string{"repo", "clone", c.req.CloneURL}
+			if c.req.CloneDir != "" {
+				args = append(args, c.req.CloneDir)
+			}
+			return args, nil
+		},
+		tea: func(c invocationContext) (args, env []string) {
+			args = []string{"clone", c.req.CloneURL}
+			if c.req.CloneDir != "" {
+				args = append(args, c.req.CloneDir)
+			}
+			return args, nil
+		},
+	},
+	"issue list": listBuilders,
+	"pr list":    listBuilders,
+	"issue view": viewBuilders,
+	"pr view":    viewBuilders,
+	"pr status": {
+		gh: func(c invocationContext) (args, env []string) {
+			return []string{"pr", "view", c.req.Number, "-R", c.r.Host + "/" + c.r.Slug(), "--json", ghStatusFields()}, nil
+		},
+		glab: func(c invocationContext) (args, env []string) {
+			return append([]string{c.res, "view", c.req.Number, "--output", "json"}, c.target...), nil
+		},
+	},
+	"pr ready": {
+		gh: func(c invocationContext) (args, env []string) {
+			args = []string{"pr", "ready", c.req.Number}
+			if c.req.Undo {
+				args = append(args, "--undo")
+			}
+			return append(args, c.target...), nil
+		},
+		glab: func(c invocationContext) (args, env []string) {
+			args = []string{"mr", "update", c.req.Number}
+			if c.req.Undo {
+				args = append(args, "--draft")
+			} else {
+				args = append(args, "--ready")
+			}
+			return append(args, c.target...), nil
+		},
+	},
+	"issue comment": {
+		gh: func(c invocationContext) (args, env []string) {
+			return append([]string{"issue", "comment", c.req.Number, "--body", c.req.Body}, c.target...), nil
+		},
+		glab: func(c invocationContext) (args, env []string) {
+			return append([]string{"issue", "note", c.req.Number, "--message", c.req.Body}, c.target...), nil
+		},
+		tea: func(c invocationContext) (args, env []string) {
+			return append([]string{"comment", c.req.Number, c.req.Body}, c.target...), nil
+		},
+	},
+	"issue close":  closeReopenBuilders,
+	"issue reopen": closeReopenBuilders,
+	"pr merge": {
+		gh: func(c invocationContext) (args, env []string) {
+			args = []string{"pr", "merge", c.req.Number}
+			if c.req.Merge {
+				args = append(args, "--merge")
+			}
+			if c.req.Squash {
+				args = append(args, "--squash")
+			}
+			if c.req.Rebase {
+				args = append(args, "--rebase")
+			}
+			if c.req.DeleteBranch {
+				args = append(args, "--delete-branch")
+			}
+			if c.req.Auto {
+				args = append(args, "--auto")
+			}
+			return append(args, c.target...), nil
+		},
+		glab: func(c invocationContext) (args, env []string) {
+			args = []string{"mr", "merge", c.req.Number}
+			if c.req.Squash {
+				args = append(args, "--squash")
+			}
+			if c.req.DeleteBranch {
+				args = append(args, "--remove-source-branch")
+			}
+			if c.req.Auto {
+				args = append(args, "--auto-merge")
+			} else {
+				// pipeline 성공 대기 자동 병합을 명시적으로 끈다
+				args = append(args, "--when-pipeline-succeeds=false")
+			}
+			return append(args, c.target...), nil
+		},
+	},
+	"issue create": createBuilders,
+	"pr create":    createBuilders,
+}
+
+// dispatch는 provider 이름으로 invocationTable을 조회해 Invocation을 만든다.
+// 대상 action이 없거나 이 provider용 builder가 없으면 3개 provider가 공유하는
+// "does not support" 오류를 낸다.
+func dispatch(provider string, c invocationContext) (Invocation, error) {
+	entry := invocationTable[c.req.Resource+" "+c.req.Action]
+	var build invocationBuilder
+	switch provider {
+	case "gh":
+		build = entry.gh
+	case "glab":
+		build = entry.glab
+	case "tea":
+		build = entry.tea
 	}
-	return inv, nil
+	if build == nil {
+		return Invocation{}, usageErr(c.req.Resource + " does not support " + c.req.Action)
+	}
+	args, env := build(c)
+	return Invocation{Bin: provider, Args: args, Env: env}, nil
+}
+
+func ghInvocation(req Request, r RepoURL) (Invocation, error) {
+	c := invocationContext{
+		req:    req,
+		r:      r,
+		res:    req.Resource,
+		target: []string{"-R", r.Host + "/" + r.Slug()},
+	}
+	return dispatch("gh", c)
+}
+
+func glabInvocation(req Request, r RepoURL) (Invocation, error) {
+	res := req.Resource
+	if res == "pr" {
+		res = "mr"
+	}
+	c := invocationContext{
+		req:    req,
+		r:      r,
+		res:    res,
+		target: []string{"--repo", r.HTTPS()},
+	}
+	return dispatch("glab", c)
 }
 
 func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
-	inv := Invocation{Bin: "tea"}
 	if req.Resource == "pr" && req.Action == "merge" {
 		return Invocation{}, errors.New("pr merge is not supported for tea")
 	}
 	if req.Resource == "pr" && (req.Action == "status" || req.Action == "ready") {
 		return Invocation{}, usageErr("pr " + req.Action + " is not supported for tea")
 	}
-	auth := []string{"--login", login}
-	target := append(append([]string{}, auth...), "--repo", r.Slug())
-	res := map[string]string{"repo": "repos", "issue": "issues", "pr": "pulls"}[req.Resource]
-	switch req.Resource + " " + req.Action {
-	case "repo list":
-		inv.Args = appendKV(append([]string{"repos", "list"}, auth...), "--limit", req.Limit)
-	case "repo view":
-		inv.Args = append([]string{"repos", r.Slug()}, auth...)
-	case "repo create":
-		inv.Args = append([]string{"repos", "create"}, auth...)
-		inv.Args = append(inv.Args, "--owner", r.Owner, "--name", r.Name)
-		if req.Private {
-			inv.Args = append(inv.Args, "--private")
-		}
-		inv.Args = appendKV(inv.Args, "--description", req.Description)
-	case "repo clone":
-		inv.Args = []string{"clone", req.CloneURL}
-		if req.CloneDir != "" {
-			inv.Args = append(inv.Args, req.CloneDir)
-		}
-	case "issue list", "pr list":
-		inv.Args = append([]string{res, "list"}, target...)
-		inv.Args = appendKV(inv.Args, "--state", req.State)
-		inv.Args = appendKV(inv.Args, "--limit", req.Limit)
-	case "issue view", "pr view":
-		inv.Args = append([]string{res, req.Number}, target...)
-	case "issue comment":
-		inv.Args = append([]string{"comment", req.Number, req.Body}, target...)
-	case "issue close", "issue reopen":
-		inv.Args = append([]string{"issues", req.Action, req.Number}, target...)
-	case "issue create", "pr create":
-		inv.Args = append([]string{res, "create"}, target...)
-		inv.Args = appendKV(inv.Args, "--title", req.Title)
-		inv.Args = appendKV(inv.Args, "--description", req.Body)
-		if req.Resource == "pr" {
-			inv.Args = appendKV(inv.Args, "--base", req.Base)
-			inv.Args = appendKV(inv.Args, "--head", req.Head)
-			if req.Draft {
-				inv.Args = append(inv.Args, "--draft")
-			}
-		}
-	default:
-		return Invocation{}, usageErr(req.Resource + " does not support " + req.Action)
+	var res string
+	switch req.Resource {
+	case "repo":
+		res = "repos"
+	case "issue":
+		res = "issues"
+	case "pr":
+		res = "pulls"
 	}
-	return inv, nil
+	auth := []string{"--login", login}
+	c := invocationContext{
+		req:    req,
+		r:      r,
+		res:    res,
+		target: append(append([]string{}, auth...), "--repo", r.Slug()),
+		auth:   auth,
+	}
+	return dispatch("tea", c)
 }

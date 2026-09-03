@@ -37,7 +37,7 @@ func ParseRepoURL(raw string) (RepoURL, error) {
 	case strings.HasPrefix(raw, "https://"), strings.HasPrefix(raw, "http://"), strings.HasPrefix(raw, "ssh://"):
 		u, err := url.Parse(raw)
 		if err != nil {
-			return RepoURL{}, fmt.Errorf("invalid repository URL %q: %v", raw, err)
+			return RepoURL{}, fmt.Errorf("invalid repository URL %q: %w", raw, err)
 		}
 		host = u.Hostname()
 		path = u.Path
@@ -55,14 +55,22 @@ func ParseRepoURL(raw string) (RepoURL, error) {
 		path = raw[i+1:]
 	}
 	host = strings.ToLower(host)
+	if !validBareHostname(host) {
+		return RepoURL{}, fmt.Errorf("repository URL %q has an invalid host", raw)
+	}
 	var segs []string
 	for _, s := range strings.Split(path, "/") {
 		if s != "" {
 			segs = append(segs, s)
 		}
 	}
-	if host == "" || len(segs) < 2 {
+	if len(segs) < 2 {
 		return RepoURL{}, fmt.Errorf("repository URL %q must look like host/owner/repo", raw)
+	}
+	for _, s := range segs {
+		if strings.HasPrefix(s, "-") {
+			return RepoURL{}, fmt.Errorf("repository URL %q has a path segment starting with %q", raw, "-")
+		}
 	}
 	name := strings.TrimSuffix(segs[len(segs)-1], ".git")
 	if name == "" {

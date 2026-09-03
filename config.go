@@ -47,7 +47,7 @@ func NormalizeConfigHost(input string) (string, error) {
 		return "", usageErr("host must be a hostname or hostname:port")
 	}
 	host := u.Hostname()
-	if strings.HasSuffix(host, ".") || net.ParseIP(host) == nil && !validDNSHostname(host) {
+	if !validBareHostname(host) {
 		return "", usageErr("host must be a valid hostname or IP address")
 	}
 	if port := u.Port(); port != "" {
@@ -74,6 +74,16 @@ func validDNSHostname(host string) bool {
 		}
 	}
 	return true
+}
+
+// validBareHostname은 host(포트/유저정보 없이 이미 추출된 값)가 IP 리터럴이거나
+// 마지막에 "."이 없는 유효한 DNS hostname인지 검사한다. NormalizeConfigHost와
+// route.go의 ParseRepoURL이 공유한다.
+func validBareHostname(host string) bool {
+	if host == "" || strings.HasSuffix(host, ".") {
+		return false
+	}
+	return net.ParseIP(host) != nil || validDNSHostname(host)
 }
 
 func isHostnameLetterOrDigit(b byte) bool {
@@ -114,7 +124,7 @@ func loadConfigUnlocked() (Config, error) {
 	}
 	var document map[string]json.RawMessage
 	if err := json.Unmarshal(data, &document); err != nil {
-		return cfg, fmt.Errorf("broken config %s: %v", ConfigPath(), err)
+		return cfg, fmt.Errorf("broken config %s: %w", ConfigPath(), err)
 	}
 	hostsJSON, ok := document["hosts"]
 	if document == nil || len(document) != 1 || !ok || string(hostsJSON) == "null" {
@@ -124,7 +134,7 @@ func loadConfigUnlocked() (Config, error) {
 		if err == nil {
 			err = errors.New("hosts must be an object")
 		}
-		return Config{Hosts: map[string]string{}}, fmt.Errorf("broken config %s: %v", ConfigPath(), err)
+		return Config{Hosts: map[string]string{}}, fmt.Errorf("broken config %s: %w", ConfigPath(), err)
 	}
 	for host, provider := range cfg.Hosts {
 		normalized, hostErr := NormalizeConfigHost(host)

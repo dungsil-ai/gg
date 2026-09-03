@@ -100,6 +100,8 @@ var (
 )
 
 // repo create의 --repo는 저장소 문맥이 아니라 만들 저장소 URL이다.
+// 값 파싱은 flagLoop의 공통 --repo 분기가 req.RepoFlag에 채우므로, 이 flagDef는
+// str/bin 세터가 없다 — help 텍스트 전용이다.
 var createRepoFlag = flagDef{name: "--repo", arg: "<URL>", desc: "이 URL에 새 저장소를 만든다"}
 
 func setState(req *Request, pos []string) error {
