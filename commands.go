@@ -113,13 +113,43 @@ func setNumber(req *Request, pos []string) error {
 	return nil
 }
 
+// gitPassthroughActionNames는 forge 라우팅 없이 git에 그대로 전달할 Main
+// Porcelain 명령이다. clone, commit, pull, push는 기존의 별도 동작을 유지한다.
+var gitPassthroughActionNames = []string{
+	"add", "am", "archive", "bisect", "branch", "bundle", "checkout", "cherry-pick",
+	"citool", "clean", "describe", "diff", "fetch", "format-patch", "gc", "grep", "gui",
+	"init", "log", "merge", "mv", "notes", "range-diff", "rebase", "reset", "restore",
+	"revert", "rm", "shortlog", "show", "sparse-checkout", "stash", "status", "submodule",
+	"switch", "tag", "worktree",
+}
+
+func isGitPassthroughAction(name string) bool {
+	for _, action := range gitPassthroughActionNames {
+		if action == name {
+			return true
+		}
+	}
+	return false
+}
+
+func gitPassthroughActions() []actionDef {
+	actions := make([]actionDef, len(gitPassthroughActionNames))
+	for i, name := range gitPassthroughActionNames {
+		actions[i] = actionDef{
+			name: name, summary: "Run git " + name, usage: "gg " + name + " [git args]",
+			passthrough: true, maxPos: -1,
+		}
+	}
+	return actions
+}
+
 var commandDefs = map[string]*resourceDef{
 	"repo": {
 		name:    "repo",
-		summary: "List, view, create, or clone repositories",
-		desc:    "List, view, create, or clone repositories, and run git commit, pull, or push.",
+		summary: "List, view, create, or clone repositories, or run Git main porcelain commands",
+		desc:    "List, view, create, or clone repositories, or run Git main porcelain commands.",
 		usage:   "gg repo <command> [flags]",
-		actions: []actionDef{
+		actions: append([]actionDef{
 			{
 				name: "list", summary: "List repositories", usage: "gg repo list [flags]",
 				flags:    []flagDef{limitFlag},
@@ -171,7 +201,7 @@ var commandDefs = map[string]*resourceDef{
 				name: "push", summary: "Run git push", usage: "gg repo push [git flags]",
 				passthrough: true, maxPos: -1,
 			},
-		},
+		}, gitPassthroughActions()...),
 	},
 	"issue": {
 		name:    "issue",
@@ -327,16 +357,20 @@ var commandDefs = map[string]*resourceDef{
 var commandOrder = []string{"repo", "issue", "pr", "config"}
 
 // repoAliases는 resource 없이 쓸 수 있는 repo action이다.
-var repoAliases = map[string]bool{
-	"list": true, "view": true, "create": true,
-	"clone": true, "commit": true, "pull": true, "push": true,
-}
+var repoAliases = func() map[string]bool {
+	actions := commandDefs["repo"].actions
+	aliases := make(map[string]bool, len(actions))
+	for _, action := range actions {
+		aliases[action.name] = true
+	}
+	return aliases
+}()
 
 // topLevelAliases는 최상위 help Commands에 별도 항목으로 보이는 alias다.
 var topLevelAliases = []string{"commit", "pull", "push"}
 
 // helpAliases는 repo 생략 형태로 --help를 제공하는 action이다.
-// commit은 생략 형태로 쓰면 --help를 포함한 모든 인자를 git에 그대로 전달하므로 제외한다.
+// --help도 git에 전달해야 하는 alias는 제외한다.
 var helpAliases = map[string]bool{
 	"list": true, "view": true, "create": true, "clone": true, "pull": true, "push": true,
 }
@@ -448,11 +482,15 @@ func nestedHelp(args []string) (string, bool) {
 		return "", false
 	}
 	path := args[:len(args)-1]
-	// 명령 앞의 저장소 문맥 flag은 어떤 명령의 help인지 바꾸지 않는다
+	hasLeadingGlobal := false
+	// gg 전역 flag는 일반 명령의 help 대상을 바꾸지 않는다. passthrough에는
+	// 저장소 문맥이나 설명 모드가 없으므로 ParseRequest가 이를 검증하게 둔다.
 	for len(path) >= 2 && (path[0] == "--repo" || path[0] == "--remote") {
+		hasLeadingGlobal = true
 		path = path[2:]
 	}
 	if len(path) >= 1 && path[0] == "--explain" {
+		hasLeadingGlobal = true
 		path = path[1:]
 	}
 	switch len(path) {
@@ -462,11 +500,18 @@ func nestedHelp(args []string) (string, bool) {
 		}
 		if helpAliases[path[0]] {
 			rd := commandDefs["repo"]
-			return renderActionHelp(rd, rd.action(path[0])), true
+			ad := rd.action(path[0])
+			if hasLeadingGlobal && ad.passthrough {
+				return "", false
+			}
+			return renderActionHelp(rd, ad), true
 		}
 	case 2:
 		if rd, ok := commandDefs[path[0]]; ok {
 			if ad := rd.action(path[1]); ad != nil {
+				if (rd.name == "repo" && isGitPassthroughAction(ad.name)) || (hasLeadingGlobal && ad.passthrough) {
+					return "", false
+				}
 				return renderActionHelp(rd, ad), true
 			}
 		}

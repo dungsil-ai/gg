@@ -47,6 +47,79 @@ func writeFakeBin(t *testing.T, dir, name, logFile string) {
 	}
 }
 
+// buildGitPassthroughProbe는 전달받은 argv를 JSON Lines로 기록하고 표준
+// 스트림을 중계 검증용으로 되돌린 뒤 종료 코드 23을 반환하는 fake git을 만든다.
+func buildGitPassthroughProbe(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "main.go")
+	const source = `package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+)
+
+func main() {
+	if logPath := os.Getenv("GG_GIT_LOG"); logPath != "" {
+		file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+		if err != nil {
+			fmt.Fprint(os.Stderr, err)
+			os.Exit(99)
+		}
+		if err := json.NewEncoder(file).Encode(os.Args[1:]); err != nil {
+			file.Close()
+			fmt.Fprint(os.Stderr, err)
+			os.Exit(99)
+		}
+		file.Close()
+	}
+	input, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		fmt.Fprint(os.Stderr, err)
+		os.Exit(99)
+	}
+	fmt.Printf("stdout:%s", input)
+	fmt.Fprintf(os.Stderr, "stderr:%s", input)
+	os.Exit(23)
+}
+`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(dir, "git")
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
+	out, err := exec.Command("go", "build", "-o", bin, sourcePath).CombinedOutput()
+	if err != nil {
+		t.Fatalf("fake git build 실패: %v\n%s", err, out)
+	}
+	return bin
+}
+
+func readGitPassthroughCalls(t *testing.T, logFile string) [][]string {
+	t.Helper()
+	data, err := os.ReadFile(logFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var calls [][]string
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		if line == "" {
+			continue
+		}
+		var args []string
+		if err := json.Unmarshal([]byte(line), &args); err != nil {
+			t.Fatalf("fake git argv decode 실패: %v", err)
+		}
+		calls = append(calls, args)
+	}
+	return calls
+}
+
 // runGG는 fake PATH + 임시 GG_HOME으로 gg를 실행한다.
 func runGG(t *testing.T, bin, fakeDir, workDir string, args ...string) (string, int) {
 	t.Helper()
@@ -515,8 +588,8 @@ func TestE2ENestedHelp(t *testing.T) {
 	}
 }
 
-// TestE2EAllActionHelp는 정의된 모든 resource와 action의 --help가
-// stdout으로 나오고 usage와 정의된 flag를 모두 표시하는지 본다.
+// TestE2EAllActionHelp는 gg가 소유한 resource와 action의 --help가 stdout으로
+// 나오고 usage와 정의된 flag를 모두 표시하는지 본다.
 func TestE2EAllActionHelp(t *testing.T) {
 	bin := buildGG(t)
 	for _, name := range commandOrder {
@@ -534,6 +607,9 @@ func TestE2EAllActionHelp(t *testing.T) {
 
 		for i := range rd.actions {
 			ad := &rd.actions[i]
+			if name == "repo" && isGitPassthroughAction(ad.name) {
+				continue
+			}
 			stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), name, ad.name, "--help")
 			if code != 0 || stderr != "" {
 				t.Errorf("gg %s %s --help = stderr %q, exit %d", name, ad.name, stderr, code)
@@ -873,19 +949,179 @@ func TestE2EEmptyRemoteNameInRepositoryContextIsUsageError(t *testing.T) {
 	}
 }
 
-func TestE2EPullPassesThroughToGit(t *testing.T) {
+func TestE2EPullPushPassThroughToGit(t *testing.T) {
 	bin := buildGG(t)
 	fakeDir := t.TempDir()
 	logFile := filepath.Join(t.TempDir(), "calls.log")
 	writeFakeBin(t, fakeDir, "git", logFile)
 
-	out, code := runGG(t, bin, fakeDir, t.TempDir(), "pull", "--rebase", "origin", "main")
-	if code != 0 {
-		t.Fatalf("exit %d: %s", code, out)
+	for _, test := range []struct {
+		args []string
+		want string
+	}{
+		{args: []string{"pull", "--rebase", "origin", "main"}, want: "git pull --rebase origin main"},
+		{args: []string{"push", "--force-with-lease", "origin", "main"}, want: "git push --force-with-lease origin main"},
+	} {
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, t.TempDir(), test.args...)
+		if code != 0 {
+			t.Fatalf("gg %v exits %d: %s", test.args, code, out)
+		}
+		if got := readLog(t, logFile); !strings.Contains(got, test.want) {
+			t.Errorf("gg %v git argv = %q, want %q", test.args, got, test.want)
+		}
 	}
-	got := readLog(t, logFile)
-	if !strings.Contains(got, "git pull --rebase origin main") {
-		t.Errorf("git argv = %q", got)
+}
+
+func TestE2EMainPorcelainRoutesAllPassthroughForms(t *testing.T) {
+	bin := buildGG(t)
+	gitBin := buildGitPassthroughProbe(t)
+	logFile := filepath.Join(t.TempDir(), "git-args.jsonl")
+	t.Setenv("GG_GIT_LOG", logFile)
+	rawArgs := []string{"--", "-starts-with-hyphen", "two words", "", "--repo", "https://example.invalid/o/r"}
+	workDir := t.TempDir()
+	var wantCalls [][]string
+
+	for _, action := range gitPassthroughActionNames {
+		for _, form := range [][]string{nil, {"repo"}} {
+			for _, suffix := range [][]string{rawArgs, {"--help"}} {
+				args := append(append([]string{}, form...), action)
+				args = append(args, suffix...)
+				if _, code := runGG(t, bin, filepath.Dir(gitBin), workDir, args...); code != 23 {
+					t.Errorf("gg %v exit = %d, want 23", args, code)
+				}
+				wantCalls = append(wantCalls, append([]string{action}, suffix...))
+			}
+		}
+	}
+
+	calls := readGitPassthroughCalls(t, logFile)
+	if len(calls) != len(wantCalls) {
+		t.Fatalf("git call count = %d, want %d", len(calls), len(wantCalls))
+	}
+	for i := range wantCalls {
+		if !slices.Equal(calls[i], wantCalls[i]) {
+			t.Errorf("git call %d = %q, want %q", i, calls[i], wantCalls[i])
+		}
+	}
+}
+
+func TestE2EPassthroughContextFlagPositions(t *testing.T) {
+	bin := buildGG(t)
+	gitBin := buildGitPassthroughProbe(t)
+	logFile := filepath.Join(t.TempDir(), "git-args.jsonl")
+	t.Setenv("GG_GIT_LOG", logFile)
+	workDir := t.TempDir()
+	contextFlags := []struct {
+		name string
+		args []string
+	}{
+		{name: "--repo", args: []string{"--repo", "https://example.invalid/o/r"}},
+		{name: "--remote", args: []string{"--remote", "git-owned-remote"}},
+		{name: "--explain", args: []string{"--explain"}},
+	}
+
+	for _, action := range []string{"status", "commit", "pull", "push"} {
+		for _, form := range [][]string{nil, {"repo"}} {
+			for _, contextFlag := range contextFlags {
+				for _, suffix := range [][]string{nil, {"--help"}} {
+					testPath := append(append([]string{}, form...), action, contextFlag.name)
+					testPath = append(testPath, suffix...)
+					t.Run(strings.Join(testPath, " "), func(t *testing.T) {
+						if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+							t.Fatal(err)
+						}
+						leading := append(append([]string{}, contextFlag.args...), form...)
+						leading = append(leading, action)
+						leading = append(leading, suffix...)
+						if out, code := runGG(t, bin, filepath.Dir(gitBin), workDir, leading...); code != 2 {
+							t.Errorf("gg %v exit = %d, want 2: %s", leading, code, out)
+						}
+						if calls := readGitPassthroughCalls(t, logFile); len(calls) != 0 {
+							t.Errorf("gg %v should not run git, calls = %q", leading, calls)
+						}
+
+						if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+							t.Fatal(err)
+						}
+						trailing := append(append([]string{}, form...), action)
+						trailing = append(trailing, contextFlag.args...)
+						trailing = append(trailing, suffix...)
+						if out, code := runGG(t, bin, filepath.Dir(gitBin), workDir, trailing...); code != 23 {
+							t.Errorf("gg %v exit = %d, want 23: %s", trailing, code, out)
+						}
+						want := []string{action}
+						if action == "commit" {
+							want = append(want, "--no-gpg-sign")
+						}
+						want = append(want, contextFlag.args...)
+						want = append(want, suffix...)
+						if calls := readGitPassthroughCalls(t, logFile); len(calls) != 1 || !slices.Equal(calls[0], want) {
+							t.Errorf("gg %v git calls = %q, want %q", trailing, calls, [][]string{want})
+						}
+					})
+				}
+			}
+		}
+	}
+}
+
+func TestE2EMainPorcelainRelaysChildStreams(t *testing.T) {
+	bin := buildGG(t)
+	gitBin := buildGitPassthroughProbe(t)
+	logFile := filepath.Join(t.TempDir(), "git-args.jsonl")
+	t.Setenv("GG_GIT_LOG", logFile)
+
+	cmd := ggCommand(t, bin, filepath.Dir(gitBin), t.TempDir(), "citool", "--", "-interactive")
+	cmd.Stdin = strings.NewReader("typed input\n")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if code := processExitCode(t, err, "stdout: "+stdout.String()+"\nstderr: "+stderr.String()); code != 23 {
+		t.Errorf("exit = %d, want 23", code)
+	}
+	if got, want := stdout.String(), "stdout:typed input\n"; got != want {
+		t.Errorf("stdout = %q, want %q", got, want)
+	}
+	if got, want := stderr.String(), "stderr:typed input\n"; got != want {
+		t.Errorf("stderr = %q, want %q", got, want)
+	}
+	if calls := readGitPassthroughCalls(t, logFile); len(calls) != 1 || !slices.Equal(calls[0], []string{"citool", "--", "-interactive"}) {
+		t.Errorf("git calls = %q, want [[citool -- -interactive]]", calls)
+	}
+}
+
+func TestE2EGitPassthroughDoesNotShadowGGResourceHelp(t *testing.T) {
+	bin := buildGG(t)
+	gitBin := buildGitPassthroughProbe(t)
+	logFile := filepath.Join(t.TempDir(), "git-args.jsonl")
+	t.Setenv("GG_GIT_LOG", logFile)
+
+	for _, args := range [][]string{{"repo", "--help"}, {"issue", "--help"}, {"pr", "--help"}, {"config", "--help"}} {
+		cmd := ggCommand(t, bin, filepath.Dir(gitBin), t.TempDir(), args...)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		if code := processExitCode(t, cmd.Run(), "stdout: "+stdout.String()+"\nstderr: "+stderr.String()); code != 0 {
+			t.Errorf("gg %v exit = %d, want 0", args, code)
+		}
+		if !strings.Contains(stdout.String(), "Usage:") || stderr.Len() != 0 {
+			t.Errorf("gg %v help = stdout %q, stderr %q", args, stdout.String(), stderr.String())
+		}
+	}
+	if _, err := os.Stat(logFile); !os.IsNotExist(err) {
+		t.Errorf("resource help should not run git, stat error = %v", err)
+	}
+
+	cmd := ggCommand(t, bin, filepath.Dir(gitBin), t.TempDir(), "diff", "--help")
+	if code := processExitCode(t, cmd.Run(), "gg diff --help"); code != 23 {
+		t.Errorf("gg diff --help exit = %d, want 23", code)
+	}
+	if calls := readGitPassthroughCalls(t, logFile); len(calls) != 1 || !slices.Equal(calls[0], []string{"diff", "--help"}) {
+		t.Errorf("git calls = %q, want [[diff --help]]", calls)
 	}
 }
 
