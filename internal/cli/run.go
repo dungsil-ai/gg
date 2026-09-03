@@ -32,7 +32,7 @@ func run(args []string) int {
 		return 0
 	}
 	if len(args) == 1 && (args[0] == "version" || args[0] == "--version") {
-		fmt.Fprintln(os.Stdout, "gg "+GetVersion())
+		fmt.Fprintln(os.Stdout, "gg "+Version())
 		return 0
 	}
 	if len(args) == 1 && (args[0] == "-verison" || args[0] == "-v") {
@@ -62,7 +62,7 @@ func run(args []string) int {
 		explain(os.Stdout, ep)
 		return 0
 	}
-	if req.Resource == "pr" && req.Action == "status" && !req.Explain {
+	if req.Resource == "pr" && req.Action == "status" {
 		ep, err := resolvePlan(req)
 		if err != nil {
 			return fail(err)
@@ -77,7 +77,7 @@ func run(args []string) int {
 }
 
 func printAllVersions() {
-	fmt.Fprintln(os.Stdout, "gg "+GetVersion())
+	fmt.Fprintln(os.Stdout, "gg "+Version())
 	for _, name := range []string{"git", "gh", "glab", "tea"} {
 		out, err := runOut(name, "--version")
 		if err != nil || out == "" {
@@ -88,9 +88,9 @@ func printAllVersions() {
 	}
 }
 
-// GetVersion은 현재 유효한 gg 버전 문자열을 반환한다. SetVersion으로 주입된 값이
+// Version은 현재 유효한 gg 버전 문자열을 반환한다. SetVersion으로 주입된 값이
 // 있으면 그 값을, 없으면 module의 build info를, 둘 다 없으면 "dev"를 돌려준다.
-func GetVersion() string {
+func Version() string {
 	if version != "dev" && version != "" {
 		return version
 	}
@@ -174,11 +174,12 @@ func resolvePlan(req Request) (executionPlan, error) {
 		return executionPlan{}, err
 	}
 	teaLogin := ""
-	// pr status/ready와 pr comment list/edit/delete는 provider를 고른 뒤 미지원을
-	// 확정하므로 tea login을 묻지 않는다.
-	unsupportedTeaPRAction := req.Resource == "pr" && (req.Action == "status" || req.Action == "ready" ||
-		req.Action == "comment list" || req.Action == "comment edit" || req.Action == "comment delete")
-	if p == Tea && req.Action != "clone" && !unsupportedTeaPRAction {
+	// pr status/ready와 pr comment list/edit/delete, label action은 provider를
+	// 고른 뒤 미지원을 확정하므로 tea login을 묻지 않는다.
+	unsupportedTeaAction := (req.Resource == "pr" && (req.Action == "status" || req.Action == "ready" ||
+		req.Action == "comment list" || req.Action == "comment edit" || req.Action == "comment delete")) ||
+		req.Resource == "label"
+	if p == Tea && req.Action != "clone" && !unsupportedTeaAction {
 		if teaLogin = teaLoginName(repo.Host); teaLogin == "" {
 			return executionPlan{}, fmt.Errorf("no tea login for %s (run: tea login add)", repo.Host)
 		}

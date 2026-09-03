@@ -622,6 +622,9 @@ func TestE2ENestedHelp(t *testing.T) {
 		{[]string{"issue", "--help"}, []string{"Usage:", "list", "view", "create", "comment", "close", "reopen", "--repo", "--remote", "--help"}},
 		{[]string{"issue", "list", "--help"}, []string{"Usage:", "--state", "--limit", "--repo", "--remote", "--help"}},
 		{[]string{"issue", "comment", "--help"}, []string{"Usage:", "comment <number>", "--body", "--repo", "--remote", "--help"}},
+		{[]string{"label", "--help"}, []string{"Usage:", "list", "create", "--repo", "--remote", "--help"}},
+		{[]string{"label", "list", "--help"}, []string{"Usage:", "--limit", "--repo", "--remote", "--help"}},
+		{[]string{"label", "create", "--help"}, []string{"Usage:", "--name", "--color", "--description", "--repo", "--remote", "--help"}},
 		{[]string{"issue", "close", "--help"}, []string{"Usage:", "close <number>", "--repo", "--remote", "--help"}},
 		{[]string{"issue", "reopen", "--help"}, []string{"Usage:", "reopen <number>", "--repo", "--remote", "--help"}},
 		{[]string{"pr", "create", "--help"}, []string{"Usage:", "--title", "--body", "--base", "--head", "--draft", "--repo", "--remote", "--help"}},
@@ -1786,6 +1789,81 @@ func TestE2EGitLabIssueCommentCloseReopen(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("gg %v argv = %q, want %q", tc.args, got, tc.want)
 		}
+	}
+}
+
+func TestE2EGitLabLabelListCreate(t *testing.T) {
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	writeFakeBin(t, fakeDir, "glab", logFile)
+	repo := tempRepo(t, "https://gitlab.com/o/r.git")
+
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"label", "list"}, "glab label list --repo https://gitlab.com/o/r"},
+		{[]string{"label", "list", "--limit", "3"}, "glab label list --repo https://gitlab.com/o/r --per-page 3"},
+		{[]string{"label", "create", "--name", "bug"}, "glab label create --repo https://gitlab.com/o/r --name bug"},
+		{[]string{"label", "create", "--name", "bug", "--color", "#FF0000", "--description", "broken"},
+			"glab label create --repo https://gitlab.com/o/r --name bug --color #FF0000 --description broken"},
+		{[]string{"--repo", "https://gitlab.com/custom/repo", "label", "create", "--name", "bug"},
+			"glab label create --repo https://gitlab.com/custom/repo --name bug"},
+	}
+
+	for _, tc := range cases {
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, tc.args...)
+		if code != 0 {
+			t.Fatalf("gg %v: exit %d: %s", tc.args, code, out)
+		}
+		got := readLog(t, logFile)
+		if got != tc.want {
+			t.Errorf("gg %v argv = %q, want %q", tc.args, got, tc.want)
+		}
+	}
+}
+
+func TestE2EGitHubLabelUnsupported(t *testing.T) {
+	bin, fakeDir, logFile := setupFakeGH(t)
+	repo := tempRepo(t, "https://github.com/o/r.git")
+
+	for _, args := range [][]string{
+		{"label", "list"},
+		{"label", "create", "--name", "bug"},
+	} {
+		out, code := runGG(t, bin, fakeDir, repo, args...)
+		if code != 2 {
+			t.Fatalf("gg %v: exit = %d, want 2: %s", args, code, out)
+		}
+		if !strings.Contains(out, "is not supported for gh") {
+			t.Errorf("gg %v output에 미지원 오류 없음: %s", args, out)
+		}
+		if got := readLog(t, logFile); got != "" {
+			t.Errorf("gg %v child command should not run, got %q", args, got)
+		}
+	}
+}
+
+func TestE2EGiteaLabelUnsupported(t *testing.T) {
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	writeFakeBin(t, fakeDir, "tea", logFile)
+	repo := tempRepo(t, "https://gitea.com/o/r.git")
+
+	out, code := runGG(t, bin, fakeDir, repo, "label", "list")
+	if code != 2 {
+		t.Fatalf("exit = %d, want 2: %s", code, out)
+	}
+	if !strings.Contains(out, "label list is not supported for tea") {
+		t.Errorf("output에 미지원 오류 없음: %s", out)
+	}
+	if got := readLog(t, logFile); got != "" {
+		t.Errorf("tea should not run, got %q", got)
 	}
 }
 

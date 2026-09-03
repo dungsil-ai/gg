@@ -251,6 +251,8 @@ func TestParseRequestRepositoryContextRemoteScope(t *testing.T) {
 		{"issue", "list", "--remote", "upstream"},
 		{"issue", "view", "1", "--remote", "upstream"},
 		{"issue", "create", "--remote", "upstream"},
+		{"label", "list", "--remote", "upstream"},
+		{"label", "create", "--name", "bug", "--remote", "upstream"},
 		{"pr", "list", "--remote", "upstream"},
 		{"pr", "view", "1", "--remote", "upstream"},
 		{"issue", "comment", "1", "--body", "b", "--remote", "upstream"},
@@ -405,17 +407,24 @@ func TestParseRequestErrors(t *testing.T) {
 		{"issue", "list", "--wat"},                // 알 수 없는 flag
 		{"pr", "list", "--state", "merged"},       // 지원 안 하는 state
 		{"pr", "create", "--title"},               // 값 없는 flag
-		{"pr", "comment"},                         // number 없음
-		{"pr", "comment", "1"},                    // body 없음
-		{"pr", "comment", "1", "--body", "   "},   // 공백 body
-		{"pr", "comment", "list"},                 // number 없음
-		{"pr", "comment", "list", "1", "2"},       // 인자 초과
-		{"pr", "comment", "edit"},                 // number와 comment-id 없음
-		{"pr", "comment", "edit", "1"},            // comment-id 없음
-		{"pr", "comment", "edit", "1", "2"},       // body 없음
-		{"pr", "comment", "delete"},               // number와 comment-id 없음
-		{"pr", "comment", "delete", "1"},          // comment-id 없음
+		{"pr", "comment"},                          // number 없음
+		{"pr", "comment", "1"},                     // body 없음
+		{"pr", "comment", "1", "--body", "   "},    // 공백 body
+		{"pr", "comment", "list"},                  // number 없음
+		{"pr", "comment", "list", "1", "2"},        // 인자 초과
+		{"pr", "comment", "edit"},                  // number와 comment-id 없음
+		{"pr", "comment", "edit", "1"},             // comment-id 없음
+		{"pr", "comment", "edit", "1", "2"},        // body 없음
+		{"pr", "comment", "delete"},                // number와 comment-id 없음
+		{"pr", "comment", "delete", "1"},           // comment-id 없음
 		{"pr", "comment", "delete", "1", "2", "3"}, // 인자 초과
+		{"label"},                                  // action 없음
+		{"label", "delete", "1"},                   // 지원 안 하는 action
+		{"label", "create"},                        // name 없음
+		{"label", "create", "--name", "  "},        // 공백 name
+		{"label", "create", "extra"},               // positional 인자
+		{"label", "list", "--wat"},                 // 알 수 없는 flag
+		{"label", "create", "--name"},              // 값 없는 flag
 		{"clone"},                                 // URL 없음
 		{"clone", "u", "d", "x"},                  // 인자 초과
 		{"create", "--public"},                    // --repo 없는 repo create
@@ -435,6 +444,35 @@ func TestParseRequestErrors(t *testing.T) {
 		var ue UsageError
 		if !errors.As(err, &ue) {
 			t.Errorf("ParseRequest(%v): UsageError 기대, got %v", args, err)
+		}
+	}
+}
+
+func TestParseRequestLabel(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want Request
+	}{
+		{name: "label list", args: []string{"label", "list", "--limit", "5"},
+			want: Request{Resource: "label", Action: "list", Limit: "5"}},
+		{name: "label create 최소", args: []string{"label", "create", "--name", "bug"},
+			want: Request{Resource: "label", Action: "create", Name: "bug"}},
+		{name: "label create 전체", args: []string{"label", "create", "--name", "bug", "--color", "#FF0000", "--description", "d"},
+			want: Request{Resource: "label", Action: "create", Name: "bug", Color: "#FF0000", Description: "d"}},
+		{name: "label list repo 문맥", args: []string{"label", "list", "--repo", "https://gitlab.com/o/r"},
+			want: Request{Resource: "label", Action: "list", RepoFlag: "https://gitlab.com/o/r"}},
+		{name: "label list explain", args: []string{"label", "create", "--name", "bug", "--explain"},
+			want: Request{Resource: "label", Action: "create", Name: "bug", Explain: true}},
+	}
+	for _, c := range cases {
+		got, err := ParseRequest(c.args)
+		if err != nil {
+			t.Errorf("%s: %v", c.name, err)
+			continue
+		}
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%s = %+v, want %+v", c.name, got, c.want)
 		}
 	}
 }
@@ -588,6 +626,14 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "repo", Action: "create", Private: true, Description: "d"},
 			repo: gl, p: GLab,
 			want: Invocation{Bin: "glab", Args: []string{"repo", "create", "grp/sub/p", "--private", "--description", "d"}, Env: []string{"GITLAB_HOST=git.example.com"}}},
+		{name: "glab label list",
+			req:  Request{Resource: "label", Action: "list", Limit: "3"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"label", "list", "--repo", "https://git.example.com/grp/sub/p", "--per-page", "3"}}},
+		{name: "glab label create",
+			req:  Request{Resource: "label", Action: "create", Name: "bug", Color: "#FF0000", Description: "d"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"label", "create", "--repo", "https://git.example.com/grp/sub/p", "--name", "bug", "--color", "#FF0000", "--description", "d"}}},
 
 		// ---- Gitea ----
 		{name: "tea issue list",
@@ -677,6 +723,30 @@ func TestTranslateTeaPRCommentSubActionsUnsupported(t *testing.T) {
 		}
 		if want := "pr " + action + " is not supported for tea"; usage.Msg != want {
 			t.Errorf("Tea 오류 = %q, want %q", usage.Msg, want)
+		}
+	}
+}
+
+func TestTranslateLabelUnsupportedForGHAndTea(t *testing.T) {
+	for _, tc := range []struct {
+		p    Provider
+		want string
+	}{
+		{GH, "label list is not supported for gh"},
+		{Tea, "label list is not supported for tea"},
+	} {
+		_, err := Translate(
+			Request{Resource: "label", Action: "list"},
+			RepoURL{Host: "git.example.com", Owner: "o", Name: "r"},
+			tc.p,
+			"corp",
+		)
+		var usage UsageError
+		if !errors.As(err, &usage) {
+			t.Fatalf("Translate(label list, %s): UsageError 기대, got %v", tc.p, err)
+		}
+		if usage.Msg != tc.want {
+			t.Errorf("%s 오류 = %q, want %q", tc.p, usage.Msg, tc.want)
 		}
 	}
 }
@@ -814,6 +884,24 @@ func TestPlanTeaPRCommentListUnsupportedSkipsLogin(t *testing.T) {
 		t.Fatalf("plan(pr comment list, tea): UsageError 기대, got %v", err)
 	}
 	if usage.Msg != "pr comment list is not supported for tea" {
+		t.Errorf("Tea 오류 = %q", usage.Msg)
+	}
+}
+
+func TestPlanTeaLabelUnsupportedSkipsLogin(t *testing.T) {
+	t.Setenv("GG_HOME", t.TempDir())
+	fakeExec(t, map[string]string{})
+
+	_, err := plan(Request{
+		Resource: "label",
+		Action:   "list",
+		RepoFlag: "https://gitea.com/o/r",
+	})
+	var usage UsageError
+	if !errors.As(err, &usage) {
+		t.Fatalf("plan(label list, tea): UsageError 기대, got %v", err)
+	}
+	if usage.Msg != "label list is not supported for tea" {
 		t.Errorf("Tea 오류 = %q", usage.Msg)
 	}
 }
@@ -965,12 +1053,16 @@ func TestParseRequestErrorMessages(t *testing.T) {
 		{[]string{"unknown"}, "unknown command unknown"},
 		{[]string{"config"}, "config needs an action: list, set, unset"},
 		{[]string{"issue"}, "issue needs an action: list, view, create, comment, close, reopen"},
+		{[]string{"label"}, "label needs an action: list, create"},
 		{[]string{"pr"}, "pr needs an action: list, view, create, comment, comment list, comment edit, comment delete, status, ready, merge"},
 		{[]string{"repo"}, "repo needs an action: list, view, create, clone, commit, pull, push, add, am, archive, bisect, branch, bundle, checkout, cherry-pick, citool, clean, describe, diff, fetch, format-patch, gc, grep, gui, init, log, merge, mv, notes, range-diff, rebase, reset, restore, revert, rm, shortlog, show, sparse-checkout, stash, status, submodule, switch, tag, worktree, annotate, blame, bugreport, count-objects, diagnose, difftool, fsck, instaweb, maintenance, merge-tree, mergetool, prune-packed, rerere, scalar"},
 		{[]string{"issue", "delete", "1"}, "issue does not support delete"},
+		{[]string{"label", "delete", "1"}, "label does not support delete"},
 		{[]string{"pr", "delete", "1"}, "pr does not support delete"},
 		{[]string{"issue", "list", "--wat"}, "unknown flag --wat"},
 		{[]string{"issue", "view"}, "usage: gg issue view <number>"},
+		{[]string{"label", "create"}, "usage: gg label create --name <text>"},
+		{[]string{"label", "create", "extra"}, "unexpected argument extra"},
 		{[]string{"pr", "view"}, "usage: gg pr view <number>"},
 		{[]string{"issue", "close"}, "usage: gg issue close <number>"},
 		{[]string{"issue", "comment", "1"}, "usage: gg issue comment <number> --body <text>"},

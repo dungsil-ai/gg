@@ -100,6 +100,7 @@ func ParseProvider(input string) (Provider, error) {
 
 func LoadConfig() (Config, error) {
 	cfg := Config{Hosts: map[string]string{}}
+	// 존재 여부와 무관한 읽기가 lock 파일이나 디렉터리를 만들지 않도록 lock 전에 검사한다.
 	if _, err := os.Stat(ConfigPath()); errors.Is(err, os.ErrNotExist) {
 		return cfg, nil
 	} else if err != nil {
@@ -127,7 +128,7 @@ func loadConfigUnlocked() (Config, error) {
 		return cfg, fmt.Errorf("broken config %s: %w", ConfigPath(), err)
 	}
 	hostsJSON, ok := document["hosts"]
-	if document == nil || len(document) != 1 || !ok || string(hostsJSON) == "null" {
+	if len(document) != 1 || !ok || string(hostsJSON) == "null" {
 		return cfg, fmt.Errorf("broken config %s: config must contain only a hosts object", ConfigPath())
 	}
 	if err := json.Unmarshal(hostsJSON, &cfg.Hosts); err != nil || cfg.Hosts == nil {
@@ -175,11 +176,11 @@ func UnsetProvider(host string) error {
 	})
 }
 
-func withConfigLock(action func() error) (err error) {
+func withConfigLock(action func() error) error {
 	return withConfigFileLock(false, action)
 }
 
-func withConfigReadLock(action func() error) (err error) {
+func withConfigReadLock(action func() error) error {
 	return withConfigFileLock(true, action)
 }
 

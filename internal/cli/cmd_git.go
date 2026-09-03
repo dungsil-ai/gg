@@ -1,5 +1,7 @@
 package cli
 
+import "slices"
+
 // 이 파일은 forge 라우팅 없이 Git에 직접 전달할 지원 명령을 정의한다.
 // Main Porcelain 37개, ancillary 14개, plumbing 70개를 하나의 registry에서 관리한다.
 // clone, commit, pull, push는 cmd_repo.go의 별도 동작을 유지한다.
@@ -27,12 +29,7 @@ var gitPassthroughActionNames = []string{
 }
 
 func isGitPassthroughAction(name string) bool {
-	for _, action := range gitPassthroughActionNames {
-		if action == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(gitPassthroughActionNames, name)
 }
 
 func gitPassthroughActions() []actionDef {

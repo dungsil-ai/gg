@@ -108,7 +108,7 @@ func parseGHStatus(data []byte) (prStatus, error) {
 		StatusCheckRollup []ghCheck `json:"statusCheckRollup"`
 	}
 	if err := json.Unmarshal(data, &v); err != nil {
-		return prStatus{}, fmt.Errorf("cannot parse gh pr view output: %v", err)
+		return prStatus{}, fmt.Errorf("cannot parse gh pr view output: %w", err)
 	}
 	s := prStatus{
 		Draft:     yesNo(v.IsDraft),
@@ -234,7 +234,7 @@ func parseGLabStatus(data []byte) (prStatus, error) {
 		} `json:"pipeline"`
 	}
 	if err := json.Unmarshal(data, &v); err != nil {
-		return prStatus{}, fmt.Errorf("cannot parse glab mr view output: %v", err)
+		return prStatus{}, fmt.Errorf("cannot parse glab mr view output: %w", err)
 	}
 	draft := "unknown"
 	if v.Draft != nil {

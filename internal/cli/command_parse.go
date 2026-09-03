@@ -24,6 +24,7 @@ type Request struct {
 	ConfigHost, ConfigProvider string
 
 	Title, Body, Base, Head, State, Limit, Description       string
+	Name, Color                                              string
 	Draft, Undo, Public, Private, AllowInsecureHTTP, Explain bool
 
 	Merge, Squash, Rebase bool

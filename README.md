@@ -423,8 +423,8 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `glab issue update`
   - [x] `glab issue view` (대응: `gg issue view`)
 - `label`
-  - [ ] `glab label create`
-  - [ ] `glab label list`
+  - [x] `glab label create` (대응: `gg label create`)
+  - [x] `glab label list` (대응: `gg label list`)
 - `mr`
   - [ ] `glab mr approve`
   - [ ] `glab mr approvers`
