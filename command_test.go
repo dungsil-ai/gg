@@ -67,6 +67,115 @@ func TestParseRequest(t *testing.T) {
 	}
 }
 
+func TestParseRequestPRReady(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want Request
+	}{
+		{name: "ready", args: []string{"pr", "ready", "42"},
+			want: Request{Resource: "pr", Action: "ready", Number: "42"}},
+		{name: "undo", args: []string{"pr", "ready", "42", "--undo"},
+			want: Request{Resource: "pr", Action: "ready", Number: "42", Undo: true}},
+		{name: "repo context", args: []string{"pr", "ready", "42", "--repo", "https://github.com/o/r"},
+			want: Request{Resource: "pr", Action: "ready", Number: "42", RepoFlag: "https://github.com/o/r"}},
+		{name: "remote context", args: []string{"pr", "ready", "42", "--remote", "upstream"},
+			want: Request{Resource: "pr", Action: "ready", Number: "42", RemoteFlag: "upstream"}},
+		{name: "explain", args: []string{"pr", "ready", "42", "--explain"},
+			want: Request{Resource: "pr", Action: "ready", Number: "42", Explain: true}},
+		{name: "help", args: []string{"pr", "ready", "42", "--help"},
+			want: Request{Resource: "pr", Action: "ready", Number: "42", Help: true}},
+	}
+	for _, c := range cases {
+		got, err := ParseRequest(c.args)
+		if err != nil {
+			t.Errorf("%s: %v", c.name, err)
+			continue
+		}
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%s = %+v, want %+v", c.name, got, c.want)
+		}
+	}
+
+	bad := []struct {
+		args []string
+		want string
+	}{
+		{args: []string{"pr", "ready"}, want: "usage: gg pr ready <number>"},
+		{args: []string{"pr", "ready", "42", "43"}, want: "usage: gg pr ready <number>"},
+		{args: []string{"pr", "ready", "42", "--wat"}, want: "unknown flag --wat"},
+		{args: []string{"pr", "status", "42", "--undo"}, want: "unknown flag --undo"},
+	}
+	for _, c := range bad {
+		_, err := ParseRequest(c.args)
+		var usage UsageError
+		if !errors.As(err, &usage) {
+			t.Errorf("ParseRequest(%v): UsageError 기대, got %v", c.args, err)
+			continue
+		}
+		if usage.Msg != c.want {
+			t.Errorf("ParseRequest(%v) = %q, want %q", c.args, usage.Msg, c.want)
+		}
+	}
+}
+
+func TestParseRequestCommandAliasUsesCanonicalCommand(t *testing.T) {
+	tests := []struct {
+		name      string
+		canonical []string
+		alias     []string
+	}{
+		{
+			name:      "list with global and command flags",
+			canonical: []string{"--repo", "https://github.com/o/r", "pr", "list", "--state", "all", "--limit", "3"},
+			alias:     []string{"--repo", "https://github.com/o/r", "mr", "list", "--state", "all", "--limit", "3"},
+		},
+		{
+			name:      "view with remote",
+			canonical: []string{"pr", "view", "42", "--remote", "upstream"},
+			alias:     []string{"mr", "view", "42", "--remote", "upstream"},
+		},
+		{
+			name:      "status",
+			canonical: []string{"pr", "status", "42", "--repo", "https://github.com/o/r"},
+			alias:     []string{"mr", "status", "42", "--repo", "https://github.com/o/r"},
+		},
+		{
+			name:      "ready",
+			canonical: []string{"pr", "ready", "42", "--undo", "--repo", "https://github.com/o/r"},
+			alias:     []string{"mr", "ready", "42", "--undo", "--repo", "https://github.com/o/r"},
+		},
+		{
+			name:      "create",
+			canonical: []string{"pr", "create", "--title", "t", "--body", "b", "--base", "main", "--head", "feature", "--draft"},
+			alias:     []string{"mr", "create", "--title", "t", "--body", "b", "--base", "main", "--head", "feature", "--draft"},
+		},
+		{
+			name:      "merge",
+			canonical: []string{"pr", "merge", "42", "--squash", "--delete-branch", "--auto"},
+			alias:     []string{"mr", "merge", "42", "--squash", "--delete-branch", "--auto"},
+		},
+		{
+			name:      "explain before alias command",
+			canonical: []string{"--explain", "pr", "list"},
+			alias:     []string{"--explain", "mr", "list"},
+		},
+	}
+	for _, tt := range tests {
+		want, err := ParseRequest(tt.canonical)
+		if err != nil {
+			t.Fatalf("ParseRequest(%v): %v", tt.canonical, err)
+		}
+		got, err := ParseRequest(tt.alias)
+		if err != nil {
+			t.Fatalf("ParseRequest(%v): %v", tt.alias, err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("ParseRequest(%v) = %+v, want ParseRequest(%v) = %+v", tt.alias, got, tt.canonical, want)
+		}
+	}
+}
+
 func TestParseRequestRepositoryContextRemoteBeforeAndAfterCommand(t *testing.T) {
 	want := Request{Resource: "issue", Action: "list", RemoteFlag: "upstream"}
 	for _, args := range [][]string{
@@ -305,6 +414,14 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "pr", Action: "create", Title: "t", Body: "b", Base: "main", Head: "f", Draft: true},
 			repo: gh, p: GH,
 			want: Invocation{Bin: "gh", Args: []string{"pr", "create", "-R", "github.com/o/r", "--title", "t", "--body", "b", "--base", "main", "--head", "f", "--draft"}}},
+		{name: "gh pr ready",
+			req:  Request{Resource: "pr", Action: "ready", Number: "7"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"pr", "ready", "7", "-R", "github.com/o/r"}}},
+		{name: "gh pr ready undo",
+			req:  Request{Resource: "pr", Action: "ready", Number: "7", Undo: true},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"pr", "ready", "7", "--undo", "-R", "github.com/o/r"}}},
 		{name: "gh repo list on GHE",
 			req:  Request{Resource: "repo", Action: "list", Limit: "3"},
 			repo: ghe, p: GH,
@@ -343,6 +460,14 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "pr", Action: "create", Title: "t", Body: "b", Base: "main", Head: "f", Draft: true},
 			repo: gl, p: GLab,
 			want: Invocation{Bin: "glab", Args: []string{"mr", "create", "--repo", "https://git.example.com/grp/sub/p", "--title", "t", "--description", "b", "--target-branch", "main", "--source-branch", "f", "--draft"}}},
+		{name: "glab pr ready",
+			req:  Request{Resource: "pr", Action: "ready", Number: "7"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"mr", "update", "7", "--ready", "--repo", "https://git.example.com/grp/sub/p"}}},
+		{name: "glab pr ready undo",
+			req:  Request{Resource: "pr", Action: "ready", Number: "7", Undo: true},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"mr", "update", "7", "--draft", "--repo", "https://git.example.com/grp/sub/p"}}},
 		{name: "glab issue view",
 			req:  Request{Resource: "issue", Action: "view", Number: "9"},
 			repo: gl, p: GLab,
@@ -419,6 +544,22 @@ func TestTranslate(t *testing.T) {
 		if !reflect.DeepEqual(got, c.want) {
 			t.Errorf("%s\n got %+v\nwant %+v", c.name, got, c.want)
 		}
+	}
+}
+
+func TestTranslateTeaPRReadyUnsupported(t *testing.T) {
+	_, err := Translate(
+		Request{Resource: "pr", Action: "ready", Number: "7"},
+		RepoURL{Host: "gitea.com", Owner: "o", Name: "r"},
+		Tea,
+		"",
+	)
+	var usage UsageError
+	if !errors.As(err, &usage) {
+		t.Fatalf("Translate(pr ready, tea): UsageError 기대, got %v", err)
+	}
+	if usage.Msg != "pr ready is not supported for tea" {
+		t.Errorf("Tea 오류 = %q", usage.Msg)
 	}
 }
 
@@ -518,6 +659,25 @@ func TestPlanTeaNeedsLogin(t *testing.T) {
 		RepoFlag: "https://gitea.com/o/r"})
 	if err == nil || !strings.Contains(err.Error(), "tea login add") {
 		t.Errorf("tea login 안내 기대, got %v", err)
+	}
+}
+
+func TestPlanTeaReadyUnsupportedSkipsLogin(t *testing.T) {
+	t.Setenv("GG_HOME", t.TempDir())
+	fakeExec(t, map[string]string{})
+
+	_, err := plan(Request{
+		Resource: "pr",
+		Action:   "ready",
+		Number:   "7",
+		RepoFlag: "https://gitea.com/o/r",
+	})
+	var usage UsageError
+	if !errors.As(err, &usage) {
+		t.Fatalf("plan(pr ready, tea): UsageError 기대, got %v", err)
+	}
+	if usage.Msg != "pr ready is not supported for tea" {
+		t.Errorf("Tea 오류 = %q", usage.Msg)
 	}
 }
 
@@ -668,7 +828,7 @@ func TestParseRequestErrorMessages(t *testing.T) {
 		{[]string{"unknown"}, "unknown command unknown"},
 		{[]string{"config"}, "config needs an action: list, set, unset"},
 		{[]string{"issue"}, "issue needs an action: list, view, create, comment, close, reopen"},
-		{[]string{"pr"}, "pr needs an action: list, view, create, status, merge"},
+		{[]string{"pr"}, "pr needs an action: list, view, create, status, ready, merge"},
 		{[]string{"repo"}, "repo needs an action: list, view, create, clone, commit, pull, push"},
 		{[]string{"issue", "delete", "1"}, "issue does not support delete"},
 		{[]string{"pr", "delete", "1"}, "pr does not support delete"},

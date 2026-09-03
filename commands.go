@@ -68,6 +68,8 @@ var (
 		str: func(r *Request) *string { return &r.Head }}
 	draftFlag = flagDef{name: "--draft", desc: "Create a draft pull request",
 		bin: func(r *Request) *bool { return &r.Draft }}
+	undoFlag = flagDef{name: "--undo", desc: "Convert the pull request to a draft",
+		bin: func(r *Request) *bool { return &r.Undo }}
 	descriptionFlag = flagDef{name: "--description", arg: "<text>", desc: "Set the description",
 		str: func(r *Request) *string { return &r.Description }}
 	publicFlag = flagDef{name: "--public", desc: "Create a public repository",
@@ -265,7 +267,7 @@ var commandDefs = map[string]*resourceDef{
 	},
 	"pr": {
 		name:    "pr",
-		summary: "List, view, create, or merge pull requests, and check merge readiness",
+		summary: "List, view, create, or merge pull requests, and check merge readiness (alias: mr)",
 		desc:    "List, view, create, or merge pull requests, and check merge readiness.",
 		usage:   "gg pr <command> [flags]",
 		actions: []actionDef{
@@ -296,6 +298,15 @@ var commandDefs = map[string]*resourceDef{
 				remoteOK: true, explainOK: true,
 				minPos: 1, maxPos: 1,
 				posErr: "usage: gg pr status <number>",
+				setPos: setNumber,
+			},
+			{
+				name: "ready", summary: "Mark a pull request as ready for review", usage: "gg pr ready <number> [flags]",
+				flags:    []flagDef{undoFlag},
+				showRepo: true, showRemote: true, showExplain: true,
+				remoteOK: true, explainOK: true,
+				minPos: 1, maxPos: 1,
+				posErr: "usage: gg pr ready <number>",
 				setPos: setNumber,
 			},
 			{
@@ -356,6 +367,18 @@ var commandDefs = map[string]*resourceDef{
 // commandOrder는 최상위 help의 resource 표시 순서다.
 var commandOrder = []string{"repo", "issue", "pr", "config"}
 
+// commandAliases는 alias를 실제 구현이 등록된 canonical 명령으로 연결한다.
+var commandAliases = map[string]string{
+	"mr": "pr",
+}
+
+func resolveAlias(command string) string {
+	if canonical, ok := commandAliases[command]; ok {
+		return canonical
+	}
+	return command
+}
+
 // repoAliases는 resource 없이 쓸 수 있는 repo action이다.
 var repoAliases = func() map[string]bool {
 	actions := commandDefs["repo"].actions
@@ -384,6 +407,7 @@ Usage:
   gg issue list --help
   gg pr create --help
   gg pr status --help
+  gg pr ready --help
   gg pr merge --help
 
 Commands:
@@ -495,7 +519,7 @@ func nestedHelp(args []string) (string, bool) {
 	}
 	switch len(path) {
 	case 1:
-		if rd, ok := commandDefs[path[0]]; ok {
+		if rd, ok := commandDefs[resolveAlias(path[0])]; ok {
 			return renderResourceHelp(rd), true
 		}
 		if helpAliases[path[0]] {
@@ -507,7 +531,7 @@ func nestedHelp(args []string) (string, bool) {
 			return renderActionHelp(rd, ad), true
 		}
 	case 2:
-		if rd, ok := commandDefs[path[0]]; ok {
+		if rd, ok := commandDefs[resolveAlias(path[0])]; ok {
 			if ad := rd.action(path[1]); ad != nil {
 				if (rd.name == "repo" && isGitPassthroughAction(ad.name)) || (hasLeadingGlobal && ad.passthrough) {
 					return "", false

@@ -135,7 +135,7 @@ func TestNestedHelpPaths(t *testing.T) {
 func TestTopLevelHelpContent(t *testing.T) {
 	help := topLevelHelp()
 	wants := []string{
-		"gg config --help", "gg issue --help", "gg issue list --help", "gg pr create --help", "gg pr merge --help",
+		"gg config --help", "gg issue --help", "gg issue list --help", "gg pr create --help", "gg pr ready --help", "gg pr merge --help",
 		"--repo <URL>", "--remote <name>", "--explain", "-h, --help", "--version",
 	}
 	for _, name := range commandOrder {
