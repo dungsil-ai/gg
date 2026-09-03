@@ -67,6 +67,37 @@ func TestParseRequest(t *testing.T) {
 	}
 }
 
+func TestParseRequestRepoOmittedFormMatchesRepoForm(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "list", args: []string{"list", "--limit", "5"}},
+		{name: "view", args: []string{"view", "--repo", "https://github.com/o/r"}},
+		{name: "create", args: []string{"create", "--repo", "https://gitea.com/o/r", "--private", "--description", "d"}},
+		{name: "clone", args: []string{"clone", "https://github.com/o/r", "dst"}},
+		{name: "commit", args: []string{"commit", "--allow-empty", "-m", "test"}},
+		{name: "pull", args: []string{"pull", "--rebase", "origin", "main"}},
+		{name: "push", args: []string{"push", "--force-with-lease", "origin", "main"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			omitted, err := ParseRequest(tt.args)
+			if err != nil {
+				t.Fatalf("ParseRequest(%v): %v", tt.args, err)
+			}
+			repoFormArgs := append([]string{"repo"}, tt.args...)
+			repoForm, err := ParseRequest(repoFormArgs)
+			if err != nil {
+				t.Fatalf("ParseRequest(%v): %v", repoFormArgs, err)
+			}
+			if !reflect.DeepEqual(omitted, repoForm) {
+				t.Errorf("ParseRequest(%v) = %+v, want ParseRequest(%v) = %+v", tt.args, omitted, repoFormArgs, repoForm)
+			}
+		})
+	}
+}
+
 func TestParseRequestPRReady(t *testing.T) {
 	cases := []struct {
 		name string
