@@ -90,7 +90,10 @@ func TestNestedHelpPaths(t *testing.T) {
 			t.Errorf("nestedHelp(%s --help) = %q, %v", name, help, ok)
 		}
 	}
-	// action 단계: git passthrough은 --help까지 git에 전달한다.
+	// repo resource는 가변 Git 인자를 명시하고, Git passthrough은 --help까지 Git에 전달한다.
+	if help, ok := nestedHelp([]string{"repo", "--help"}); !ok || !strings.Contains(help, "gg repo <command> [args]") {
+		t.Errorf("nestedHelp(repo --help) = %q, %v", help, ok)
+	}
 	for _, name := range commandOrder {
 		rd := commandDefs[name]
 		for i := range rd.actions {
@@ -116,9 +119,16 @@ func TestNestedHelpPaths(t *testing.T) {
 			t.Errorf("alias %s help가 비었거나 다름", alias)
 		}
 	}
-	// help 경로가 아닌 입력
+	// help 경로가 아닌 입력 (commit 및 보조 git 명령 생략형은 --help를 git에 전달한다)
+	for _, action := range commandDefs["repo"].actions {
+		if action.passthrough && !helpAliases[action.name] {
+			path := []string{action.name, "--help"}
+			if help, ok := nestedHelp(path); ok {
+				t.Errorf("nestedHelp(%v)가 help를 반환함: %q", path, help)
+			}
+		}
+	}
 	for _, path := range [][]string{
-		{"commit", "--help"}, // commit 생략형은 --help를 git에 전달한다
 		{"unknown", "--help"},
 		{"issue", "delete", "--help"},
 		{"issue", "list", "extra", "--help"},
@@ -135,6 +145,9 @@ func TestNestedHelpPaths(t *testing.T) {
 func TestTopLevelHelpContent(t *testing.T) {
 	help := topLevelHelp()
 	wants := []string{
+		"gg sends common Git forge commands to gh, glab, or tea, and runs supported Git commands directly.",
+		"List, view, create, or clone repositories, or run supported Git commands",
+		"gg [flags] <command>", "gg <supported-git-command> [git args]", "gg repo --help",
 		"gg config --help", "gg issue --help", "gg issue list --help", "gg pr create --help", "gg pr ready --help", "gg pr merge --help",
 		"--repo <URL>", "--remote <name>", "--explain", "-h, --help", "--version",
 		"--version         gg 버전만 표시",
@@ -143,8 +156,10 @@ func TestTopLevelHelpContent(t *testing.T) {
 	for _, name := range commandOrder {
 		wants = append(wants, commandDefs[name].summary)
 	}
-	for _, name := range topLevelAliases {
-		wants = append(wants, commandDefs["repo"].action(name).summary)
+	for _, action := range commandDefs["repo"].actions {
+		if action.passthrough {
+			wants = append(wants, action.summary)
+		}
 	}
 	for _, want := range wants {
 		if !strings.Contains(help, want) {

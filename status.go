@@ -51,16 +51,6 @@ func ghStatusFields() string {
 	return "isDraft,reviewDecision,mergeable,mergeStateStatus,statusCheckRollup"
 }
 
-// statusPlan은 pr status가 실행할 provider CLI 호출을 만든다. 상태 조회는
-// stdout을 gg가 받아 가공하므로 자식에게 stdout을 넘기지 않는다.
-func statusPlan(req Request, r RepoURL, p Provider) (executionPlan, error) {
-	inv, err := Translate(req, r, p, "")
-	if err != nil {
-		return executionPlan{}, err
-	}
-	return executionPlan{repo: r, provider: p, inv: inv}, nil
-}
-
 // runPRStatus는 상태 조회 성공 시 exit 0이다. 병합 불가, CI 실패, 승인 대기는
 // 결과 값일 뿐이고, 조회 자체가 실패할 때만 0이 아닌 exit code를 낸다.
 func runPRStatus(ep executionPlan) int {

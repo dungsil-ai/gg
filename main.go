@@ -263,12 +263,16 @@ func execChild(inv Invocation) int {
 	cmd := exec.Command(path, inv.Args...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	cmd.Env = append(os.Environ(), inv.Env...)
-	// Ctrl+C는 자식에게 간다. 부모는 자식 exit code만 보고한다.
-	signal.Ignore(os.Interrupt)
+	// fork 전에 부모 SIGINT를 Notify로 소비한다. Go runtime은 Notify된 신호를
+	// caught 상태로 처리하므로 fork 자식에서 exec 시 자동으로 default로 복원된다.
+	// Ignore와 달리 Notify는 exec된 자식에 SIG_IGN을 상속시키지 않는다.
+	interrupts := make(chan os.Signal, 1)
+	signal.Notify(interrupts, os.Interrupt)
+	defer signal.Stop(interrupts)
 	err = cmd.Run()
 	var ee *exec.ExitError
 	if errors.As(err, &ee) {
-		return ee.ExitCode()
+		return childExitCode(ee)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "gg:", err)
