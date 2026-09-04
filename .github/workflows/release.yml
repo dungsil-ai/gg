@@ -15,44 +15,8 @@ permissions:
   contents: read
 
 jobs:
-  verify:
-    name: Verify (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-latest
-          - windows-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Checkout release tag
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          TAG="${{ inputs.tag }}"
-          echo "Tag: $TAG"
-          git fetch --tags --force origin
-          git checkout "refs/tags/$TAG"
-
-      - name: Set up Go
-        uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-
-      - name: Vet
-        run: go vet ./...
-
-      - name: Test
-        run: go test ./...
-
   release:
     name: Release
-    needs: verify
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -72,10 +36,85 @@ jobs:
           fi
           echo "Tag: $TAG"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            git fetch --tags --force origin
-            git checkout "refs/tags/$TAG"
+
+      - name: Create and push release tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          TAG="${{ steps.release_tag.outputs.tag }}"
+          echo "Tag: $TAG"
+
+          if ! echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Error: Tag '$TAG' does not match semantic versioning format '^v[0-9]+\.[0-9]+\.[0-9]+$'."
+            exit 1
           fi
+
+          git fetch --tags --force origin
+          if git show-ref --verify --quiet "refs/tags/$TAG"; then
+            echo "Tag '$TAG' already exists; reusing it without modification."
+            exit 0
+          fi
+
+          HEAD_COMMIT=$(git rev-parse HEAD)
+          echo "HEAD commit: $HEAD_COMMIT"
+
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          if [ -z "$DEFAULT_BRANCH" ]; then
+            echo "Error: Repository default branch is empty."
+            exit 1
+          fi
+
+          DEFAULT_BRANCH_REF="refs/heads/$DEFAULT_BRANCH"
+          set +e
+          DEFAULT_BRANCH_OUTPUT=$(git ls-remote --exit-code --refs origin "$DEFAULT_BRANCH_REF" 2>&1)
+          DEFAULT_BRANCH_STATUS=$?
+          set -e
+
+          if [ "$DEFAULT_BRANCH_STATUS" -ne 0 ]; then
+            echo "Error: Failed to resolve current tip of default branch '$DEFAULT_BRANCH' (exit code $DEFAULT_BRANCH_STATUS):"
+            echo "$DEFAULT_BRANCH_OUTPUT"
+            exit 1
+          fi
+
+          DEFAULT_BRANCH_TIP=${DEFAULT_BRANCH_OUTPUT%%$'\t'*}
+          echo "Default branch: $DEFAULT_BRANCH"
+          echo "Default branch tip: $DEFAULT_BRANCH_TIP"
+          if [ "$HEAD_COMMIT" != "$DEFAULT_BRANCH_TIP" ]; then
+            echo "Error: HEAD commit '$HEAD_COMMIT' is not the current tip of default branch '$DEFAULT_BRANCH' ('$DEFAULT_BRANCH_TIP')."
+            echo "Dispatch the release from the default branch tip after pushing the release commit."
+            exit 1
+          fi
+
+          COMMIT_MSG=$(git log -1 --format=%s "$HEAD_COMMIT")
+          EXPECTED_MSG="release: $TAG"
+          echo "Commit subject: $COMMIT_MSG"
+          echo "Expected subject: $EXPECTED_MSG"
+
+          if [ "$COMMIT_MSG" != "$EXPECTED_MSG" ]; then
+            echo "Error: Commit subject '$COMMIT_MSG' does not match expected release commit format '$EXPECTED_MSG'."
+            echo "Create the release commit first and push it to the default branch."
+            exit 1
+          fi
+
+          HEAD_TREE=$(git rev-parse "${HEAD_COMMIT}^{tree}")
+          PARENT_TREE=$(git rev-parse "${HEAD_COMMIT}~1^{tree}" 2>/dev/null || echo "")
+          echo "HEAD tree: $HEAD_TREE"
+          echo "Parent tree: $PARENT_TREE"
+
+          if [ -z "$PARENT_TREE" ]; then
+            echo "Error: Release commit '$HEAD_COMMIT' has no parent commit."
+            exit 1
+          fi
+
+          if [ "$HEAD_TREE" != "$PARENT_TREE" ]; then
+            echo "Error: Release commit '$HEAD_COMMIT' is not an empty commit (tree changed from parent)."
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "refs/tags/$TAG"
+          echo "Created and pushed tag '$TAG'."
 
       - name: Verify release commit and tag
         run: |

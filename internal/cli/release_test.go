@@ -411,43 +411,32 @@ func TestReleaseWorkflowGate(t *testing.T) {
 		t.Error("release.yml에 pull_request 트리거가 있습니다; tag 및 workflow_dispatch만 받아야 합니다")
 	}
 
-	releaseVerifyBlock, err := extractJobBlock(releaseJobs, "verify")
-	if err != nil {
-		t.Fatalf("release.yml verify 잡 추출 실패: %v", err)
+	if _, err := extractJobBlock(releaseJobs, "verify"); err == nil {
+		t.Error("release.yml에 verify 잡이 있습니다; 릴리즈 검증은 push CI가 담당하므로 release 잡만 둬야 합니다")
 	}
 	releaseBlock, err := extractJobBlock(releaseJobs, "release")
 	if err != nil {
 		t.Fatalf("release.yml release 잡 추출 실패: %v", err)
 	}
 
-	// 3. verify 잡 계약: OS 매트릭스 및 테스트/vet 검증
+	// 3. verify 잡 계약: OS 매트릭스 및 테스트/vet 검증 (ci.yml만)
 	for _, expected := range []string{"ubuntu-latest", "windows-latest", "go vet ./...", "go test ./..."} {
 		if !strings.Contains(ciVerifyBlock, expected) {
 			t.Errorf("ci.yml verify 잡 블록에 필수 항목 %q가 없습니다", expected)
 		}
-		if !strings.Contains(releaseVerifyBlock, expected) {
-			t.Errorf("release.yml verify 잡 블록에 필수 항목 %q가 없습니다", expected)
-		}
-	}
-	// release.yml verify는 dispatch 입력 tag를 체크아웃해야 한다.
-	for _, expected := range []string{
-		"inputs.tag",
-		"github.event_name == 'workflow_dispatch'",
-	} {
-		if !strings.Contains(releaseVerifyBlock, expected) {
-			t.Errorf("release.yml verify 잡에 dispatch tag 체크아웃 설정 %q가 없습니다", expected)
-		}
 	}
 
-	// 4. release 잡은 필요한 실행 환경과 verify 의존성을 가져야 한다.
+	// 4. release 잡은 단독으로 동작하며 필요한 실행 환경을 가져야 한다.
 	for _, expected := range []string{
-		"needs: verify",
 		"contents: write",
 		"fetch-depth: 0",
 	} {
 		if !strings.Contains(releaseBlock, expected) {
 			t.Errorf("release 잡 블록에 필수 설정 %q가 없습니다", expected)
 		}
+	}
+	if strings.Contains(releaseBlock, "needs: verify") {
+		t.Error("release 잡에 needs: verify가 있습니다; push CI가 검증을 담당하므로 release는 단독으로 동작해야 합니다")
 	}
 	if strings.Contains(releaseBlock, "if: startsWith(github.ref, 'refs/tags/v')") {
 		t.Error("release 잡에 push 전용 조건(if: startsWith(github.ref, ...))이 있습니다; workflow_dispatch 실행이 차단됩니다")
@@ -462,6 +451,18 @@ func TestReleaseWorkflowGate(t *testing.T) {
 	} {
 		if !strings.Contains(releaseBlock, expected) {
 			t.Errorf("release 잡에 tag 해소 설정 %q가 없습니다", expected)
+		}
+	}
+	// dispatch 실행은 UI 입력 tag를 직접 생성·푸시한다. 기존 tag는 절대 이동하지 않는다.
+	for _, expected := range []string{
+		"Create and push release tag",
+		"github.event_name == 'workflow_dispatch'",
+		"already exists; reusing it without modification",
+		`git tag -a "$TAG" -m "Release $TAG"`,
+		`git push origin "refs/tags/$TAG"`,
+	} {
+		if !strings.Contains(releaseBlock, expected) {
+			t.Errorf("release 잡에 dispatch tag 생성 설정 %q가 없습니다", expected)
 		}
 	}
 
