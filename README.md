@@ -261,19 +261,19 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gh release upload` (대응: `gg release upload`)
   - [x] `gh release view` (대응: `gg release view`)
 - `repo`
-  - [ ] `gh repo archive`
-  - [ ] `gh repo autolink`
+  - [ ] `gh repo archive` (`gg repo archive`와 `gg archive`는 git archive passthrough로 쓰는 이름이라 미지원)
+  - [ ] `gh repo autolink` (하위 명령 그룹이라 미지원)
   - [x] `gh repo clone` (대응: `gg repo clone`, `gg clone`)
   - [x] `gh repo create` (대응: `gg repo create`, `gg create`)
-  - [ ] `gh repo delete`
-  - [ ] `gh repo deploy-key`
-  - [ ] `gh repo edit`
-  - [ ] `gh repo fork`
+  - [x] `gh repo delete` (대응: `gg repo delete`, `gg delete`)
+  - [ ] `gh repo deploy-key` (하위 명령 그룹이라 미지원)
+  - [x] `gh repo edit` (대응: `gg repo edit`, `gg edit`; GitLab·Gitea 미지원)
+  - [x] `gh repo fork` (대응: `gg repo fork`, `gg fork`)
   - [x] `gh repo list` (대응: `gg repo list`, `gg list`)
-  - [ ] `gh repo rename`
-  - [ ] `gh repo set-default`
-  - [ ] `gh repo sync`
-  - [ ] `gh repo unarchive`
+  - [x] `gh repo rename` (대응: `gg repo rename`, `gg rename`; GitLab·Gitea 미지원)
+  - [x] `gh repo set-default` (대응: `gg repo set-default`, `gg set-default`; GitLab·Gitea 미지원)
+  - [x] `gh repo sync` (대응: `gg repo sync`, `gg sync`; GitLab·Gitea 미지원)
+  - [ ] `gh repo unarchive` (archive 미지원과 함께 보류)
   - [x] `gh repo view` (대응: `gg repo view`, `gg view`)
 - [x] `gh help` (대응: `gg help`, `gg --help`, `gg -h`)
 - [x] `gh version` (대응: 단독 `gg -verison`, 단독 `gg -v`)
@@ -452,12 +452,12 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `glab release upload` (대응: `gg release upload`)
   - [x] `glab release view` (대응: `gg release view`)
 - `repo`
-  - [ ] `glab repo archive`
+  - [ ] `glab repo archive` (저장소 보관이 아니라 스냅샷 다운로드 명령이라 `gg repo archive`와 연결하지 않음)
   - [x] `glab repo clone` (대응: `gg repo clone`, `gg clone`)
   - [ ] `glab repo contributors`
   - [x] `glab repo create` (대응: `gg repo create`, `gg create`)
-  - [ ] `glab repo delete`
-  - [ ] `glab repo fork`
+  - [x] `glab repo delete` (대응: `gg repo delete`, `gg delete`)
+  - [x] `glab repo fork` (대응: `gg repo fork`, `gg fork`)
   - [x] `glab repo list` (대응: `gg repo list`, `gg list`)
   - [ ] `glab repo mirror`
   - [ ] `glab repo search`
@@ -598,9 +598,9 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `tea releases list`
 - `repos`
   - [x] `tea repos create` (대응: `gg repo create`, `gg create`)
-  - [ ] `tea repos delete`
+  - [x] `tea repos delete` (대응: `gg repo delete`, `gg delete`)
   - [ ] `tea repos flags`
-  - [ ] `tea repos fork`
+  - [x] `tea repos fork` (대응: `gg repo fork`, `gg fork`)
   - [x] `tea repos list` (대응: `gg repo list`, `gg list`)
   - [ ] `tea repos search`
   - [x] `tea repos view` (대응: `gg repo view`, `gg view`)

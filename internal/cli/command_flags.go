@@ -44,6 +44,25 @@ var (
 		bin: func(r *Request) *bool { return &r.Public }}
 	privateFlag = flagDef{name: "--private", desc: "Create a private repository",
 		bin: func(r *Request) *bool { return &r.Private }}
+	// edit의 --public/--private는 create와 같은 Request 필드를 켜지만 만들기가
+	// 아니라 가시성 변경이다.
+	editPublicFlag = flagDef{name: "--public", desc: "Change the repository visibility to public",
+		bin: func(r *Request) *bool { return &r.Public }}
+	editPrivateFlag = flagDef{name: "--private", desc: "Change the repository visibility to private",
+		bin: func(r *Request) *bool { return &r.Private }}
+	yesFlag = flagDef{name: "--yes", desc: "Skip the confirmation prompt",
+		bin: func(r *Request) *bool { return &r.Yes }}
+	// sync의 --branch는 pr/issue 계열의 "filter by branch"와 뜻이 다르다.
+	syncBranchFlag = flagDef{name: "--branch", arg: "<branch>", desc: "Branch to sync",
+		str: func(r *Request) *string { return &r.Branch }}
+	sourceFlag = flagDef{name: "--source", arg: "<repository>", desc: "Source repository to sync from",
+		str: func(r *Request) *string { return &r.Source }}
+	forceFlag = flagDef{name: "--force", desc: "Hard reset the destination branch to match the source",
+		bin: func(r *Request) *bool { return &r.Force }}
+	unsetDefaultFlag = flagDef{name: "--unset", desc: "Unset the current default repository",
+		bin: func(r *Request) *bool { return &r.Unset }}
+	viewDefaultFlag = flagDef{name: "--view", desc: "View the current default repository",
+		bin: func(r *Request) *bool { return &r.View }}
 	allowInsecureHTTPFlag = flagDef{name: "--allow-insecure-http", desc: "Allow insecure HTTP clone",
 		bin: func(r *Request) *bool { return &r.AllowInsecureHTTP }}
 	mergeFlag = flagDef{name: "--merge", desc: "Merge the pull request",
@@ -68,8 +87,6 @@ var (
 		bin: func(r *Request) *bool { return &r.Draft }}
 	prereleaseFlag = flagDef{name: "--prerelease", desc: "Mark the release as a prerelease",
 		bin: func(r *Request) *bool { return &r.Prerelease }}
-	yesFlag = flagDef{name: "--yes", desc: "Skip the confirmation prompt",
-		bin: func(r *Request) *bool { return &r.Yes }}
 	cleanupTagFlag = flagDef{name: "--cleanup-tag", desc: "Delete the tag along with the release",
 		bin: func(r *Request) *bool { return &r.CleanupTag }}
 	patternFlag = flagDef{name: "--pattern", arg: "<glob>", desc: "Download only assets that match the glob",

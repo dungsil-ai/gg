@@ -1055,7 +1055,7 @@ func TestParseRequestErrorMessages(t *testing.T) {
 		{[]string{"issue"}, "issue needs an action: list, view, create, comment, close, reopen"},
 		{[]string{"label"}, "label needs an action: list, create"},
 		{[]string{"pr"}, "pr needs an action: list, view, create, comment, comment list, comment edit, comment delete, status, ready, merge"},
-		{[]string{"repo"}, "repo needs an action: list, view, create, clone, commit, pull, push, add, am, archive, bisect, branch, bundle, checkout, cherry-pick, citool, clean, describe, diff, fetch, format-patch, gc, grep, gui, init, log, merge, mv, notes, range-diff, rebase, reset, restore, revert, rm, shortlog, show, sparse-checkout, stash, status, submodule, switch, tag, worktree, annotate, blame, bugreport, count-objects, diagnose, difftool, fsck, instaweb, maintenance, merge-tree, mergetool, prune-packed, rerere, scalar"},
+		{[]string{"repo"}, "repo needs an action: list, view, create, clone, fork, delete, edit, rename, sync, set-default, commit, pull, push, add, am, archive, bisect, branch, bundle, checkout, cherry-pick, citool, clean, describe, diff, fetch, format-patch, gc, grep, gui, init, log, merge, mv, notes, range-diff, rebase, reset, restore, revert, rm, shortlog, show, sparse-checkout, stash, status, submodule, switch, tag, worktree, annotate, blame, bugreport, count-objects, diagnose, difftool, fsck, instaweb, maintenance, merge-tree, mergetool, prune-packed, rerere, scalar"},
 		{[]string{"issue", "delete", "1"}, "issue does not support delete"},
 		{[]string{"label", "delete", "1"}, "label does not support delete"},
 		{[]string{"pr", "delete", "1"}, "pr does not support delete"},
