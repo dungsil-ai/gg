@@ -6,12 +6,12 @@ import (
 )
 
 // prResourceDef는 "pr" 최상위 명령의 정의다: list, view, create, comment(하위
-// list/edit/delete), status, ready, merge.
+// list/edit/delete), status, ready, merge, close, reopen.
 // alias: mr (command_registry.go의 commandAliases에서 연결).
 var prResourceDef = &resourceDef{
 	name:    "pr",
-	summary: "List, view, create, comment on, or merge pull requests, and check merge readiness (alias: mr)",
-	desc:    "List, view, create, comment on, or merge pull requests, and check merge readiness.",
+	summary: "List, view, create, comment on, merge, or close pull requests, and check merge readiness (alias: mr)",
+	desc:    "List, view, create, comment on, merge, or close pull requests, and check merge readiness.",
 	usage:   "gg pr <command> [flags]",
 	actions: []actionDef{
 		{
@@ -123,6 +123,22 @@ var prResourceDef = &resourceDef{
 				req.Number = pos[0]
 				return nil
 			},
+		},
+		{
+			name: "close", summary: "Close a pull request", usage: "gg pr close <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr close <number>",
+			setPos: setNumber,
+		},
+		{
+			name: "reopen", summary: "Reopen a closed pull request", usage: "gg pr reopen <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr reopen <number>",
+			setPos: setNumber,
 		},
 	},
 }
@@ -324,6 +340,28 @@ var prInvocationTable = map[string]providerBuilders{
 				args = append(args, "--when-pipeline-succeeds=false")
 			}
 			return append(args, c.target...), nil
+		},
+	},
+	"pr close": {
+		gh: func(c invocationContext) (args, env []string) {
+			return append([]string{"pr", "close", c.req.Number}, c.target...), nil
+		},
+		glab: func(c invocationContext) (args, env []string) {
+			return append([]string{c.res, "close", c.req.Number}, c.target...), nil
+		},
+		tea: func(c invocationContext) (args, env []string) {
+			return append([]string{c.res, "close", c.req.Number}, c.target...), nil
+		},
+	},
+	"pr reopen": {
+		gh: func(c invocationContext) (args, env []string) {
+			return append([]string{"pr", "reopen", c.req.Number}, c.target...), nil
+		},
+		glab: func(c invocationContext) (args, env []string) {
+			return append([]string{c.res, "reopen", c.req.Number}, c.target...), nil
+		},
+		tea: func(c invocationContext) (args, env []string) {
+			return append([]string{c.res, "reopen", c.req.Number}, c.target...), nil
 		},
 	},
 	"pr create": prCreateBuilders,
