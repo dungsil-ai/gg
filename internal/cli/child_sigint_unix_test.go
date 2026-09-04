@@ -21,11 +21,7 @@ import (
 // ensuring SIGINT reaches a process with the default disposition rather than
 // a shell wrapper.
 func TestExecChildSIGINTDefaultDisposition(t *testing.T) {
-	bin := filepath.Join(t.TempDir(), "gg")
-	out, err := exec.Command("go", "build", "-o", bin, "../..").CombinedOutput()
-	if err != nil {
-		t.Fatalf("build gg: %v\n%s", err, out)
-	}
+	bin := buildGG(t)
 
 	fakeDir := t.TempDir()
 	readyPath := filepath.Join(t.TempDir(), "fake-git-ready")
