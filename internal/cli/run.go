@@ -173,12 +173,29 @@ func resolvePlan(req Request) (executionPlan, error) {
 	if err != nil {
 		return executionPlan{}, err
 	}
+	// sub-issue와 blocked-by는 body로 numeric database id를 요구하므로 gh에
+	// 번호→id 조회를 미리 실행한다. explain은 실행 예고일 뿐이라 조회하지 않는다.
+	if p == GH && req.Resource == "issue" && !req.Explain {
+		switch req.Action {
+		case "sub-issue", "blocked-by":
+			number := req.Blocker
+			if req.Action == "sub-issue" {
+				number = req.Number
+			}
+			relatedID, err := ghIssueDatabaseID(repo, number)
+			if err != nil {
+				return executionPlan{}, err
+			}
+			req.RelatedID = relatedID
+		}
+	}
 	teaLogin := ""
-	// release 전체와 pr status/ready, pr comment list/edit/delete, label action은
-	// provider를 고른 뒤 미지원을 확정하므로 tea login을 묻지 않는다.
+	// release 전체와 pr status/ready, pr comment list/edit/delete, label action,
+	// issue 관계 등록은 provider를 고른 뒤 미지원을 확정하므로 tea login을 묻지 않는다.
 	unsupportedTeaAction := (req.Resource == "pr" && (req.Action == "status" || req.Action == "ready" ||
 		req.Action == "comment list" || req.Action == "comment edit" || req.Action == "comment delete")) ||
-		req.Resource == "label" || req.Resource == "release"
+		req.Resource == "label" || req.Resource == "release" ||
+		(req.Resource == "issue" && ghOnlyIssueActions[req.Action])
 	if p == Tea && req.Action != "clone" && !unsupportedTeaAction {
 		if teaLogin = teaLoginName(repo.Host); teaLogin == "" {
 			return executionPlan{}, fmt.Errorf("no tea login for %s (run: tea login add)", repo.Host)

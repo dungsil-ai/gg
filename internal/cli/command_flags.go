@@ -32,6 +32,14 @@ var (
 		str: func(r *Request) *string { return &r.Name }}
 	colorFlag = flagDef{name: "--color", arg: "<hex>", desc: "Set the label color",
 		str: func(r *Request) *string { return &r.Color }}
+	// issue type의 --name은 종류 이름이고 label create의 --name은 label 이름이다.
+	// label처럼 같은 flag 문자열을 action별 정의로 나눠 받는다.
+	issueTypeNameFlag = flagDef{name: "--name", arg: "<name>", desc: "Set the issue type name",
+		str: func(r *Request) *string { return &r.IssueType }}
+	parentFlag = flagDef{name: "--parent", arg: "<number>", desc: "Set the parent issue number",
+		str: func(r *Request) *string { return &r.Parent }}
+	blockerFlag = flagDef{name: "--blocker", arg: "<number>", desc: "Set the blocking issue number",
+		str: func(r *Request) *string { return &r.Blocker }}
 	publicFlag = flagDef{name: "--public", desc: "Create a public repository",
 		bin: func(r *Request) *bool { return &r.Public }}
 	privateFlag = flagDef{name: "--private", desc: "Create a private repository",
