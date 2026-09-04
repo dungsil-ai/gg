@@ -148,7 +148,7 @@ func TestTopLevelHelpContent(t *testing.T) {
 		"gg sends common Git forge commands to gh, glab, or tea, and runs supported Git commands directly.",
 		"List, view, create, or manage repositories, or run supported Git commands",
 		"gg [flags] <command>", "gg <supported-git-command> [git args]", "gg repo --help",
-		"gg config --help", "gg issue --help", "gg issue list --help", "gg pr create --help", "gg pr ready --help", "gg pr merge --help",
+		"gg config --help", "gg issue --help", "gg issue list --help", "gg pr create --help", "gg pr ready --help", "gg pr merge --help", "gg pr close --help", "gg pr reopen --help",
 		"--repo <URL>", "--remote <name>", "--explain", "-h, --help", "--version",
 		"--version         gg 버전만 표시",
 		"-v, -verison      단독 사용 시 gg와 설치된 git, gh, glab, tea 버전을 표시",

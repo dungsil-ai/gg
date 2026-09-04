@@ -236,7 +236,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 - `pr`
   - [ ] `gh pr checkout`
   - [ ] `gh pr checks`
-  - [ ] `gh pr close`
+  - [x] `gh pr close` (대응: `gg pr close`)
   - [x] `gh pr comment` (대응: `gg pr comment`; 조회·수정·삭제는 `gg pr comment list|edit|delete`로 `gh api` 중계)
   - [x] `gh pr create` (대응: `gg pr create`)
   - [ ] `gh pr diff`
@@ -245,7 +245,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `gh pr lock`
   - [x] `gh pr merge` (대응: `gg pr merge`)
   - [x] `gh pr ready` (대응: `gg pr ready`)
-  - [ ] `gh pr reopen`
+  - [x] `gh pr reopen` (대응: `gg pr reopen`)
   - [ ] `gh pr review`
   - [ ] `gh pr status`
   - [ ] `gh pr unlock`
@@ -429,7 +429,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `glab mr approve`
   - [ ] `glab mr approvers`
   - [ ] `glab mr checkout`
-  - [ ] `glab mr close`
+  - [x] `glab mr close` (대응: `gg pr close`)
   - [x] `glab mr create` (대응: `gg pr create`)
   - [ ] `glab mr delete`
   - [ ] `glab mr diff`
@@ -437,7 +437,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `glab mr merge` (대응: `gg pr merge`)
   - [x] `glab mr note` (대응: `gg pr comment`; `gg pr comment list|edit|delete`는 `glab api` 중계)
   - [ ] `glab mr rebase`
-  - [ ] `glab mr reopen`
+  - [x] `glab mr reopen` (대응: `gg pr reopen`)
   - [ ] `glab mr revoke`
   - [ ] `glab mr subscribe`
   - [ ] `glab mr todo`
@@ -583,13 +583,13 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `tea pulls approve`
   - [ ] `tea pulls checkout`
   - [ ] `tea pulls clean`
-  - [ ] `tea pulls close`
+  - [x] `tea pulls close` (대응: `gg pr close`)
   - [x] `tea pulls create` (대응: `gg pr create`)
   - [x] `tea pulls list` (대응: `gg pr list`)
   - [ ] `tea pulls merge`
   - [x] `tea pulls open` (대응: `gg pr view`)
   - [ ] `tea pulls reject`
-  - [ ] `tea pulls reopen`
+  - [x] `tea pulls reopen` (대응: `gg pr reopen`)
 - `releases`
   - [ ] `tea releases create`
   - [ ] `tea releases delete`
@@ -722,6 +722,27 @@ Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없�
   ```bash
   gg --repo https://github.com/owner/repo pr ready 42
   gg pr ready 42 --remote upstream --undo
+  ```
+
+#### PR / MR 닫기·다시 열기 (`gg pr close`, `gg pr reopen`)
+- PR 닫기:
+  ```bash
+  gg pr close 42
+  ```
+  - GitHub: `gh pr close 42 -R <owner>/<repo>` 호출
+  - GitLab: `glab mr close 42 --repo <URL>` 호출
+  - Gitea: `tea pulls close 42 ...` 호출
+- 닫은 PR 다시 열기:
+  ```bash
+  gg pr reopen 42
+  ```
+  - GitHub: `gh pr reopen 42 -R <owner>/<repo>` 호출
+  - GitLab: `glab mr reopen 42 --repo <URL>` 호출
+  - Gitea: `tea pulls reopen 42 ...` 호출
+- 저장소 문맥 플래그와 함께 사용:
+  ```bash
+  gg --repo https://github.com/owner/repo pr close 42
+  gg pr reopen 42 --remote upstream
   ```
 
 #### PR 댓글 입력·조회·수정·삭제 (`gg pr comment`)
