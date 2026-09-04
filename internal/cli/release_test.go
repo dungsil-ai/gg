@@ -378,6 +378,12 @@ func TestReleaseWorkflowGate(t *testing.T) {
 	if !strings.Contains(ciHeader, "branches:") || !strings.Contains(ciHeader, "- main") {
 		t.Error("ci.yml push 트리거에 branches main 항목이 없습니다")
 	}
+	// CI는 Go 유효 변경에만 반응한다. 문서·워크플로우 편집에는 go verify를 돌리지 않는다.
+	for _, expected := range []string{"paths:", "'**.go'", "'go.mod'", "'go.sum'"} {
+		if !strings.Contains(ciHeader, expected) {
+			t.Errorf("ci.yml 트리거에 Go 변경 경로 필터 %q가 없습니다", expected)
+		}
+	}
 	if strings.Contains(ciContent, "gh release create") {
 		t.Error("ci.yml에 GitHub Release 발행 스텝이 있습니다; release.yml로 분리해야 합니다")
 	}
