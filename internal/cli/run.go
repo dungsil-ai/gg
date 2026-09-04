@@ -139,6 +139,18 @@ func resolvePlan(req Request) (executionPlan, error) {
 			args = append(args, req.GitArgs...)
 			return executionPlan{inv: Invocation{Bin: "git", Args: args}}, nil
 		}
+		// set-default --unset/--view는 gh 설정의 조회·해제라 저장소 문맥이 필요
+		// 없다. git 저장소 밖에서도 동작해야 하므로 문맥 조회 전에 우회한다.
+		if req.Action == "set-default" && (req.Unset || req.View) {
+			args := []string{"repo", "set-default"}
+			if req.Unset {
+				args = append(args, "--unset")
+			}
+			if req.View {
+				args = append(args, "--view")
+			}
+			return executionPlan{inv: Invocation{Bin: "gh", Args: args}}, nil
+		}
 	}
 	if req.Action == "clone" && isHTTPURL(req.CloneURL) {
 		if !req.AllowInsecureHTTP {

@@ -146,7 +146,7 @@ func TestTopLevelHelpContent(t *testing.T) {
 	help := topLevelHelp()
 	wants := []string{
 		"gg sends common Git forge commands to gh, glab, or tea, and runs supported Git commands directly.",
-		"List, view, create, or clone repositories, or run supported Git commands",
+		"List, view, create, or manage repositories, or run supported Git commands",
 		"gg [flags] <command>", "gg <supported-git-command> [git args]", "gg repo --help",
 		"gg config --help", "gg issue --help", "gg issue list --help", "gg pr create --help", "gg pr ready --help", "gg pr merge --help",
 		"--repo <URL>", "--remote <name>", "--explain", "-h, --help", "--version",

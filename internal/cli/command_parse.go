@@ -27,9 +27,11 @@ type Request struct {
 	Name, Color                                              string
 	Tag, Notes, Ref, Pattern, Dir, Asset                     string // release: 태그, 노트, 태그 생성 기준 ref, download 필터·경로, asset 이름
 	Branch                                                   string
+	Source                                                   string // repo sync가 분기를 당겨 올 원본 저장소
 	Files                                                    []string
 	Draft, Undo, Public, Private, AllowInsecureHTTP, Explain bool
 	Yes, Prerelease, CleanupTag                              bool
+	Force, Unset, View                                       bool // repo sync 강제 동기화, repo set-default 해제·조회
 
 	Merge, Squash, Rebase bool
 	DeleteBranch, Auto    bool
