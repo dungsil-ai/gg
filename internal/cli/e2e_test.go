@@ -11,22 +11,68 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/gofrs/flock"
 )
 
-// buildGG는 gg를 임시 폴더에 build한다.
-func buildGG(t *testing.T) string {
-	t.Helper()
-	bin := filepath.Join(t.TempDir(), "gg")
+// sharedGGPath와 sharedProbePath는 각각 공유 빌드된 gg와 git 전달
+// probe 바이너리의 경로다. 빌드에 성공했을 때만 채워진다.
+var (
+	sharedGGPath    string
+	sharedProbePath string
+)
+
+// buildSharedGG는 gg를 공유 임시 폴더에 딱 한 번 빌드한다.
+// 빌드에 실패하면 panic하며, 이후 모든 호출에서 같은 panic 값이 다시
+// 발생한다. 빌드가 깨진 상태에서는 어떤 테스트도 의미가 없으므로 즉시
+// 전체를 실패시키는 편이 낫다.
+var buildSharedGG = sync.OnceFunc(func() {
+	dir, err := os.MkdirTemp("", "gg-test-build")
+	if err != nil {
+		panic(fmt.Sprintf("공유 임시 폴더 생성 실패: %v", err))
+	}
+	bin := filepath.Join(dir, "gg")
 	if runtime.GOOS == "windows" {
 		bin += ".exe"
 	}
 	out, err := exec.Command("go", "build", "-o", bin, "../..").CombinedOutput()
 	if err != nil {
-		t.Fatalf("build 실패: %v\n%s", err, out)
+		os.RemoveAll(dir)
+		panic(fmt.Sprintf("gg build 실패: %v\n%s", err, out))
+	}
+	sharedGGPath = bin
+})
+
+// TestMain은 테스트 종료 뒤 공유 빌드 임시 폴더를 정리한다.
+func TestMain(m *testing.M) {
+	code := m.Run()
+	for _, p := range []string{sharedGGPath, sharedProbePath} {
+		if p != "" {
+			os.RemoveAll(filepath.Dir(p))
+		}
+	}
+	os.Exit(code)
+}
+
+// buildGG는 미리 빌드한 gg를 각 테스트의 임시 폴더에 복사해 돌려준다.
+// 테스트마다 자기 TempDir 안에서 독립된 바이너리 경로를 갖는 기존 계약을
+// 유지하기 위해 복사한다(Windows 파일 잠금과 TempDir 정리 충돌을 피한다).
+func buildGG(t *testing.T) string {
+	t.Helper()
+	buildSharedGG()
+	bin := filepath.Join(t.TempDir(), "gg")
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
+	data, err := os.ReadFile(sharedGGPath)
+	if err != nil {
+		t.Fatalf("공유 gg 빌드 읽기 실패: %v", err)
+	}
+	if err := os.WriteFile(bin, data, 0o755); err != nil {
+		t.Fatalf("공유 gg 빌드 복사 실패: %v", err)
 	}
 	return bin
 }
@@ -47,11 +93,14 @@ func writeFakeBin(t *testing.T, dir, name, logFile string) {
 	}
 }
 
-// buildGitPassthroughProbe는 전달받은 argv를 JSON Lines로 기록하고 표준
-// 스트림을 중계 검증용으로 되돌린 뒤 종료 코드 23을 반환하는 fake git을 만든다.
-func buildGitPassthroughProbe(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
+// buildSharedProbe는 git 전달 검증용 probe를 공유 임시 폴더에 딱 한 번
+// 빌드한다. 빌드에 실패하면 panic하며, 이후 모든 호출에서 같은 panic 값이
+// 다시 발생한다.
+var buildSharedProbe = sync.OnceFunc(func() {
+	dir, err := os.MkdirTemp("", "gg-test-probe")
+	if err != nil {
+		panic(fmt.Sprintf("공유 probe 임시 폴더 생성 실패: %v", err))
+	}
 	sourcePath := filepath.Join(dir, "main.go")
 	const source = `package main
 
@@ -87,7 +136,8 @@ func main() {
 }
 `
 	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
-		t.Fatal(err)
+		os.RemoveAll(dir)
+		panic(fmt.Sprintf("probe 소스 쓰기 실패: %v", err))
 	}
 	bin := filepath.Join(dir, "git")
 	if runtime.GOOS == "windows" {
@@ -95,7 +145,29 @@ func main() {
 	}
 	out, err := exec.Command("go", "build", "-o", bin, sourcePath).CombinedOutput()
 	if err != nil {
-		t.Fatalf("fake git build 실패: %v\n%s", err, out)
+		os.RemoveAll(dir)
+		panic(fmt.Sprintf("fake git build 실패: %v\n%s", err, out))
+	}
+	sharedProbePath = bin
+})
+
+// buildGitPassthroughProbe는 전달받은 argv를 JSON Lines로 기록하고 표준
+// 스트림을 중계 검증용으로 되돌린 뒤 종료 코드 23을 반환하는 fake git을
+// 공유 빌드에서 각 테스트의 임시 폴더로 복사해 돌려준다.
+func buildGitPassthroughProbe(t *testing.T) string {
+	t.Helper()
+	buildSharedProbe()
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "git")
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
+	data, err := os.ReadFile(sharedProbePath)
+	if err != nil {
+		t.Fatalf("공유 probe 빌드 읽기 실패: %v", err)
+	}
+	if err := os.WriteFile(bin, data, 0o755); err != nil {
+		t.Fatalf("공유 probe 빌드 복사 실패: %v", err)
 	}
 	return bin
 }
