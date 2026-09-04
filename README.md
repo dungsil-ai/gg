@@ -237,7 +237,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `gh pr checkout`
   - [ ] `gh pr checks`
   - [ ] `gh pr close`
-  - [ ] `gh pr comment`
+  - [x] `gh pr comment` (대응: `gg pr comment`; 조회·수정·삭제는 `gg pr comment list|edit|delete`로 `gh api` 중계)
   - [x] `gh pr create` (대응: `gg pr create`)
   - [ ] `gh pr diff`
   - [ ] `gh pr edit`
@@ -435,7 +435,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `glab mr diff`
   - [x] `glab mr list` (대응: `gg pr list`)
   - [x] `glab mr merge` (대응: `gg pr merge`)
-  - [ ] `glab mr note`
+  - [x] `glab mr note` (대응: `gg pr comment`; `gg pr comment list|edit|delete`는 `glab api` 중계)
   - [ ] `glab mr rebase`
   - [ ] `glab mr reopen`
   - [ ] `glab mr revoke`
@@ -558,7 +558,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 ### 공통 핵심 명령 (Core Commands)
 - [x] `tea clone` (대응: `gg repo clone`, `gg clone`)
 - `comment`
-  - [x] `tea comment create` (대응: `gg issue comment`)
+  - [x] `tea comment create` (대응: `gg issue comment`, `gg pr comment`)
   - [ ] `tea comment list`
 - `issues`
   - [x] `tea issues close` (대응: `gg issue close`)
@@ -660,6 +660,8 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gg pr status` (GitHub, GitLab 지원; Gitea 미지원)
   - exit code 계약: 조회 자체가 실패할 때만 0이 아닌 exit code를 냅니다 — 하위 CLI(gh/glab) 미설치 시 127, 자식이 신호로 종료되면 128+신호 코드, 그 외 조회 실패 시 1. 조회 성공 시 병합 불가·CI 실패·승인 대기는 결과 값이며 exit 0입니다. CI 값 범위는 pass|fail|pending|none|unknown이고, NEUTRAL/SKIPPED 체크는 pass로 셉니다.
   - [x] `gg pr ready` (GitHub, GitLab 지원; Gitea 미지원)
+  - [x] `gg pr comment` (PR 댓글 입력; GitHub, GitLab, Gitea 지원)
+  - [x] `gg pr comment list` / `gg pr comment edit` / `gg pr comment delete` (PR 댓글 조회·수정·삭제; GitHub, GitLab 지원 — `gh api`/`glab api` 중계. Gitea 미지원)
   - [x] `gg mr` (`gg pr`의 alias)
 - `저장소 문맥`
   - [x] `--repo <URL>` (명시한 URL을 저장소 문맥으로 사용)
@@ -708,6 +710,34 @@ Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없�
   gg --repo https://github.com/owner/repo pr ready 42
   gg pr ready 42 --remote upstream --undo
   ```
+
+#### PR 댓글 입력·조회·수정·삭제 (`gg pr comment`)
+- PR에 댓글 달기:
+  ```bash
+  gg pr comment 42 --body "확인했습니다"
+  ```
+  - GitHub: `gh pr comment 42 --body "확인했습니다" -R <owner>/<repo>` 호출
+  - GitLab: `glab mr note 42 --message "확인했습니다" --repo <URL>` 호출
+  - Gitea: `tea comment 42 "확인했습니다" ...` 호출
+- 댓글 목록 조회 (댓글 ID는 JSON 출력의 `id` 필드):
+  ```bash
+  gg pr comment list 42
+  ```
+  - GitHub: `gh api repos/<owner>/<repo>/issues/42/comments` 호출
+  - GitLab: `glab api projects/<owner>%2F<repo>/merge_requests/42/notes` 호출
+  - Gitea: 미지원 오류(`pr comment list is not supported for tea`)가 반환됩니다
+- 댓글 수정:
+  ```bash
+  gg pr comment edit 42 1234 --body "수정했습니다"
+  ```
+  - GitHub: `gh api -X PATCH repos/<owner>/<repo>/issues/comments/1234 -f body="수정했습니다"` 호출
+  - GitLab: `glab api -X PUT projects/<owner>%2F<repo>/merge_requests/42/notes/1234 -f body="수정했습니다"` 호출
+- 댓글 삭제:
+  ```bash
+  gg pr comment delete 42 1234
+  ```
+  - GitHub: `gh api -X DELETE repos/<owner>/<repo>/issues/comments/1234` 호출
+  - GitLab: `glab api -X DELETE projects/<owner>%2F<repo>/merge_requests/42/notes/1234` 호출
 
 # TOBE
 

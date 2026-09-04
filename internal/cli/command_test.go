@@ -36,6 +36,14 @@ func TestParseRequest(t *testing.T) {
 			want: Request{Resource: "pr", Action: "list", State: "all", Limit: "3"}},
 		{name: "pr create full", args: []string{"pr", "create", "--title", "t", "--body", "b", "--base", "main", "--head", "f", "--draft"},
 			want: Request{Resource: "pr", Action: "create", Title: "t", Body: "b", Base: "main", Head: "f", Draft: true}},
+		{name: "pr comment", args: []string{"pr", "comment", "42", "--body", "hello world"},
+			want: Request{Resource: "pr", Action: "comment", Number: "42", Body: "hello world"}},
+		{name: "pr comment list", args: []string{"pr", "comment", "list", "42"},
+			want: Request{Resource: "pr", Action: "comment list", Number: "42"}},
+		{name: "pr comment edit", args: []string{"pr", "comment", "edit", "42", "77", "--body", "hello"},
+			want: Request{Resource: "pr", Action: "comment edit", Number: "42", CommentID: "77", Body: "hello"}},
+		{name: "pr comment delete", args: []string{"pr", "comment", "delete", "42", "77"},
+			want: Request{Resource: "pr", Action: "comment delete", Number: "42", CommentID: "77"}},
 		{name: "repo create", args: []string{"--repo", "https://gitea.com/o/r", "create", "--private", "--description", "d"},
 			want: Request{Resource: "repo", Action: "create", RepoFlag: "https://gitea.com/o/r", Private: true, Description: "d"}},
 		{name: "clone dir", args: []string{"clone", "https://github.com/o/r", "dst"},
@@ -399,13 +407,24 @@ func TestParseRequestErrors(t *testing.T) {
 		{"issue", "list", "--wat"},                // 알 수 없는 flag
 		{"pr", "list", "--state", "merged"},       // 지원 안 하는 state
 		{"pr", "create", "--title"},               // 값 없는 flag
-		{"label"},                                 // action 없음
-		{"label", "delete", "1"},                  // 지원 안 하는 action
-		{"label", "create"},                       // name 없음
-		{"label", "create", "--name", "  "},       // 공백 name
-		{"label", "create", "extra"},              // positional 인자
-		{"label", "list", "--wat"},                // 알 수 없는 flag
-		{"label", "create", "--name"},             // 값 없는 flag
+		{"pr", "comment"},                          // number 없음
+		{"pr", "comment", "1"},                     // body 없음
+		{"pr", "comment", "1", "--body", "   "},    // 공백 body
+		{"pr", "comment", "list"},                  // number 없음
+		{"pr", "comment", "list", "1", "2"},        // 인자 초과
+		{"pr", "comment", "edit"},                  // number와 comment-id 없음
+		{"pr", "comment", "edit", "1"},             // comment-id 없음
+		{"pr", "comment", "edit", "1", "2"},        // body 없음
+		{"pr", "comment", "delete"},                // number와 comment-id 없음
+		{"pr", "comment", "delete", "1"},           // comment-id 없음
+		{"pr", "comment", "delete", "1", "2", "3"}, // 인자 초과
+		{"label"},                                  // action 없음
+		{"label", "delete", "1"},                   // 지원 안 하는 action
+		{"label", "create"},                        // name 없음
+		{"label", "create", "--name", "  "},        // 공백 name
+		{"label", "create", "extra"},               // positional 인자
+		{"label", "list", "--wat"},                 // 알 수 없는 flag
+		{"label", "create", "--name"},              // 값 없는 flag
 		{"clone"},                                 // URL 없음
 		{"clone", "u", "d", "x"},                  // 인자 초과
 		{"create", "--public"},                    // --repo 없는 repo create
@@ -505,6 +524,22 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "pr", Action: "ready", Number: "7", Undo: true},
 			repo: gh, p: GH,
 			want: Invocation{Bin: "gh", Args: []string{"pr", "ready", "7", "--undo", "-R", "github.com/o/r"}}},
+		{name: "gh pr comment",
+			req:  Request{Resource: "pr", Action: "comment", Number: "18", Body: "hello"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"pr", "comment", "18", "--body", "hello", "-R", "github.com/o/r"}}},
+		{name: "gh pr comment list",
+			req:  Request{Resource: "pr", Action: "comment list", Number: "18"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"api", "repos/o/r/issues/18/comments"}, Env: []string{"GH_HOST=github.com"}}},
+		{name: "gh pr comment edit",
+			req:  Request{Resource: "pr", Action: "comment edit", Number: "18", CommentID: "77", Body: "hello"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"api", "-X", "PATCH", "repos/o/r/issues/comments/77", "-f", "body=hello"}, Env: []string{"GH_HOST=github.com"}}},
+		{name: "gh pr comment delete",
+			req:  Request{Resource: "pr", Action: "comment delete", Number: "18", CommentID: "77"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"api", "-X", "DELETE", "repos/o/r/issues/comments/77"}, Env: []string{"GH_HOST=github.com"}}},
 		{name: "gh repo list on GHE",
 			req:  Request{Resource: "repo", Action: "list", Limit: "3"},
 			repo: ghe, p: GH,
@@ -551,6 +586,22 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "pr", Action: "ready", Number: "7", Undo: true},
 			repo: gl, p: GLab,
 			want: Invocation{Bin: "glab", Args: []string{"mr", "update", "7", "--draft", "--repo", "https://git.example.com/grp/sub/p"}}},
+		{name: "glab pr comment",
+			req:  Request{Resource: "pr", Action: "comment", Number: "18", Body: "hello"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"mr", "note", "18", "--message", "hello", "--repo", "https://git.example.com/grp/sub/p"}}},
+		{name: "glab pr comment list",
+			req:  Request{Resource: "pr", Action: "comment list", Number: "18"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"api", "projects/grp%2Fsub%2Fp/merge_requests/18/notes"}, Env: []string{"GITLAB_HOST=git.example.com"}}},
+		{name: "glab pr comment edit",
+			req:  Request{Resource: "pr", Action: "comment edit", Number: "18", CommentID: "77", Body: "hello"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"api", "-X", "PUT", "projects/grp%2Fsub%2Fp/merge_requests/18/notes/77", "-f", "body=hello"}, Env: []string{"GITLAB_HOST=git.example.com"}}},
+		{name: "glab pr comment delete",
+			req:  Request{Resource: "pr", Action: "comment delete", Number: "18", CommentID: "77"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"api", "-X", "DELETE", "projects/grp%2Fsub%2Fp/merge_requests/18/notes/77"}, Env: []string{"GITLAB_HOST=git.example.com"}}},
 		{name: "glab issue view",
 			req:  Request{Resource: "issue", Action: "view", Number: "9"},
 			repo: gl, p: GLab,
@@ -609,6 +660,10 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "pr", Action: "create", Title: "t", Body: "b", Base: "main", Head: "f", Draft: true},
 			repo: te, p: Tea, tea: "corp",
 			want: Invocation{Bin: "tea", Args: []string{"pulls", "create", "--login", "corp", "--repo", "o/r", "--title", "t", "--description", "b", "--base", "main", "--head", "f", "--draft"}}},
+		{name: "tea pr comment",
+			req:  Request{Resource: "pr", Action: "comment", Number: "18", Body: "hello"},
+			repo: te, p: Tea, tea: "corp",
+			want: Invocation{Bin: "tea", Args: []string{"comment", "18", "hello", "--login", "corp", "--repo", "o/r"}}},
 		{name: "tea repo view",
 			req:  Request{Resource: "repo", Action: "view"},
 			repo: te, p: Tea, tea: "corp",
@@ -651,6 +706,24 @@ func TestTranslateTeaPRReadyUnsupported(t *testing.T) {
 	}
 	if usage.Msg != "pr ready is not supported for tea" {
 		t.Errorf("Tea 오류 = %q", usage.Msg)
+	}
+}
+
+func TestTranslateTeaPRCommentSubActionsUnsupported(t *testing.T) {
+	for _, action := range []string{"comment list", "comment edit", "comment delete"} {
+		_, err := Translate(
+			Request{Resource: "pr", Action: action, Number: "7", CommentID: "77"},
+			RepoURL{Host: "gitea.com", Owner: "o", Name: "r"},
+			Tea,
+			"",
+		)
+		var usage UsageError
+		if !errors.As(err, &usage) {
+			t.Fatalf("Translate(pr %s, tea): UsageError 기대, got %v", action, err)
+		}
+		if want := "pr " + action + " is not supported for tea"; usage.Msg != want {
+			t.Errorf("Tea 오류 = %q, want %q", usage.Msg, want)
+		}
 	}
 }
 
@@ -792,6 +865,25 @@ func TestPlanTeaReadyUnsupportedSkipsLogin(t *testing.T) {
 		t.Fatalf("plan(pr ready, tea): UsageError 기대, got %v", err)
 	}
 	if usage.Msg != "pr ready is not supported for tea" {
+		t.Errorf("Tea 오류 = %q", usage.Msg)
+	}
+}
+
+func TestPlanTeaPRCommentListUnsupportedSkipsLogin(t *testing.T) {
+	t.Setenv("GG_HOME", t.TempDir())
+	fakeExec(t, map[string]string{})
+
+	_, err := plan(Request{
+		Resource: "pr",
+		Action:   "comment list",
+		Number:   "7",
+		RepoFlag: "https://gitea.com/o/r",
+	})
+	var usage UsageError
+	if !errors.As(err, &usage) {
+		t.Fatalf("plan(pr comment list, tea): UsageError 기대, got %v", err)
+	}
+	if usage.Msg != "pr comment list is not supported for tea" {
 		t.Errorf("Tea 오류 = %q", usage.Msg)
 	}
 }
@@ -962,7 +1054,7 @@ func TestParseRequestErrorMessages(t *testing.T) {
 		{[]string{"config"}, "config needs an action: list, set, unset"},
 		{[]string{"issue"}, "issue needs an action: list, view, create, comment, close, reopen"},
 		{[]string{"label"}, "label needs an action: list, create"},
-		{[]string{"pr"}, "pr needs an action: list, view, create, status, ready, merge"},
+		{[]string{"pr"}, "pr needs an action: list, view, create, comment, comment list, comment edit, comment delete, status, ready, merge"},
 		{[]string{"repo"}, "repo needs an action: list, view, create, clone, commit, pull, push, add, am, archive, bisect, branch, bundle, checkout, cherry-pick, citool, clean, describe, diff, fetch, format-patch, gc, grep, gui, init, log, merge, mv, notes, range-diff, rebase, reset, restore, revert, rm, shortlog, show, sparse-checkout, stash, status, submodule, switch, tag, worktree, annotate, blame, bugreport, count-objects, diagnose, difftool, fsck, instaweb, maintenance, merge-tree, mergetool, prune-packed, rerere, scalar"},
 		{[]string{"issue", "delete", "1"}, "issue does not support delete"},
 		{[]string{"label", "delete", "1"}, "label does not support delete"},
@@ -974,6 +1066,12 @@ func TestParseRequestErrorMessages(t *testing.T) {
 		{[]string{"pr", "view"}, "usage: gg pr view <number>"},
 		{[]string{"issue", "close"}, "usage: gg issue close <number>"},
 		{[]string{"issue", "comment", "1"}, "usage: gg issue comment <number> --body <text>"},
+		{[]string{"pr", "comment", "1"}, "usage: gg pr comment <number> --body <text>"},
+		{[]string{"pr", "comment", "list"}, "usage: gg pr comment list <number>"},
+		{[]string{"pr", "comment", "list", "1", "2"}, "usage: gg pr comment list <number>"},
+		{[]string{"pr", "comment", "edit", "1"}, "usage: gg pr comment edit <number> <comment-id> --body <text>"},
+		{[]string{"pr", "comment", "edit", "1", "2"}, "usage: gg pr comment edit <number> <comment-id> --body <text>"},
+		{[]string{"pr", "comment", "delete", "1"}, "usage: gg pr comment delete <number> <comment-id>"},
 		{[]string{"pr", "merge"}, "usage: gg pr merge <number>"},
 		{[]string{"pr", "merge", "1", "--merge", "--squash"}, "--merge, --squash, --rebase are mutually exclusive; use at most one"},
 		{[]string{"clone", "https://x.com/o/r", "d", "x"}, "usage: gg clone <URL> [DIR]"},

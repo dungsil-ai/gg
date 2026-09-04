@@ -628,6 +628,10 @@ func TestE2ENestedHelp(t *testing.T) {
 		{[]string{"issue", "close", "--help"}, []string{"Usage:", "close <number>", "--repo", "--remote", "--help"}},
 		{[]string{"issue", "reopen", "--help"}, []string{"Usage:", "reopen <number>", "--repo", "--remote", "--help"}},
 		{[]string{"pr", "create", "--help"}, []string{"Usage:", "--title", "--body", "--base", "--head", "--draft", "--repo", "--remote", "--help"}},
+		{[]string{"pr", "comment", "--help"}, []string{"Usage:", "comment <number>", "--body", "--repo", "--remote", "--help"}},
+		{[]string{"pr", "comment", "list", "--help"}, []string{"Usage:", "comment list <number>", "--repo", "--remote", "--help"}},
+		{[]string{"pr", "comment", "edit", "--help"}, []string{"Usage:", "comment edit <number> <comment-id>", "--body", "--repo", "--remote", "--help"}},
+		{[]string{"pr", "comment", "delete", "--help"}, []string{"Usage:", "comment delete <number> <comment-id>", "--repo", "--remote", "--help"}},
 	}
 	for _, tt := range tests {
 		assertGGHelp(t, bin, tt.args, tt.want)
@@ -656,7 +660,9 @@ func TestE2EAllActionHelp(t *testing.T) {
 			if name == "repo" && isGitPassthroughAction(ad.name) {
 				continue
 			}
-			stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), name, ad.name, "--help")
+			// 2단어 action(pr comment list 등)은 토큰으로 분리해 호출한다.
+			actionArgs := append(append([]string{name}, strings.Fields(ad.name)...), "--help")
+			stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), actionArgs...)
 			if code != 0 || stderr != "" {
 				t.Errorf("gg %s %s --help = stderr %q, exit %d", name, ad.name, stderr, code)
 				continue
@@ -994,13 +1000,15 @@ func TestE2EPRCommandAliasMatchesCanonicalCommand(t *testing.T) {
 	})
 
 	t.Run("nested help", func(t *testing.T) {
-		actions := []string{"create", "status", "ready", "merge"}
+		actions := [][]string{{"create"}, {"status"}, {"ready"}, {"merge"}, {"comment"}, {"comment", "list"}}
 		for _, action := range actions {
-			t.Run(action, func(t *testing.T) {
-				canonicalOut, canonicalErr, canonicalCode := runGGStreams(t, bin, repo, "pr", action, "--help")
-				aliasOut, aliasErr, aliasCode := runGGStreams(t, bin, repo, "mr", action, "--help")
+			t.Run(strings.Join(action, " "), func(t *testing.T) {
+				canonicalArgs := append(append([]string{"pr"}, action...), "--help")
+				aliasArgs := append(append([]string{"mr"}, action...), "--help")
+				canonicalOut, canonicalErr, canonicalCode := runGGStreams(t, bin, repo, canonicalArgs...)
+				aliasOut, aliasErr, aliasCode := runGGStreams(t, bin, repo, aliasArgs...)
 				if aliasOut != canonicalOut || aliasErr != canonicalErr || aliasCode != canonicalCode {
-					t.Errorf("gg mr %s --help = stdout %q, stderr %q, exit %d; want gg pr %s --help = stdout %q, stderr %q, exit %d", action, aliasOut, aliasErr, aliasCode, action, canonicalOut, canonicalErr, canonicalCode)
+					t.Errorf("gg mr %v --help = stdout %q, stderr %q, exit %d; want gg pr %v --help = stdout %q, stderr %q, exit %d", action, aliasOut, aliasErr, aliasCode, action, canonicalOut, canonicalErr, canonicalCode)
 				}
 			})
 		}

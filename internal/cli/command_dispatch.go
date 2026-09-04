@@ -125,6 +125,10 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	if req.Resource == "release" {
 		return Invocation{}, usageErr("release is not supported for tea")
 	}
+	// tea는 PR 댓글 추가만 지원하고 목록/수정/삭제 명령이 없다.
+	if req.Resource == "pr" && (req.Action == "comment list" || req.Action == "comment edit" || req.Action == "comment delete") {
+		return Invocation{}, usageErr("pr " + req.Action + " is not supported for tea")
+	}
 	var res string
 	switch req.Resource {
 	case "repo":

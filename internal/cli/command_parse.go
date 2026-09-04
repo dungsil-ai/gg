@@ -17,6 +17,7 @@ type Request struct {
 	RepoFlag                   string // --repo 값
 	RemoteFlag                 string // --remote 값
 	Number                     string // issue/pr 대상 번호
+	CommentID                  string // pr comment edit/delete의 댓글 ID
 	CloneURL                   string
 	CloneDir                   string
 	GitArgs                    []string // passthrough action은 검사 없이 git으로 전달
@@ -63,14 +64,19 @@ globalFlags:
 	var ad *actionDef
 	if rd, ok := commandDefs[head]; ok {
 		req.Resource = head
-		if aliasAction != "" {
-			req.Action = aliasAction
-		} else {
-			if len(rest) == 0 {
-				return req, usageErr(needsAction(head, rd))
+			if aliasAction != "" {
+				req.Action = aliasAction
+			} else {
+				if len(rest) == 0 {
+					return req, usageErr(needsAction(head, rd))
+				}
+				req.Action, rest = rest[0], rest[1:]
+				// 2단어 action(pr comment list 등)은 이어지는 토큰을 action에 합친다.
+				if len(rest) > 0 && rd.action(req.Action+" "+rest[0]) != nil {
+					req.Action += " " + rest[0]
+					rest = rest[1:]
+				}
 			}
-			req.Action, rest = rest[0], rest[1:]
-		}
 		if ad = rd.action(req.Action); ad == nil {
 			return req, usageErr(head + " does not support " + req.Action)
 		}
