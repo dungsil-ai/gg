@@ -311,21 +311,22 @@ func TestREADMEContent(t *testing.T) {
 }
 
 func TestReleaseWorkflowGate(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", ".github", "workflows", "ci.yml"))
-	if err != nil {
-		t.Fatalf("ci.yml 읽기 실패: %v", err)
+	splitWorkflow := func(path, name string) (string, string, string) {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("%s 읽기 실패: %v", name, err)
+		}
+		content := strings.ReplaceAll(string(data), "\r\n", "\n")
+		jobsIdx := strings.Index(content, "\njobs:\n")
+		if jobsIdx == -1 {
+			t.Fatalf("%s에 jobs 섹션이 없습니다", name)
+		}
+		headerBlock := content[:jobsIdx]
+		jobsContent := content[jobsIdx+len("\njobs:\n"):]
+		return content, headerBlock, jobsContent
 	}
-	content := strings.ReplaceAll(string(data), "\r\n", "\n")
 
-	// 1. jobs 섹션 및 잡별 블록 추출
-	jobsIdx := strings.Index(content, "\njobs:\n")
-	if jobsIdx == -1 {
-		t.Fatalf("ci.yml에 jobs 섹션이 없습니다")
-	}
-	headerBlock := content[:jobsIdx]
-	jobsContent := content[jobsIdx+len("\njobs:\n"):]
-
-	extractJobBlock := func(jobName string) (string, error) {
+	extractJobBlock := func(jobsContent, jobName string) (string, error) {
 		lines := strings.Split(jobsContent, "\n")
 		var jobLines []string
 		inJob := false
@@ -352,35 +353,109 @@ func TestReleaseWorkflowGate(t *testing.T) {
 		return strings.Join(jobLines, "\n"), nil
 	}
 
-	verifyBlock, err := extractJobBlock("verify")
+	ciPath := filepath.Join("..", "..", ".github", "workflows", "ci.yml")
+	releasePath := filepath.Join("..", "..", ".github", "workflows", "release.yml")
+	ciContent, ciHeader, ciJobs := splitWorkflow(ciPath, "ci.yml")
+	releaseContent, releaseHeader, releaseJobs := splitWorkflow(releasePath, "release.yml")
+
+	// 1. CI는 검증 전용이며 tag 트리거와 release 잡을 갖지 않는다.
+	ciVerifyBlock, err := extractJobBlock(ciJobs, "verify")
 	if err != nil {
-		t.Fatalf("verify 잡 추출 실패: %v", err)
+		t.Fatalf("ci.yml verify 잡 추출 실패: %v", err)
 	}
-	releaseBlock, err := extractJobBlock("release")
+	if _, err := extractJobBlock(ciJobs, "release"); err == nil {
+		t.Error("ci.yml에 release 잡이 있습니다; 릴리즈는 release.yml로 분리해야 합니다")
+	}
+	if strings.Contains(ciHeader, "tags:") {
+		t.Error("ci.yml에 tags 트리거가 있습니다; tag push는 release.yml에서만 받아야 합니다")
+	}
+	if strings.Contains(ciHeader, "workflow_dispatch:") {
+		t.Error("ci.yml에 workflow_dispatch 트리거가 있습니다; 수동 실행은 release.yml에서만 받아야 합니다")
+	}
+	if !strings.Contains(ciHeader, "pull_request:") {
+		t.Error("ci.yml에 pull_request 트리거가 없습니다")
+	}
+	if !strings.Contains(ciHeader, "branches:") || !strings.Contains(ciHeader, "- main") {
+		t.Error("ci.yml push 트리거에 branches main 항목이 없습니다")
+	}
+	if strings.Contains(ciContent, "gh release create") {
+		t.Error("ci.yml에 GitHub Release 발행 스텝이 있습니다; release.yml로 분리해야 합니다")
+	}
+	if strings.Contains(ciContent, "immutable-releases") || strings.Contains(ciContent, "RELEASE_ADMIN_TOKEN") {
+		t.Error("ci.yml에 릴리즈 gate가 있습니다; release.yml로 분리해야 합니다")
+	}
+
+	// 2. release.yml은 tag push와 workflow_dispatch만 받는다.
+	if !strings.Contains(releaseHeader, "tags:") || !strings.Contains(releaseHeader, `"v*"`) {
+		t.Error("release.yml push 트리거에 tags v* 항목이 없습니다")
+	}
+	if !strings.Contains(releaseHeader, "workflow_dispatch:") {
+		t.Error("release.yml에 workflow_dispatch 트리거가 없습니다")
+	}
+	if !strings.Contains(releaseHeader, "inputs:") || !strings.Contains(releaseHeader, "tag:") {
+		t.Error("release.yml workflow_dispatch에 tag 입력이 없습니다")
+	}
+	if !strings.Contains(releaseHeader, "required: true") {
+		t.Error("release.yml workflow_dispatch tag 입력은 required: true여야 합니다")
+	}
+	if strings.Contains(releaseHeader, "branches:") {
+		t.Error("release.yml에 branches 트리거가 있습니다; tag 및 workflow_dispatch만 받아야 합니다")
+	}
+	if strings.Contains(releaseHeader, "pull_request:") {
+		t.Error("release.yml에 pull_request 트리거가 있습니다; tag 및 workflow_dispatch만 받아야 합니다")
+	}
+
+	releaseVerifyBlock, err := extractJobBlock(releaseJobs, "verify")
 	if err != nil {
-		t.Fatalf("release 잡 추출 실패: %v", err)
+		t.Fatalf("release.yml verify 잡 추출 실패: %v", err)
 	}
-	// 2. tag push는 전달 신호이며, release 잡이 전용 release 커밋과 tag를 검증한다.
-	if !strings.Contains(headerBlock, `tags:`) || !strings.Contains(headerBlock, `"v*"`) {
-		t.Errorf("ci.yml push 트리거에 tags v* 항목이 없습니다")
+	releaseBlock, err := extractJobBlock(releaseJobs, "release")
+	if err != nil {
+		t.Fatalf("release.yml release 잡 추출 실패: %v", err)
 	}
 
 	// 3. verify 잡 계약: OS 매트릭스 및 테스트/vet 검증
 	for _, expected := range []string{"ubuntu-latest", "windows-latest", "go vet ./...", "go test ./..."} {
-		if !strings.Contains(verifyBlock, expected) {
-			t.Errorf("verify 잡 블록에 필수 항목 %q가 없습니다", expected)
+		if !strings.Contains(ciVerifyBlock, expected) {
+			t.Errorf("ci.yml verify 잡 블록에 필수 항목 %q가 없습니다", expected)
+		}
+		if !strings.Contains(releaseVerifyBlock, expected) {
+			t.Errorf("release.yml verify 잡 블록에 필수 항목 %q가 없습니다", expected)
+		}
+	}
+	// release.yml verify는 dispatch 입력 tag를 체크아웃해야 한다.
+	for _, expected := range []string{
+		"inputs.tag",
+		"github.event_name == 'workflow_dispatch'",
+	} {
+		if !strings.Contains(releaseVerifyBlock, expected) {
+			t.Errorf("release.yml verify 잡에 dispatch tag 체크아웃 설정 %q가 없습니다", expected)
 		}
 	}
 
 	// 4. release 잡은 필요한 실행 환경과 verify 의존성을 가져야 한다.
 	for _, expected := range []string{
 		"needs: verify",
-		"if: startsWith(github.ref, 'refs/tags/v')",
 		"contents: write",
 		"fetch-depth: 0",
 	} {
 		if !strings.Contains(releaseBlock, expected) {
 			t.Errorf("release 잡 블록에 필수 설정 %q가 없습니다", expected)
+		}
+	}
+	if strings.Contains(releaseBlock, "if: startsWith(github.ref, 'refs/tags/v')") {
+		t.Error("release 잡에 push 전용 조건(if: startsWith(github.ref, ...))이 있습니다; workflow_dispatch 실행이 차단됩니다")
+	}
+	// tag push와 dispatch 입력을 하나의 resolved tag로 합친다.
+	for _, expected := range []string{
+		"inputs.tag",
+		"github.ref_name",
+		"steps.release_tag.outputs.tag",
+		"Resolve release tag",
+		"id: release_tag",
+	} {
+		if !strings.Contains(releaseBlock, expected) {
+			t.Errorf("release 잡에 tag 해소 설정 %q가 없습니다", expected)
 		}
 	}
 
@@ -479,11 +554,14 @@ func TestReleaseWorkflowGate(t *testing.T) {
 	} else if publishStepIdx != -1 && buildStepIdx >= publishStepIdx {
 		t.Error("release 잡에서 빌드/패키징 스텝이 배포 스텝보다 먼저 실행되어야 합니다")
 	}
-	if !strings.Contains(releaseBlock, "GG_RELEASE_OUT_DIR: dist") || !strings.Contains(releaseBlock, "GG_RELEASE_VERSION: ${{ github.ref_name }}") {
+	if !strings.Contains(releaseBlock, "GG_RELEASE_OUT_DIR: dist") || !strings.Contains(releaseBlock, "GG_RELEASE_VERSION: ${{ steps.release_tag.outputs.tag }}") {
 		t.Errorf("release 잡 빌드 스텝에 환경 변수 설정(GG_RELEASE_OUT_DIR, GG_RELEASE_VERSION)이 누락되었습니다")
 	}
 	if !strings.Contains(releaseBlock, "--verify-tag") {
 		t.Error("release 잡 배포 명령이 기존 tag 검증(--verify-tag)을 하지 않습니다")
+	}
+	if !strings.Contains(releaseBlock, `gh release create "${{ steps.release_tag.outputs.tag }}"`) {
+		t.Error("release 잡 배포 명령이 해소된 tag(steps.release_tag.outputs.tag)로 게시하지 않습니다")
 	}
 
 	// 7. 범위 외 요소 및 기존 release/asset을 바꾸는 옵션은 금지한다.
@@ -504,8 +582,11 @@ func TestReleaseWorkflowGate(t *testing.T) {
 	}
 
 	for _, item := range forbiddenItems {
-		if strings.Contains(strings.ToLower(content), strings.ToLower(item.pattern)) {
+		if strings.Contains(strings.ToLower(ciContent), strings.ToLower(item.pattern)) {
 			t.Errorf("ci.yml에 허용되지 않는 항목(%s: %q)이 포함되어 있습니다", item.reason, item.pattern)
+		}
+		if strings.Contains(strings.ToLower(releaseContent), strings.ToLower(item.pattern)) {
+			t.Errorf("release.yml에 허용되지 않는 항목(%s: %q)이 포함되어 있습니다", item.reason, item.pattern)
 		}
 	}
 }
