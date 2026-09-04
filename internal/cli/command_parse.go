@@ -12,11 +12,11 @@ func usageErr(m string) error      { return UsageError{Msg: m} }
 
 // Request는 파싱된 공통 명령이다.
 type Request struct {
-	Resource                   string // "repo" | "issue" | "pr" | "release" | "config"
+	Resource                   string // "repo" | "issue" | "label" | "pr" | "release" | "ci" | "config"
 	Action                     string // resource action 또는 Git passthrough action
 	RepoFlag                   string // --repo 값
 	RemoteFlag                 string // --remote 값
-	Number                     string // issue/pr 대상 번호
+	Number                     string // issue/pr/ci 대상 번호
 	CommentID                  string // pr comment edit/delete의 댓글 ID
 	CloneURL                   string
 	CloneDir                   string
@@ -26,6 +26,7 @@ type Request struct {
 	Title, Body, Base, Head, State, Limit, Description       string
 	Name, Color                                              string
 	Tag, Notes, Ref, Pattern, Dir, Asset                     string // release: 태그, 노트, 태그 생성 기준 ref, download 필터·경로, asset 이름
+	Branch                                                   string
 	Files                                                    []string
 	Draft, Undo, Public, Private, AllowInsecureHTTP, Explain bool
 	Yes, Prerelease, CleanupTag                              bool
