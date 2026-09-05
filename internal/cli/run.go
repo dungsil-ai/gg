@@ -208,7 +208,7 @@ func resolvePlan(req Request) (executionPlan, error) {
 	unsupportedTeaAction := (req.Resource == "pr" && (req.Action == "status" || req.Action == "ready" ||
 		req.Action == "comment list" || req.Action == "comment edit" || req.Action == "comment delete")) ||
 		req.Resource == "label" || req.Resource == "release" || req.Resource == "ci" ||
-		(req.Resource == "issue" && (ghOnlyIssueActions[req.Action] ||
+		(req.Resource == "issue" && (ghOnlyIssueActions[req.Action] || req.Action == "edit" ||
 			req.Action == "comment list" || req.Action == "comment edit" || req.Action == "comment delete"))
 	if p == Tea && req.Action != "clone" && !unsupportedTeaAction {
 		if teaLogin = teaLoginName(repo.Host); teaLogin == "" {

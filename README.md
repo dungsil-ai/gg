@@ -217,7 +217,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gh issue create` (대응: `gg issue create`)
   - [ ] `gh issue delete`
   - [ ] `gh issue develop`
-  - [ ] `gh issue edit`
+  - [x] `gh issue edit` (대응: `gg issue edit`)
   - [x] `gh issue list` (대응: `gg issue list`)
   - [ ] `gh issue lock`
   - [ ] `gh issue pin`
@@ -420,7 +420,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `glab issue subscribe`
   - [ ] `glab issue todo`
   - [ ] `glab issue unsubscribe`
-  - [ ] `glab issue update`
+  - [x] `glab issue update` (대응: `gg issue edit`)
   - [x] `glab issue view` (대응: `gg issue view`)
 - `label`
   - [x] `glab label create` (대응: `gg label create`)
@@ -775,6 +775,22 @@ Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없�
   ```
   - GitHub: `gh api -X DELETE repos/<owner>/<repo>/issues/comments/1234` 호출
   - GitLab: `glab api -X DELETE projects/<owner>%2F<repo>/merge_requests/42/notes/1234` 호출
+
+#### Issue 제목·본문 수정 (`gg issue edit`)
+- 이슈 제목과 본문 수정:
+  ```bash
+  gg issue edit 42 --title "새 제목" --body "새 본문"
+  ```
+  - GitHub: `gh issue edit 42 -R <owner>/<repo> --title "새 제목" --body "새 본문"` 호출
+  - GitLab: `glab issue update 42 --repo <URL> --title "새 제목" --description "새 본문"` 호출
+- `--title`과 `--body` 중 최소 하나는 필요합니다.
+- Gitea (`tea`):
+  - `tea` CLI에는 이슈 수정 명령이 없으므로 미지원 오류(`issue edit is not supported for tea`)가 반환됩니다.
+- 저장소 문맥 플래그와 함께 사용:
+  ```bash
+  gg --repo https://github.com/owner/repo issue edit 42 --title "새 제목"
+  gg issue edit 42 --body "새 본문" --remote upstream
+  ```
 
 #### Issue 관계 등록 (`gg issue sub-issue`, `gg issue blocked-by`, `gg issue type`)
 - 이슈를 parent의 sub-issue로 등록:
