@@ -7,8 +7,9 @@ import (
 	"strings"
 )
 
-// issueResourceDef는 "issue" 최상위 명령의 정의다: list, view, create, comment,
-// close, reopen과 관계 등록(sub-issue, blocked-by, type).
+// issueResourceDef는 "issue" 최상위 명령의 정의다: list, view, create,
+// comment(하위 list/edit/delete), close, reopen과 관계 등록(sub-issue,
+// blocked-by, type).
 var issueResourceDef = &resourceDef{
 	name:    "issue",
 	summary: "List, view, create, comment, close, reopen, or link issues",
@@ -48,6 +49,42 @@ var issueResourceDef = &resourceDef{
 					return usageErr("usage: gg issue comment <number> --body <text>")
 				}
 				req.Number = pos[0]
+				return nil
+			},
+		},
+		{
+			name: "comment list", summary: "List comments on an issue", usage: "gg issue comment list <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg issue comment list <number>",
+			setPos: setNumber,
+		},
+		{
+			name: "comment edit", summary: "Edit a comment on an issue", usage: "gg issue comment edit <number> <comment-id> [flags]",
+			flags:    []flagDef{bodyFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 2, maxPos: 2,
+			posErr: "usage: gg issue comment edit <number> <comment-id> --body <text>",
+			setPos: func(req *Request, pos []string) error {
+				if strings.TrimSpace(req.Body) == "" {
+					return usageErr("usage: gg issue comment edit <number> <comment-id> --body <text>")
+				}
+				req.Number = pos[0]
+				req.CommentID = pos[1]
+				return nil
+			},
+		},
+		{
+			name: "comment delete", summary: "Delete a comment on an issue", usage: "gg issue comment delete <number> <comment-id> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 2, maxPos: 2,
+			posErr: "usage: gg issue comment delete <number> <comment-id>",
+			setPos: func(req *Request, pos []string) error {
+				req.Number = pos[0]
+				req.CommentID = pos[1]
 				return nil
 			},
 		},
@@ -283,6 +320,42 @@ func childErrorDetail(err error) string {
 	return "unknown error"
 }
 
+// issueCommentListBuilders는 이슈 댓글 목록을 조회한다. GitHub의 이슈 댓글은 PR
+// 대화 댓글과 같은 endpoint를 공유하고, GitLab은 issue note API를 쓴다.
+// gh/glab의 api 하위 명령은 --repo flag가 없으므로 호스트는 Env로 전달한다.
+var issueCommentListBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = []string{"api", "repos/" + c.r.Slug() + "/issues/" + c.req.Number + "/comments"}
+		return args, []string{"GH_HOST=" + c.r.Host}
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		args = []string{"api", "projects/" + glabProjectPath(c.r) + "/issues/" + c.req.Number + "/notes"}
+		return args, []string{"GITLAB_HOST=" + c.r.Host}
+	},
+}
+
+var issueCommentEditBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = []string{"api", "-X", "PATCH", "repos/" + c.r.Slug() + "/issues/comments/" + c.req.CommentID, "-f", "body=" + c.req.Body}
+		return args, []string{"GH_HOST=" + c.r.Host}
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		args = []string{"api", "-X", "PUT", "projects/" + glabProjectPath(c.r) + "/issues/" + c.req.Number + "/notes/" + c.req.CommentID, "-f", "body=" + c.req.Body}
+		return args, []string{"GITLAB_HOST=" + c.r.Host}
+	},
+}
+
+var issueCommentDeleteBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = []string{"api", "-X", "DELETE", "repos/" + c.r.Slug() + "/issues/comments/" + c.req.CommentID}
+		return args, []string{"GH_HOST=" + c.r.Host}
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		args = []string{"api", "-X", "DELETE", "projects/" + glabProjectPath(c.r) + "/issues/" + c.req.Number + "/notes/" + c.req.CommentID}
+		return args, []string{"GITLAB_HOST=" + c.r.Host}
+	},
+}
+
 // issueInvocationTable은 "issue <action>" 키로 gh/glab/tea의 arg-builder를 모은다.
 var issueInvocationTable = map[string]providerBuilders{
 	"issue list": issueListBuilders,
@@ -298,10 +371,13 @@ var issueInvocationTable = map[string]providerBuilders{
 			return append([]string{"comment", c.req.Number, c.req.Body}, c.target...), nil
 		},
 	},
-	"issue close":      issueCloseReopenBuilders,
-	"issue reopen":     issueCloseReopenBuilders,
-	"issue create":     issueCreateBuilders,
-	"issue sub-issue":  issueSubIssueBuilders,
-	"issue blocked-by": issueBlockedByBuilders,
-	"issue type":       issueTypeBuilders,
+	"issue comment list":   issueCommentListBuilders,
+	"issue comment edit":   issueCommentEditBuilders,
+	"issue comment delete": issueCommentDeleteBuilders,
+	"issue close":          issueCloseReopenBuilders,
+	"issue reopen":         issueCloseReopenBuilders,
+	"issue create":         issueCreateBuilders,
+	"issue sub-issue":      issueSubIssueBuilders,
+	"issue blocked-by":     issueBlockedByBuilders,
+	"issue type":           issueTypeBuilders,
 }

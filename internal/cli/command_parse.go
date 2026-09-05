@@ -17,7 +17,7 @@ type Request struct {
 	RepoFlag                   string // --repo 값
 	RemoteFlag                 string // --remote 값
 	Number                     string // issue/pr/ci 대상 번호
-	CommentID                  string // pr comment edit/delete의 댓글 ID
+	CommentID                  string // pr·issue comment edit/delete의 댓글 ID
 	CloneURL                   string
 	CloneDir                   string
 	GitArgs                    []string // passthrough action은 검사 없이 git으로 전달
