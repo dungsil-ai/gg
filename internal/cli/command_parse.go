@@ -12,7 +12,7 @@ func usageErr(m string) error      { return UsageError{Msg: m} }
 
 // Request는 파싱된 공통 명령이다.
 type Request struct {
-	Resource                   string // "repo" | "issue" | "label" | "pr" | "release" | "ci" | "config"
+	Resource                   string // "repo" | "issue" | "label" | "pr" | "release" | "ci" | "auth" | "config"
 	Action                     string // resource action 또는 Git passthrough action
 	RepoFlag                   string // --repo 값
 	RemoteFlag                 string // --remote 값
@@ -105,6 +105,20 @@ globalFlags:
 	}
 	if req.Explain && !ad.explainOK {
 		return req, usageErr("--explain is not supported for " + req.Resource + " " + req.Action)
+	}
+	// auth는 forge 명령이 아니므로 저장소 문맥과 설명 모드가 없다(ADR 0006).
+	// 문맥 flag는 Forge 대상 저장소를 고르는 수단인데 auth status의 조회 대상은
+	// Provider 설정과 기본 domain 목록이다.
+	if req.Resource == "auth" {
+		if req.RepoFlag != "" {
+			return req, usageErr("--repo is not supported for " + req.Resource + " " + req.Action)
+		}
+		if req.RemoteFlag != "" {
+			return req, usageErr("--remote is not supported for " + req.Resource + " " + req.Action)
+		}
+		if req.Explain {
+			return req, usageErr("--explain is not supported for " + req.Resource + " " + req.Action)
+		}
 	}
 	return req, nil
 }

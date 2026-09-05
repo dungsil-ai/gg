@@ -145,23 +145,49 @@ var defaultProviders = map[string]Provider{
 
 func hasBin(p Provider) bool { _, err := lookPath(string(p)); return err == nil }
 
-func ghHasLogin(host string) bool {
+// ghLoginName은 host에 로그인한 gh 계정 이름을 돌려준다. host가 hosts JSON에
+// 없거나 조회에 실패하면 ok가 false다. host당 여러 계정이 있으면 활성 계정을,
+// 활성 계정이 없으면 첫 계정을 쓴다. 계정 목록을 읽을 수 없어도 host 키만
+// 있으면 로그인으로 본다(hasLogin의 기존 계약).
+func ghLoginName(host string) (string, bool) {
 	out, err := runOut("gh", "auth", "status", "--hostname", host, "--json", "hosts")
 	if err != nil {
-		return false
+		return "", false
 	}
 	var v struct {
 		Hosts map[string]json.RawMessage `json:"hosts"`
 	}
 	if json.Unmarshal([]byte(out), &v) != nil {
-		return false
+		return "", false
 	}
-	for h := range v.Hosts {
-		if strings.EqualFold(h, host) {
-			return true
+	for h, raw := range v.Hosts {
+		if !strings.EqualFold(h, host) {
+			continue
 		}
+		var accounts []struct {
+			Login  string `json:"login"`
+			Active bool   `json:"active"`
+		}
+		if json.Unmarshal(raw, &accounts) != nil {
+			return "", true
+		}
+		name := ""
+		for _, a := range accounts {
+			if a.Active {
+				return a.Login, true
+			}
+			if name == "" {
+				name = a.Login
+			}
+		}
+		return name, true
 	}
-	return false
+	return "", false
+}
+
+func ghHasLogin(host string) bool {
+	_, ok := ghLoginName(host)
+	return ok
 }
 
 func glabHasLogin(host string) bool {

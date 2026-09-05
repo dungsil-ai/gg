@@ -208,7 +208,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `gh auth logout`
   - [ ] `gh auth refresh`
   - [ ] `gh auth setup-git`
-  - [ ] `gh auth status`
+  - [x] `gh auth status` (대응: `gg auth status`)
   - [ ] `gh auth switch`
   - [ ] `gh auth token`
 - `issue`
@@ -408,7 +408,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 - `auth`
   - [ ] `glab auth login`
   - [ ] `glab auth logout`
-  - [ ] `glab auth status`
+  - [x] `glab auth status` (대응: `gg auth status`)
 - `issue`
   - [ ] `glab issue board`
   - [x] `glab issue close` (대응: `gg issue close`)
@@ -657,6 +657,9 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 
 ## gg 고유 기능 목록
 
+- `auth`
+  - [x] `gg auth status` (provider 설정 host와 기본 domain의 로그인 상태를 한 표로 조회; gh, glab, tea 지원)
+  - exit code 계약: 표 조회 자체가 실패할 때만 0이 아닌 exit code를 냅니다 — 손상된 config.json 읽기 시 1. 행별 `no`·`no cli`는 결과 값이며 exit 0입니다.
 - `pr`
   - [x] `gg pr status` (GitHub, GitLab 지원; Gitea 미지원)
   - exit code 계약: 조회 자체가 실패할 때만 0이 아닌 exit code를 냅니다 — 하위 CLI(gh/glab) 미설치 시 127, 자식이 신호로 종료되면 128+신호 코드, 그 외 조회 실패 시 1. 조회 성공 시 병합 불가·CI 실패·승인 대기는 결과 값이며 exit 0입니다. CI 값 범위는 pass|fail|pending|none|unknown이고, NEUTRAL/SKIPPED 체크는 pass로 셉니다.
@@ -705,6 +708,21 @@ gg config set --help
 Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없습니다.
 
 ### 사용 예시 (Usage Examples)
+
+#### 로그인 상태 조회 (`gg auth status`)
+- Provider 설정의 host와 기본 domain(`github.com`, `gitlab.com`, `gitea.com`)의 로그인 상태를 한 표로 조회:
+  ```bash
+  gg auth status
+  ```
+  ```text
+  HOST             PROVIDER  LOGIN
+  git.example.com  tea       my-login
+  gitea.com        tea       no cli
+  github.com       gh        dungsil
+  gitlab.com       glab      yes
+  ```
+- LOGIN 값 범위는 로그인 이름(gh, tea), `yes`(glab처럼 로그인은 확인되지만 이름을 제공하지 않을 때), `no`(미로그인), `no cli`(provider CLI 미설치)입니다.
+- 저장소 문맥 flag(`--repo`, `--remote`)와 `--explain`은 받지 않습니다. 조회 대상은 저장소가 아니라 Provider 설정과 기본 domain 목록이기 때문입니다.
 
 #### PR / MR Ready & Draft 전환 (`gg pr ready`)
 - PR을 Ready 상태로 전환:

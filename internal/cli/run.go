@@ -54,6 +54,12 @@ func run(args []string) int {
 		}
 		return 0
 	}
+	if req.Resource == "auth" {
+		if err := runAuth(req); err != nil {
+			return fail(err)
+		}
+		return 0
+	}
 	if req.Explain {
 		ep, err := resolvePlan(req)
 		if err != nil {
