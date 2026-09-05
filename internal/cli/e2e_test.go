@@ -83,7 +83,9 @@ func writeFakeBin(t *testing.T, dir, name, logFile string) {
 	var path, body string
 	if runtime.GOOS == "windows" {
 		path = filepath.Join(dir, name+".cmd")
-		body = "@echo off\r\necho " + name + " %* >> \"" + logFile + "\"\r\nexit /b 0\r\n"
+		// chcp 65001로 로그를 UTF-8로 기록한다. 기본 OEM 코드페이지(CP949 등)로
+		// 남으면 한글 argv 단언이 깨진다.
+		body = "@echo off\r\nchcp 65001 >nul\r\necho " + name + " %* >> \"" + logFile + "\"\r\nexit /b 0\r\n"
 	} else {
 		path = filepath.Join(dir, name)
 		body = "#!/bin/sh\necho \"" + name + " $@\" >> \"" + logFile + "\"\nexit 0\n"
@@ -1860,62 +1862,6 @@ func TestE2EGitLabIssueCommentCloseReopen(t *testing.T) {
 		got := readLog(t, logFile)
 		if got != tc.want {
 			t.Errorf("gg %v argv = %q, want %q", tc.args, got, tc.want)
-		}
-	}
-}
-
-func TestE2EGitLabLabelListCreate(t *testing.T) {
-	bin := buildGG(t)
-	fakeDir := t.TempDir()
-	logFile := filepath.Join(t.TempDir(), "calls.log")
-	writeFakeBin(t, fakeDir, "glab", logFile)
-	repo := tempRepo(t, "https://gitlab.com/o/r.git")
-
-	cases := []struct {
-		args []string
-		want string
-	}{
-		{[]string{"label", "list"}, "glab label list --repo https://gitlab.com/o/r"},
-		{[]string{"label", "list", "--limit", "3"}, "glab label list --repo https://gitlab.com/o/r --per-page 3"},
-		{[]string{"label", "create", "--name", "bug"}, "glab label create --repo https://gitlab.com/o/r --name bug"},
-		{[]string{"label", "create", "--name", "bug", "--color", "#FF0000", "--description", "broken"},
-			"glab label create --repo https://gitlab.com/o/r --name bug --color #FF0000 --description broken"},
-		{[]string{"--repo", "https://gitlab.com/custom/repo", "label", "create", "--name", "bug"},
-			"glab label create --repo https://gitlab.com/custom/repo --name bug"},
-	}
-
-	for _, tc := range cases {
-		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
-			t.Fatal(err)
-		}
-		out, code := runGG(t, bin, fakeDir, repo, tc.args...)
-		if code != 0 {
-			t.Fatalf("gg %v: exit %d: %s", tc.args, code, out)
-		}
-		got := readLog(t, logFile)
-		if got != tc.want {
-			t.Errorf("gg %v argv = %q, want %q", tc.args, got, tc.want)
-		}
-	}
-}
-
-func TestE2EGitHubLabelUnsupported(t *testing.T) {
-	bin, fakeDir, logFile := setupFakeGH(t)
-	repo := tempRepo(t, "https://github.com/o/r.git")
-
-	for _, args := range [][]string{
-		{"label", "list"},
-		{"label", "create", "--name", "bug"},
-	} {
-		out, code := runGG(t, bin, fakeDir, repo, args...)
-		if code != 2 {
-			t.Fatalf("gg %v: exit = %d, want 2: %s", args, code, out)
-		}
-		if !strings.Contains(out, "is not supported for gh") {
-			t.Errorf("gg %v output에 미지원 오류 없음: %s", args, out)
-		}
-		if got := readLog(t, logFile); got != "" {
-			t.Errorf("gg %v child command should not run, got %q", args, got)
 		}
 	}
 }

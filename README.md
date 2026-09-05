@@ -229,10 +229,10 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gh issue view` (대응: `gg issue view`)
 - `label`
   - [ ] `gh label clone`
-  - [ ] `gh label create`
+  - [x] `gh label create` (대응: `gg label create`)
   - [ ] `gh label delete`
   - [ ] `gh label edit`
-  - [ ] `gh label list`
+  - [x] `gh label list` (대응: `gg label list`)
 - `pr`
   - [ ] `gh pr checkout`
   - [ ] `gh pr checks`
