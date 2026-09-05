@@ -34,8 +34,8 @@ func TestE2ELabelArgv(t *testing.T) {
 			name:     "gh label create full",
 			fakeName: "gh",
 			remote:   "https://github.com/o/r.git",
-			args:     []string{"label", "create", "--name", "bug", "--color", "ff0000", "--description", "broken"},
-			want:     "gh label create bug -R github.com/o/r --color ff0000 --description broken",
+			args:     []string{"label", "create", "--name", "bug", "--color", "ff0000", "--description", "버그"},
+			want:     "gh label create bug -R github.com/o/r --color ff0000 --description 버그",
 		},
 		{
 			name:     "glab label list without limit",

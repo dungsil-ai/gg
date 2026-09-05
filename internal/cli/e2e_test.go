@@ -83,7 +83,9 @@ func writeFakeBin(t *testing.T, dir, name, logFile string) {
 	var path, body string
 	if runtime.GOOS == "windows" {
 		path = filepath.Join(dir, name+".cmd")
-		body = "@echo off\r\necho " + name + " %* >> \"" + logFile + "\"\r\nexit /b 0\r\n"
+		// chcp 65001로 로그를 UTF-8로 기록한다. 기본 OEM 코드페이지(CP949 등)로
+		// 남으면 한글 argv 단언이 깨진다.
+		body = "@echo off\r\nchcp 65001 >nul\r\necho " + name + " %* >> \"" + logFile + "\"\r\nexit /b 0\r\n"
 	} else {
 		path = filepath.Join(dir, name)
 		body = "#!/bin/sh\necho \"" + name + " $@\" >> \"" + logFile + "\"\nexit 0\n"
