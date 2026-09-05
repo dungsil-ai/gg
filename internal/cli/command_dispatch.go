@@ -80,10 +80,6 @@ func dispatch(provider string, c invocationContext) (Invocation, error) {
 }
 
 func ghInvocation(req Request, r RepoURL) (Invocation, error) {
-	// label은 아직 glab만 중계한다. builder가 등록될 때까지 여기서 미지원을 확정한다.
-	if req.Resource == "label" {
-		return Invocation{}, usageErr("label " + req.Action + " is not supported for gh")
-	}
 	c := invocationContext{
 		req:    req,
 		r:      r,

@@ -508,6 +508,18 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "issue", Action: "reopen", Number: "18"},
 			repo: gh, p: GH,
 			want: Invocation{Bin: "gh", Args: []string{"issue", "reopen", "18", "-R", "github.com/o/r"}}},
+		{name: "gh label list",
+			req:  Request{Resource: "label", Action: "list", Limit: "3"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"label", "list", "-R", "github.com/o/r", "--limit", "3"}}},
+		{name: "gh label list limit 없음",
+			req:  Request{Resource: "label", Action: "list"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"label", "list", "-R", "github.com/o/r"}}},
+		{name: "gh label create",
+			req:  Request{Resource: "label", Action: "create", Name: "bug", Color: "#FF0000", Description: "d"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"label", "create", "bug", "-R", "github.com/o/r", "--color", "#FF0000", "--description", "d"}}},
 		{name: "gh pr view",
 			req:  Request{Resource: "pr", Action: "view", Number: "7"},
 			repo: gh, p: GH,
@@ -751,12 +763,11 @@ func TestTranslateTeaPRCommentSubActionsUnsupported(t *testing.T) {
 	}
 }
 
-func TestTranslateLabelUnsupportedForGHAndTea(t *testing.T) {
+func TestTranslateLabelUnsupportedForTea(t *testing.T) {
 	for _, tc := range []struct {
 		p    Provider
 		want string
 	}{
-		{GH, "label list is not supported for gh"},
 		{Tea, "label list is not supported for tea"},
 	} {
 		_, err := Translate(
