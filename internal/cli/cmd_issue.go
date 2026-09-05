@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// issueResourceDef는 "issue" 최상위 명령의 정의다: list, view, create,
+// issueResourceDef는 "issue" 최상위 명령의 정의다: list, view, create, edit,
 // comment(하위 list/edit/delete), close, reopen과 관계 등록(sub-issue,
 // blocked-by, type).
 var issueResourceDef = &resourceDef{
@@ -36,6 +36,21 @@ var issueResourceDef = &resourceDef{
 			flags:    []flagDef{titleFlag, bodyFlag},
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
+		},
+		{
+			name: "edit", summary: "Edit an issue title or body", usage: "gg issue edit <number> [flags]",
+			flags:    []flagDef{titleFlag, bodyFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg issue edit <number>",
+			setPos: func(req *Request, pos []string) error {
+				if strings.TrimSpace(req.Title) == "" && strings.TrimSpace(req.Body) == "" {
+					return usageErr("issue edit needs --title or --body")
+				}
+				req.Number = pos[0]
+				return nil
+			},
 		},
 		{
 			name: "comment", summary: "Comment on an issue", usage: "gg issue comment <number> [flags]",
@@ -261,6 +276,24 @@ var issueCreateBuilders = providerBuilders{
 	},
 }
 
+// issueEditBuilders는 이슈 제목·본문 수정을 gh issue edit와 glab issue update로
+// 중계한다. glab은 본문 flag로 --description을 쓴다. tea에는 이슈 수정 명령이
+// 없어 teaInvocation 사전 가드에서 미지원을 확정한다.
+var issueEditBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "edit", c.req.Number}, c.target...)
+		args = appendKV(args, "--title", c.req.Title)
+		args = appendKV(args, "--body", c.req.Body)
+		return args, nil
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "update", c.req.Number}, c.target...)
+		args = appendKV(args, "--title", c.req.Title)
+		args = appendKV(args, "--description", c.req.Body)
+		return args, nil
+	},
+}
+
 // issueSubIssueBuilders와 issueBlockedByBuilders는 gh api로 GitHub 관계 endpoint를
 // 호출한다. 두 endpoint 모두 body로 issue 번호가 아니라 numeric database id를
 // 요구하므로, resolvePlan이 ghIssueDatabaseID로 조회해 req.RelatedID에 채운 값을
@@ -377,6 +410,7 @@ var issueInvocationTable = map[string]providerBuilders{
 	"issue close":          issueCloseReopenBuilders,
 	"issue reopen":         issueCloseReopenBuilders,
 	"issue create":         issueCreateBuilders,
+	"issue edit":           issueEditBuilders,
 	"issue sub-issue":      issueSubIssueBuilders,
 	"issue blocked-by":     issueBlockedByBuilders,
 	"issue type":           issueTypeBuilders,
