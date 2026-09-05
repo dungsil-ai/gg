@@ -2,8 +2,8 @@ package cli
 
 import "strings"
 
-// labelResourceDef는 "label" 최상위 명령의 정의다: list, create. glab builder만
-// 등록하며, gh/tea는 각 invocation 함수의 사전 가드에서 미지원을 확정한다
+// labelResourceDef는 "label" 최상위 명령의 정의다: list, create. gh와 glab
+// builder를 등록하며, tea는 invocation 함수의 사전 가드에서 미지원을 확정한다
 // (pr ready의 tea 가드와 같은 원칙: provider별 예외는 감추지 않고 명시적으로 남긴다).
 var labelResourceDef = &resourceDef{
 	name:    "label",
@@ -33,6 +33,10 @@ var labelResourceDef = &resourceDef{
 }
 
 var labelListBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "list"}, c.target...)
+		return appendKV(args, "--limit", c.req.Limit), nil
+	},
 	glab: func(c invocationContext) (args, env []string) {
 		args = append([]string{c.res, "list"}, c.target...)
 		return appendKV(args, "--per-page", c.req.Limit), nil
@@ -40,6 +44,13 @@ var labelListBuilders = providerBuilders{
 }
 
 var labelCreateBuilders = providerBuilders{
+	// gh label create는 name을 positional 인자로 받는다(glab은 --name flag).
+	gh: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "create", c.req.Name}, c.target...)
+		args = appendKV(args, "--color", c.req.Color)
+		args = appendKV(args, "--description", c.req.Description)
+		return args, nil
+	},
 	glab: func(c invocationContext) (args, env []string) {
 		args = append([]string{c.res, "create"}, c.target...)
 		args = appendKV(args, "--name", c.req.Name)
@@ -49,7 +60,7 @@ var labelCreateBuilders = providerBuilders{
 	},
 }
 
-// labelInvocationTable은 "label <action>" 키로 glab의 arg-builder를 모은다.
+// labelInvocationTable은 "label <action>" 키로 provider별 arg-builder를 모은다.
 var labelInvocationTable = map[string]providerBuilders{
 	"label list":   labelListBuilders,
 	"label create": labelCreateBuilders,
