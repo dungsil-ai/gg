@@ -32,6 +32,12 @@ func TestParseRequest(t *testing.T) {
 			want: Request{Resource: "issue", Action: "close", Number: "42"}},
 		{name: "issue reopen", args: []string{"issue", "reopen", "42"},
 			want: Request{Resource: "issue", Action: "reopen", Number: "42"}},
+		{name: "issue comment list", args: []string{"issue", "comment", "list", "42"},
+			want: Request{Resource: "issue", Action: "comment list", Number: "42"}},
+		{name: "issue comment edit", args: []string{"issue", "comment", "edit", "42", "77", "--body", "hello"},
+			want: Request{Resource: "issue", Action: "comment edit", Number: "42", CommentID: "77", Body: "hello"}},
+		{name: "issue comment delete", args: []string{"issue", "comment", "delete", "42", "77"},
+			want: Request{Resource: "issue", Action: "comment delete", Number: "42", CommentID: "77"}},
 		{name: "pr list state", args: []string{"pr", "list", "--state", "all", "--limit", "3"},
 			want: Request{Resource: "pr", Action: "list", State: "all", Limit: "3"}},
 		{name: "pr create full", args: []string{"pr", "create", "--title", "t", "--body", "b", "--base", "main", "--head", "f", "--draft"},
@@ -500,6 +506,18 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "issue", Action: "comment", Number: "18", Body: "hello"},
 			repo: gh, p: GH,
 			want: Invocation{Bin: "gh", Args: []string{"issue", "comment", "18", "--body", "hello", "-R", "github.com/o/r"}}},
+		{name: "gh issue comment list",
+			req:  Request{Resource: "issue", Action: "comment list", Number: "18"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"api", "repos/o/r/issues/18/comments"}, Env: []string{"GH_HOST=github.com"}}},
+		{name: "gh issue comment edit",
+			req:  Request{Resource: "issue", Action: "comment edit", Number: "18", CommentID: "77", Body: "hello"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"api", "-X", "PATCH", "repos/o/r/issues/comments/77", "-f", "body=hello"}, Env: []string{"GH_HOST=github.com"}}},
+		{name: "gh issue comment delete",
+			req:  Request{Resource: "issue", Action: "comment delete", Number: "18", CommentID: "77"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"api", "-X", "DELETE", "repos/o/r/issues/comments/77"}, Env: []string{"GH_HOST=github.com"}}},
 		{name: "gh issue close",
 			req:  Request{Resource: "issue", Action: "close", Number: "18"},
 			repo: gh, p: GH,
@@ -626,6 +644,18 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "issue", Action: "comment", Number: "18", Body: "hello"},
 			repo: gl, p: GLab,
 			want: Invocation{Bin: "glab", Args: []string{"issue", "note", "18", "--message", "hello", "--repo", "https://git.example.com/grp/sub/p"}}},
+		{name: "glab issue comment list",
+			req:  Request{Resource: "issue", Action: "comment list", Number: "18"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"api", "projects/grp%2Fsub%2Fp/issues/18/notes"}, Env: []string{"GITLAB_HOST=git.example.com"}}},
+		{name: "glab issue comment edit",
+			req:  Request{Resource: "issue", Action: "comment edit", Number: "18", CommentID: "77", Body: "hello"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"api", "-X", "PUT", "projects/grp%2Fsub%2Fp/issues/18/notes/77", "-f", "body=hello"}, Env: []string{"GITLAB_HOST=git.example.com"}}},
+		{name: "glab issue comment delete",
+			req:  Request{Resource: "issue", Action: "comment delete", Number: "18", CommentID: "77"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"api", "-X", "DELETE", "projects/grp%2Fsub%2Fp/issues/18/notes/77"}, Env: []string{"GITLAB_HOST=git.example.com"}}},
 		{name: "glab issue close",
 			req:  Request{Resource: "issue", Action: "close", Number: "18"},
 			repo: gl, p: GLab,
@@ -746,6 +776,24 @@ func TestTranslateTeaPRCommentSubActionsUnsupported(t *testing.T) {
 			t.Fatalf("Translate(pr %s, tea): UsageError 기대, got %v", action, err)
 		}
 		if want := "pr " + action + " is not supported for tea"; usage.Msg != want {
+			t.Errorf("Tea 오류 = %q, want %q", usage.Msg, want)
+		}
+	}
+}
+
+func TestTranslateTeaIssueCommentSubActionsUnsupported(t *testing.T) {
+	for _, action := range []string{"comment list", "comment edit", "comment delete"} {
+		_, err := Translate(
+			Request{Resource: "issue", Action: action, Number: "7", CommentID: "77"},
+			RepoURL{Host: "gitea.com", Owner: "o", Name: "r"},
+			Tea,
+			"",
+		)
+		var usage UsageError
+		if !errors.As(err, &usage) {
+			t.Fatalf("Translate(issue %s, tea): UsageError 기대, got %v", action, err)
+		}
+		if want := "issue " + action + " is not supported for tea"; usage.Msg != want {
 			t.Errorf("Tea 오류 = %q, want %q", usage.Msg, want)
 		}
 	}
@@ -908,6 +956,25 @@ func TestPlanTeaPRCommentListUnsupportedSkipsLogin(t *testing.T) {
 		t.Fatalf("plan(pr comment list, tea): UsageError 기대, got %v", err)
 	}
 	if usage.Msg != "pr comment list is not supported for tea" {
+		t.Errorf("Tea 오류 = %q", usage.Msg)
+	}
+}
+
+func TestPlanTeaIssueCommentListUnsupportedSkipsLogin(t *testing.T) {
+	t.Setenv("GG_HOME", t.TempDir())
+	fakeExec(t, map[string]string{})
+
+	_, err := plan(Request{
+		Resource: "issue",
+		Action:   "comment list",
+		Number:   "7",
+		RepoFlag: "https://gitea.com/o/r",
+	})
+	var usage UsageError
+	if !errors.As(err, &usage) {
+		t.Fatalf("plan(issue comment list, tea): UsageError 기대, got %v", err)
+	}
+	if usage.Msg != "issue comment list is not supported for tea" {
 		t.Errorf("Tea 오류 = %q", usage.Msg)
 	}
 }
@@ -1076,7 +1143,7 @@ func TestParseRequestErrorMessages(t *testing.T) {
 	}{
 		{[]string{"unknown"}, "unknown command unknown"},
 		{[]string{"config"}, "config needs an action: list, set, unset"},
-		{[]string{"issue"}, "issue needs an action: list, view, create, comment, close, reopen"},
+		{[]string{"issue"}, "issue needs an action: list, view, create, comment, comment list, comment edit, comment delete, close, reopen, sub-issue, blocked-by, type"},
 		{[]string{"label"}, "label needs an action: list, create"},
 		{[]string{"pr"}, "pr needs an action: list, view, create, comment, comment list, comment edit, comment delete, status, ready, merge, close, reopen"},
 		{[]string{"repo"}, "repo needs an action: list, view, create, clone, fork, delete, edit, rename, sync, set-default, commit, pull, push, add, am, archive, bisect, branch, bundle, checkout, cherry-pick, citool, clean, describe, diff, fetch, format-patch, gc, grep, gui, init, log, merge, mv, notes, range-diff, rebase, reset, restore, revert, rm, shortlog, show, sparse-checkout, stash, status, submodule, switch, tag, worktree, annotate, blame, bugreport, count-objects, diagnose, difftool, fsck, instaweb, maintenance, merge-tree, mergetool, prune-packed, rerere, scalar"},
@@ -1090,6 +1157,11 @@ func TestParseRequestErrorMessages(t *testing.T) {
 		{[]string{"pr", "view"}, "usage: gg pr view <number>"},
 		{[]string{"issue", "close"}, "usage: gg issue close <number>"},
 		{[]string{"issue", "comment", "1"}, "usage: gg issue comment <number> --body <text>"},
+		{[]string{"issue", "comment", "list"}, "usage: gg issue comment list <number>"},
+		{[]string{"issue", "comment", "list", "1", "2"}, "usage: gg issue comment list <number>"},
+		{[]string{"issue", "comment", "edit", "1"}, "usage: gg issue comment edit <number> <comment-id> --body <text>"},
+		{[]string{"issue", "comment", "edit", "1", "2"}, "usage: gg issue comment edit <number> <comment-id> --body <text>"},
+		{[]string{"issue", "comment", "delete", "1"}, "usage: gg issue comment delete <number> <comment-id>"},
 		{[]string{"pr", "comment", "1"}, "usage: gg pr comment <number> --body <text>"},
 		{[]string{"pr", "comment", "list"}, "usage: gg pr comment list <number>"},
 		{[]string{"pr", "comment", "list", "1", "2"}, "usage: gg pr comment list <number>"},

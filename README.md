@@ -213,7 +213,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `gh auth token`
 - `issue`
   - [x] `gh issue close` (대응: `gg issue close`)
-  - [x] `gh issue comment` (대응: `gg issue comment`)
+  - [x] `gh issue comment` (대응: `gg issue comment`; 조회·수정·삭제는 `gg issue comment list|edit|delete`로 `gh api` 중계)
   - [x] `gh issue create` (대응: `gg issue create`)
   - [ ] `gh issue delete`
   - [ ] `gh issue develop`
@@ -415,7 +415,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `glab issue create` (대응: `gg issue create`)
   - [ ] `glab issue delete`
   - [x] `glab issue list` (대응: `gg issue list`)
-  - [x] `glab issue note` (대응: `gg issue comment`)
+  - [x] `glab issue note` (대응: `gg issue comment`; `gg issue comment list|edit|delete`는 `glab api` 중계)
   - [x] `glab issue reopen` (대응: `gg issue reopen`)
   - [ ] `glab issue subscribe`
   - [ ] `glab issue todo`
@@ -664,6 +664,9 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gg pr comment` (PR 댓글 입력; GitHub, GitLab, Gitea 지원)
   - [x] `gg pr comment list` / `gg pr comment edit` / `gg pr comment delete` (PR 댓글 조회·수정·삭제; GitHub, GitLab 지원 — `gh api`/`glab api` 중계. Gitea 미지원)
   - [x] `gg mr` (`gg pr`의 alias)
+- `issue` 댓글
+  - [x] `gg issue comment` (이슈 댓글 입력; GitHub, GitLab, Gitea 지원)
+  - [x] `gg issue comment list` / `gg issue comment edit` / `gg issue comment delete` (이슈 댓글 조회·수정·삭제; GitHub, GitLab 지원 — `gh api`/`glab api` 중계. Gitea 미지원)
 - `issue` 관계 등록
   - [x] `gg issue sub-issue` (GitHub 지원; GitLab·Gitea 미지원) — 이슈를 다른 이슈의 native sub-issue로 등록
   - [x] `gg issue blocked-by` (GitHub 지원; GitLab·Gitea 미지원) — 이슈에 blocked-by 의존성을 등록
