@@ -783,6 +783,21 @@ Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없�
   ```
 - 번호 외의 대상(URL, branch 이름)과 `--branch`·`--detach` 같은 flag는 세 provider의 공통 표면이 아니라 중계하지 않는다.
 
+#### PR diff 보기 (`gg pr diff`)
+- PR의 변경 내용을 diff로 보기:
+  ```bash
+  gg pr diff 42
+  ```
+  - GitHub: `gh pr diff 42 -R <owner>/<repo>` 호출
+  - GitLab: `glab mr diff 42 --repo <URL>` 호출
+- Gitea (`tea`):
+  - `tea` CLI에 diff 하위 명령이 없으므로 미지원 오류(`pr diff is not supported for tea`)가 반환됩니다.
+- 번호를 생략하면 하위 CLI가 현재 branch의 PR을 찾지만, gg는 다른 pr 단일 대상 명령과 같은 원칙으로 번호를 필수로 받습니다:
+  ```bash
+  gg --repo https://github.com/owner/repo pr diff 42
+  gg pr diff 42 --remote upstream
+  ```
+
 #### PR 댓글 입력·조회·수정·삭제 (`gg pr comment`)
 - PR에 댓글 달기:
   ```bash
