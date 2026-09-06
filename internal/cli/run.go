@@ -208,10 +208,11 @@ func resolvePlan(req Request) (executionPlan, error) {
 		}
 	}
 	teaLogin := ""
-	// release/ci 전체와 pr status/ready, pr comment list/edit/delete, label action,
-	// issue 관계 등록, issue comment list/edit/delete, issue edit, issue delete는
-	// provider를 고른 뒤 미지원을 확정하므로 tea login을 묻지 않는다.
+	// release/ci 전체와 pr status/ready/diff, pr comment list/edit/delete, label
+	// action, issue 관계 등록, issue comment list/edit/delete, issue edit,
+	// issue delete는 provider를 고른 뒤 미지원을 확정하므로 tea login을 묻지 않는다.
 	unsupportedTeaAction := (req.Resource == "pr" && (req.Action == "status" || req.Action == "ready" ||
+		req.Action == "diff" ||
 		req.Action == "comment list" || req.Action == "comment edit" || req.Action == "comment delete")) ||
 		req.Resource == "label" || req.Resource == "release" || req.Resource == "ci" ||
 		(req.Resource == "issue" && (ghOnlyIssueActions[req.Action] || req.Action == "edit" ||
