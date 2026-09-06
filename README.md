@@ -230,8 +230,8 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 - `label`
   - [ ] `gh label clone`
   - [x] `gh label create` (대응: `gg label create`)
-  - [ ] `gh label delete`
-  - [ ] `gh label edit`
+  - [x] `gh label delete` (대응: `gg label delete`)
+  - [x] `gh label edit` (대응: `gg label edit`)
   - [x] `gh label list` (대응: `gg label list`)
 - `pr`
   - [ ] `gh pr checkout`
@@ -424,6 +424,8 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `glab issue view` (대응: `gg issue view`)
 - `label`
   - [x] `glab label create` (대응: `gg label create`)
+  - [x] `glab label delete` (대응: `gg label delete`; glab에는 확인 flag가 없어 `--yes`는 gh에만 전달)
+  - [ ] `glab label edit` (glab이 label 이름이 아니라 numeric label id `--label-id`를 요구해 `gg label edit`로 중계하지 않음)
   - [x] `glab label list` (대응: `gg label list`)
 - `mr`
   - [ ] `glab mr approve`
