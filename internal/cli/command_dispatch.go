@@ -135,6 +135,10 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 		req.Action == "comment list" || req.Action == "comment edit" || req.Action == "comment delete") {
 		return Invocation{}, usageErr("issue " + req.Action + " is not supported for tea")
 	}
+	// tea에는 이슈 삭제 하위 명령이 없다.
+	if req.Resource == "issue" && req.Action == "delete" {
+		return Invocation{}, usageErr("issue delete is not supported for tea")
+	}
 	if req.Resource == "issue" && ghOnlyIssueActions[req.Action] {
 		return Invocation{}, usageErr("issue " + req.Action + " is not supported for tea")
 	}

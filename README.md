@@ -215,7 +215,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gh issue close` (대응: `gg issue close`)
   - [x] `gh issue comment` (대응: `gg issue comment`; 조회·수정·삭제는 `gg issue comment list|edit|delete`로 `gh api` 중계)
   - [x] `gh issue create` (대응: `gg issue create`)
-  - [ ] `gh issue delete`
+  - [x] `gh issue delete` (대응: `gg issue delete`)
   - [ ] `gh issue develop`
   - [x] `gh issue edit` (대응: `gg issue edit`)
   - [x] `gh issue list` (대응: `gg issue list`)
@@ -413,7 +413,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `glab issue board`
   - [x] `glab issue close` (대응: `gg issue close`)
   - [x] `glab issue create` (대응: `gg issue create`)
-  - [ ] `glab issue delete`
+  - [x] `glab issue delete` (대응: `gg issue delete`; glab에는 확인 flag가 없어 `--yes`는 gh에만 전달)
   - [x] `glab issue list` (대응: `gg issue list`)
   - [x] `glab issue note` (대응: `gg issue comment`; `gg issue comment list|edit|delete`는 `glab api` 중계)
   - [x] `glab issue reopen` (대응: `gg issue reopen`)
@@ -564,7 +564,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 - `issues`
   - [x] `tea issues close` (대응: `gg issue close`)
   - [x] `tea issues create` (대응: `gg issue create`)
-  - [ ] `tea issues delete`
+  - [ ] `tea issues delete` (tea CLI에 이슈 삭제 하위 명령이 없어 미지원)
   - [x] `tea issues list` (대응: `gg issue list`)
   - [x] `tea issues open` (대응: `gg issue view`)
   - [x] `tea issues reopen` (대응: `gg issue reopen`)

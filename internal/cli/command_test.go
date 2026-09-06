@@ -32,6 +32,10 @@ func TestParseRequest(t *testing.T) {
 			want: Request{Resource: "issue", Action: "close", Number: "42"}},
 		{name: "issue reopen", args: []string{"issue", "reopen", "42"},
 			want: Request{Resource: "issue", Action: "reopen", Number: "42"}},
+		{name: "issue delete", args: []string{"issue", "delete", "42"},
+			want: Request{Resource: "issue", Action: "delete", Number: "42"}},
+		{name: "issue delete yes", args: []string{"issue", "delete", "42", "--yes"},
+			want: Request{Resource: "issue", Action: "delete", Number: "42", Yes: true}},
 		{name: "issue comment list", args: []string{"issue", "comment", "list", "42"},
 			want: Request{Resource: "issue", Action: "comment list", Number: "42"}},
 		{name: "issue comment edit", args: []string{"issue", "comment", "edit", "42", "77", "--body", "hello"},
@@ -398,7 +402,7 @@ func TestParseRequestErrors(t *testing.T) {
 		{},                                      // 명령 없음
 		{"unknown"},                             // 알 수 없는 자원
 		{"issue"},                               // action 없음
-		{"issue", "delete", "1"},                // 지원 안 하는 action
+		{"issue", "lock", "1"},                  // 지원 안 하는 action
 		{"issue", "view"},                       // number 없음
 		{"issue", "view", "1", "2"},             // 인자 초과
 		{"issue", "comment"},                    // number 없음
@@ -526,6 +530,14 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "issue", Action: "reopen", Number: "18"},
 			repo: gh, p: GH,
 			want: Invocation{Bin: "gh", Args: []string{"issue", "reopen", "18", "-R", "github.com/o/r"}}},
+		{name: "gh issue delete",
+			req:  Request{Resource: "issue", Action: "delete", Number: "18"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"issue", "delete", "18", "-R", "github.com/o/r"}}},
+		{name: "gh issue delete yes",
+			req:  Request{Resource: "issue", Action: "delete", Number: "18", Yes: true},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"issue", "delete", "18", "--yes", "-R", "github.com/o/r"}}},
 		{name: "gh label list",
 			req:  Request{Resource: "label", Action: "list", Limit: "3"},
 			repo: gh, p: GH,
@@ -676,6 +688,10 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "issue", Action: "reopen", Number: "18"},
 			repo: gl, p: GLab,
 			want: Invocation{Bin: "glab", Args: []string{"issue", "reopen", "18", "--repo", "https://git.example.com/grp/sub/p"}}},
+		{name: "glab issue delete",
+			req:  Request{Resource: "issue", Action: "delete", Number: "18"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"issue", "delete", "18", "--repo", "https://git.example.com/grp/sub/p"}}},
 		{name: "glab repo list",
 			req:  Request{Resource: "repo", Action: "list", Limit: "7"},
 			repo: gl, p: GLab,
@@ -811,6 +827,22 @@ func TestTranslateTeaIssueCommentSubActionsUnsupported(t *testing.T) {
 	}
 }
 
+func TestTranslateTeaIssueDeleteUnsupported(t *testing.T) {
+	_, err := Translate(
+		Request{Resource: "issue", Action: "delete", Number: "7"},
+		RepoURL{Host: "gitea.com", Owner: "o", Name: "r"},
+		Tea,
+		"",
+	)
+	var usage UsageError
+	if !errors.As(err, &usage) {
+		t.Fatalf("Translate(issue delete, tea): UsageError 기대, got %v", err)
+	}
+	if usage.Msg != "issue delete is not supported for tea" {
+		t.Errorf("Tea 오류 = %q", usage.Msg)
+	}
+}
+
 func TestTranslateLabelUnsupportedForTea(t *testing.T) {
 	for _, tc := range []struct {
 		p    Provider
@@ -835,15 +867,17 @@ func TestTranslateLabelUnsupportedForTea(t *testing.T) {
 }
 
 func TestTranslateUnsupportedAction(t *testing.T) {
-	req := Request{Resource: "issue", Action: "delete"}
+	// delete는 이제 구현됐으므로, 어떤 provider에도 builder가 없는 lock으로
+	// dispatch fallback 오류를 본다.
+	req := Request{Resource: "issue", Action: "lock"}
 	repo := RepoURL{Host: "github.com", Owner: "o", Name: "r"}
 	for _, p := range []Provider{GH, GLab, Tea} {
 		_, err := Translate(req, repo, p, "corp")
 		var ue UsageError
 		if !errors.As(err, &ue) {
-			t.Fatalf("Translate(%s issue delete): UsageError 기대, got %v", p, err)
+			t.Fatalf("Translate(%s issue lock): UsageError 기대, got %v", p, err)
 		}
-		if !strings.Contains(ue.Msg, "does not support delete") {
+		if !strings.Contains(ue.Msg, "does not support lock") {
 			t.Errorf("provider %s error = %q, want unsupported action message", p, ue.Msg)
 		}
 	}
@@ -1154,11 +1188,11 @@ func TestParseRequestErrorMessages(t *testing.T) {
 	}{
 		{[]string{"unknown"}, "unknown command unknown"},
 		{[]string{"config"}, "config needs an action: list, set, unset"},
-		{[]string{"issue"}, "issue needs an action: list, view, create, edit, comment, comment list, comment edit, comment delete, close, reopen, sub-issue, blocked-by, type"},
+		{[]string{"issue"}, "issue needs an action: list, view, create, edit, comment, comment list, comment edit, comment delete, close, reopen, delete, sub-issue, blocked-by, type"},
 		{[]string{"label"}, "label needs an action: list, create"},
 		{[]string{"pr"}, "pr needs an action: list, view, create, comment, comment list, comment edit, comment delete, status, ready, merge, close, reopen"},
 		{[]string{"repo"}, "repo needs an action: list, view, create, clone, fork, delete, edit, rename, sync, set-default, commit, pull, push, add, am, archive, bisect, branch, bundle, checkout, cherry-pick, citool, clean, describe, diff, fetch, format-patch, gc, grep, gui, init, log, merge, mv, notes, range-diff, rebase, reset, restore, revert, rm, shortlog, show, sparse-checkout, stash, status, submodule, switch, tag, worktree, annotate, blame, bugreport, count-objects, diagnose, difftool, fsck, instaweb, maintenance, merge-tree, mergetool, prune-packed, rerere, scalar"},
-		{[]string{"issue", "delete", "1"}, "issue does not support delete"},
+		{[]string{"issue", "lock", "1"}, "issue does not support lock"},
 		{[]string{"label", "delete", "1"}, "label does not support delete"},
 		{[]string{"pr", "delete", "1"}, "pr does not support delete"},
 		{[]string{"issue", "list", "--wat"}, "unknown flag --wat"},
