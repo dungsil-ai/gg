@@ -24,6 +24,13 @@ func TestE2EIssueLockUnlockArgv(t *testing.T) {
 			want:     "gh issue lock 42 -R github.com/o/r",
 		},
 		{
+			name:     "github lock with reason",
+			remote:   "https://github.com/o/r.git",
+			fakeName: "gh",
+			args:     []string{"issue", "lock", "42", "--reason", "resolved"},
+			want:     "gh issue lock 42 -R github.com/o/r --reason resolved",
+		},
+		{
 			name:     "github unlock",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
@@ -156,6 +163,11 @@ func TestE2EIssueLockUnlockUsageErrors(t *testing.T) {
 			want: "unknown flag",
 		},
 		{
+			name: "lock invalid reason",
+			args: []string{"issue", "lock", "42", "--reason", "because"},
+			want: "--reason must be off_topic, resolved, spam, or too_heated",
+		},
+		{
 			name: "unlock missing number",
 			args: []string{"issue", "unlock"},
 			want: "usage: gg issue unlock <number>",
@@ -212,7 +224,7 @@ func TestE2EIssueLockUnlockHelp(t *testing.T) {
 	if code != 0 || stderr != "" {
 		t.Fatalf("gg issue lock --help = stderr %q, exit %d", stderr, code)
 	}
-	for _, want := range []string{"gg issue lock <number> [flags]", "--repo", "--remote", "--explain"} {
+	for _, want := range []string{"gg issue lock <number> [flags]", "--reason <reason>", "--repo", "--remote", "--explain"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("issue lock help missing %q:\n%s", want, stdout)
 		}

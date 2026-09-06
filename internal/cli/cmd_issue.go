@@ -130,11 +130,20 @@ var issueResourceDef = &resourceDef{
 		},
 		{
 			name: "lock", summary: "Lock an issue conversation (GitHub only)", usage: "gg issue lock <number> [flags]",
+			flags:    []flagDef{lockReasonFlag},
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
 			minPos: 1, maxPos: 1,
 			posErr: "usage: gg issue lock <number>",
-			setPos: setNumber,
+			setPos: func(req *Request, pos []string) error {
+				switch req.Reason {
+				case "", "off_topic", "resolved", "spam", "too_heated":
+				default:
+					return usageErr("--reason must be off_topic, resolved, spam, or too_heated")
+				}
+				req.Number = pos[0]
+				return nil
+			},
 		},
 		{
 			name: "unlock", summary: "Unlock a locked issue conversation (GitHub only)", usage: "gg issue unlock <number> [flags]",
@@ -299,10 +308,12 @@ var issueDeleteBuilders = providerBuilders{
 
 // issueLockBuilders는 이슈 대화 잠금·해제를 중계한다. gh 전용 기능이라
 // gh builder만 등록하고, glab·tea는 ghOnlyIssueActions 사전 가드에서
-// 미지원을 확정한다 (tea login을 묻기 전에 거부된다).
+// 미지원을 확정한다 (tea login을 묻기 전에 거부된다). --reason은 gh의
+// 잠금 사유 enum이라 gg에서 미리 검증한다.
 var issueLockBuilders = providerBuilders{
 	gh: func(c invocationContext) (args, env []string) {
-		return append([]string{"issue", "lock", c.req.Number}, c.target...), nil
+		args = append([]string{"issue", "lock", c.req.Number}, c.target...)
+		return appendKV(args, "--reason", c.req.Reason), nil
 	},
 }
 
