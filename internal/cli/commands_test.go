@@ -130,7 +130,7 @@ func TestNestedHelpPaths(t *testing.T) {
 	}
 	for _, path := range [][]string{
 		{"unknown", "--help"},
-		{"issue", "lock", "--help"},
+		{"issue", "freeze", "--help"},
 		{"issue", "list", "extra", "--help"},
 		{"repo", "list", "extra", "--help"},
 		{"--help"},

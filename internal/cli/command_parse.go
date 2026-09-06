@@ -26,6 +26,7 @@ type Request struct {
 	Title, Body, Base, Head, State, Limit, Description       string
 	Name, Color                                              string
 	NewName                                                  string // label edit의 새 이름. 고칠 label은 Name이 받는다.
+	Reason                                                   string // issue lock의 잠금 사유
 	Tag, Notes, Ref, Pattern, Dir, Asset                     string // release: 태그, 노트, 태그 생성 기준 ref, download 필터·경로, asset 이름
 	Branch                                                   string
 	Source                                                   string // repo sync가 분기를 당겨 올 원본 저장소
