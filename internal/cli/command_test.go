@@ -429,7 +429,11 @@ func TestParseRequestErrors(t *testing.T) {
 		{"pr", "comment", "delete", "1"},           // comment-id 없음
 		{"pr", "comment", "delete", "1", "2", "3"}, // 인자 초과
 		{"label"},                                 // action 없음
-		{"label", "delete", "1"},                  // 지원 안 하는 action
+		{"label", "clone", "1"},                   // 지원 안 하는 action
+		{"label", "edit"},                         // name 없음
+		{"label", "edit", "bug"},                  // 고칠 값 없음
+		{"label", "delete"},                       // name 없음
+		{"label", "delete", "1", "2"},             // 인자 초과
 		{"label", "create"},                       // name 없음
 		{"label", "create", "--name", "  "},       // 공백 name
 		{"label", "create", "extra"},              // positional 인자
@@ -474,6 +478,14 @@ func TestParseRequestLabel(t *testing.T) {
 			want: Request{Resource: "label", Action: "list", RepoFlag: "https://gitlab.com/o/r"}},
 		{name: "label list explain", args: []string{"label", "create", "--name", "bug", "--explain"},
 			want: Request{Resource: "label", Action: "create", Name: "bug", Explain: true}},
+		{name: "label edit 새 이름", args: []string{"label", "edit", "bug", "--name", "defect"},
+			want: Request{Resource: "label", Action: "edit", Name: "bug", NewName: "defect"}},
+		{name: "label edit 색과 설명", args: []string{"label", "edit", "bug", "--color", "#00FF00", "--description", "d"},
+			want: Request{Resource: "label", Action: "edit", Name: "bug", Color: "#00FF00", Description: "d"}},
+		{name: "label delete", args: []string{"label", "delete", "bug"},
+			want: Request{Resource: "label", Action: "delete", Name: "bug"}},
+		{name: "label delete yes", args: []string{"label", "delete", "bug", "--yes"},
+			want: Request{Resource: "label", Action: "delete", Name: "bug", Yes: true}},
 	}
 	for _, c := range cases {
 		got, err := ParseRequest(c.args)
@@ -550,6 +562,18 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "label", Action: "create", Name: "bug", Color: "#FF0000", Description: "d"},
 			repo: gh, p: GH,
 			want: Invocation{Bin: "gh", Args: []string{"label", "create", "bug", "-R", "github.com/o/r", "--color", "#FF0000", "--description", "d"}}},
+		{name: "gh label edit",
+			req:  Request{Resource: "label", Action: "edit", Name: "bug", NewName: "defect", Color: "#00FF00", Description: "d"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"label", "edit", "bug", "-R", "github.com/o/r", "--name", "defect", "--color", "#00FF00", "--description", "d"}}},
+		{name: "gh label delete",
+			req:  Request{Resource: "label", Action: "delete", Name: "bug"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"label", "delete", "bug", "-R", "github.com/o/r"}}},
+		{name: "gh label delete yes",
+			req:  Request{Resource: "label", Action: "delete", Name: "bug", Yes: true},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"label", "delete", "bug", "--yes", "-R", "github.com/o/r"}}},
 		{name: "gh pr view",
 			req:  Request{Resource: "pr", Action: "view", Number: "7"},
 			repo: gh, p: GH,
@@ -708,6 +732,10 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "label", Action: "create", Name: "bug", Color: "#FF0000", Description: "d"},
 			repo: gl, p: GLab,
 			want: Invocation{Bin: "glab", Args: []string{"label", "create", "--repo", "https://git.example.com/grp/sub/p", "--name", "bug", "--color", "#FF0000", "--description", "d"}}},
+		{name: "glab label delete",
+			req:  Request{Resource: "label", Action: "delete", Name: "bug", Yes: true},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"label", "delete", "bug", "--repo", "https://git.example.com/grp/sub/p"}}},
 
 		// ---- Gitea ----
 		{name: "tea issue list",
@@ -805,6 +833,35 @@ func TestTranslateTeaPRCommentSubActionsUnsupported(t *testing.T) {
 		}
 		if want := "pr " + action + " is not supported for tea"; usage.Msg != want {
 			t.Errorf("Tea 오류 = %q, want %q", usage.Msg, want)
+		}
+	}
+}
+
+// TestTranslateLabelEditUnsupported는 label edit의 provider별 미지원을 본다.
+// glab은 dispatch의 builder 부재 오류, tea는 사전 가드 오류이다.
+func TestTranslateLabelEditUnsupported(t *testing.T) {
+	cases := []struct {
+		name string
+		p    Provider
+		repo RepoURL
+		want string
+	}{
+		{name: "glab", p: GLab, repo: RepoURL{Host: "gitlab.com", Owner: "o", Name: "r"},
+			want: "label does not support edit"},
+		{name: "tea", p: Tea, repo: RepoURL{Host: "gitea.com", Owner: "o", Name: "r"},
+			want: "label edit is not supported for tea"},
+	}
+	for _, c := range cases {
+		_, err := Translate(
+			Request{Resource: "label", Action: "edit", Name: "bug", Color: "#00FF00"},
+			c.repo, c.p, "corp",
+		)
+		var usage UsageError
+		if !errors.As(err, &usage) {
+			t.Fatalf("Translate(label edit, %s): UsageError 기대, got %v", c.name, err)
+		}
+		if usage.Msg != c.want {
+			t.Errorf("%s 오류 = %q, want %q", c.name, usage.Msg, c.want)
 		}
 	}
 }
@@ -1189,11 +1246,16 @@ func TestParseRequestErrorMessages(t *testing.T) {
 		{[]string{"unknown"}, "unknown command unknown"},
 		{[]string{"config"}, "config needs an action: list, set, unset"},
 		{[]string{"issue"}, "issue needs an action: list, view, create, edit, comment, comment list, comment edit, comment delete, close, reopen, delete, sub-issue, blocked-by, type"},
-		{[]string{"label"}, "label needs an action: list, create"},
+		{[]string{"label"}, "label needs an action: list, create, edit, delete"},
 		{[]string{"pr"}, "pr needs an action: list, view, create, comment, comment list, comment edit, comment delete, status, ready, merge, close, reopen"},
 		{[]string{"repo"}, "repo needs an action: list, view, create, clone, fork, delete, edit, rename, sync, set-default, commit, pull, push, add, am, archive, bisect, branch, bundle, checkout, cherry-pick, citool, clean, describe, diff, fetch, format-patch, gc, grep, gui, init, log, merge, mv, notes, range-diff, rebase, reset, restore, revert, rm, shortlog, show, sparse-checkout, stash, status, submodule, switch, tag, worktree, annotate, blame, bugreport, count-objects, diagnose, difftool, fsck, instaweb, maintenance, merge-tree, mergetool, prune-packed, rerere, scalar"},
 		{[]string{"issue", "lock", "1"}, "issue does not support lock"},
-		{[]string{"label", "delete", "1"}, "label does not support delete"},
+		{[]string{"label", "clone", "1"}, "label does not support clone"},
+		{[]string{"label", "edit", "bug"}, "label edit needs --name, --color, or --description"},
+		{[]string{"label", "edit"}, "usage: gg label edit <name>"},
+		{[]string{"label", "edit", "bug", "extra"}, "usage: gg label edit <name>"},
+		{[]string{"label", "delete"}, "usage: gg label delete <name>"},
+		{[]string{"label", "delete", "1", "2"}, "usage: gg label delete <name>"},
 		{[]string{"pr", "delete", "1"}, "pr does not support delete"},
 		{[]string{"issue", "list", "--wat"}, "unknown flag --wat"},
 		{[]string{"issue", "view"}, "usage: gg issue view <number>"},

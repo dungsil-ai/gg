@@ -699,6 +699,8 @@ func TestE2ENestedHelp(t *testing.T) {
 		{[]string{"label", "--help"}, []string{"Usage:", "list", "create", "--repo", "--remote", "--help"}},
 		{[]string{"label", "list", "--help"}, []string{"Usage:", "--limit", "--repo", "--remote", "--help"}},
 		{[]string{"label", "create", "--help"}, []string{"Usage:", "--name", "--color", "--description", "--repo", "--remote", "--help"}},
+		{[]string{"label", "edit", "--help"}, []string{"Usage:", "edit <name>", "--name", "--color", "--description", "--repo", "--remote", "--help"}},
+		{[]string{"label", "delete", "--help"}, []string{"Usage:", "delete <name>", "--yes", "--repo", "--remote", "--help"}},
 		{[]string{"issue", "close", "--help"}, []string{"Usage:", "close <number>", "--repo", "--remote", "--help"}},
 		{[]string{"issue", "reopen", "--help"}, []string{"Usage:", "reopen <number>", "--repo", "--remote", "--help"}},
 		{[]string{"issue", "delete", "--help"}, []string{"Usage:", "delete <number>", "--yes", "--repo", "--remote", "--help"}},
