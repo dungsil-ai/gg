@@ -240,7 +240,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gh pr comment` (대응: `gg pr comment`; 조회·수정·삭제는 `gg pr comment list|edit|delete`로 `gh api` 중계)
   - [x] `gh pr create` (대응: `gg pr create`)
   - [x] `gh pr diff` (대응: `gg pr diff`)
-  - [ ] `gh pr edit`
+  - [x] `gh pr edit` (대응: `gg pr edit`)
   - [x] `gh pr list` (대응: `gg pr list`)
   - [ ] `gh pr lock`
   - [x] `gh pr merge` (대응: `gg pr merge`)
@@ -444,7 +444,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `glab mr subscribe`
   - [ ] `glab mr todo`
   - [ ] `glab mr unsubscribe`
-  - [x] `glab mr update` (대응: `gg pr ready`)
+  - [x] `glab mr update` (대응: `gg pr ready`, `gg pr edit`)
   - [x] `glab mr view` (대응: `gg pr view`)
 - `release`
   - [x] `glab release create` (대응: `gg release create`; `--draft`·`--prerelease` 미지원)
@@ -587,6 +587,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `tea pulls clean`
   - [x] `tea pulls close` (대응: `gg pr close`)
   - [x] `tea pulls create` (대응: `gg pr create`)
+  - [x] `tea pulls edit` (대응: `gg pr edit`)
   - [x] `tea pulls list` (대응: `gg pr list`)
   - [ ] `tea pulls merge`
   - [x] `tea pulls open` (대응: `gg pr view`)
