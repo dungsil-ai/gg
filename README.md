@@ -234,7 +234,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gh label edit` (대응: `gg label edit`)
   - [x] `gh label list` (대응: `gg label list`)
 - `pr`
-  - [ ] `gh pr checkout`
+  - [x] `gh pr checkout` (대응: `gg pr checkout`)
   - [ ] `gh pr checks`
   - [x] `gh pr close` (대응: `gg pr close`)
   - [x] `gh pr comment` (대응: `gg pr comment`; 조회·수정·삭제는 `gg pr comment list|edit|delete`로 `gh api` 중계)
@@ -430,7 +430,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 - `mr`
   - [ ] `glab mr approve`
   - [ ] `glab mr approvers`
-  - [ ] `glab mr checkout`
+  - [x] `glab mr checkout` (대응: `gg pr checkout`)
   - [x] `glab mr close` (대응: `gg pr close`)
   - [x] `glab mr create` (대응: `gg pr create`)
   - [ ] `glab mr delete`
@@ -583,7 +583,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `tea logins view`
 - `pulls`
   - [ ] `tea pulls approve`
-  - [ ] `tea pulls checkout`
+  - [x] `tea pulls checkout` (대응: `gg pr checkout`)
   - [ ] `tea pulls clean`
   - [x] `tea pulls close` (대응: `gg pr close`)
   - [x] `tea pulls create` (대응: `gg pr create`)
@@ -767,6 +767,21 @@ Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없�
   gg --repo https://github.com/owner/repo pr close 42
   gg pr reopen 42 --remote upstream
   ```
+
+#### PR check out (`gg pr checkout`)
+- PR을 로컬 작업 트리로 check out:
+  ```bash
+  gg pr checkout 42
+  ```
+  - GitHub: `gh pr checkout 42 -R <owner>/<repo>` 호출
+  - GitLab: `glab mr checkout 42 --repo <URL>` 호출
+  - Gitea: `tea pulls checkout 42 ...` 호출
+- check out은 조회와 달리 **현재 작업 트리의 상태를 바꾼다**. 저장소 문맥 플래그(`--repo`, `--remote`)는 현재 트리가 아니라 대상 PR의 저장소를 정하므로, 다른 저장소 문맥을 주면 그 저장소의 PR branch가 현재 트리로 check out된다:
+  ```bash
+  gg --repo https://github.com/owner/repo pr checkout 42
+  gg pr checkout 42 --remote upstream
+  ```
+- 번호 외의 대상(URL, branch 이름)과 `--branch`·`--detach` 같은 flag는 세 provider의 공통 표면이 아니라 중계하지 않는다.
 
 #### PR 댓글 입력·조회·수정·삭제 (`gg pr comment`)
 - PR에 댓글 달기:

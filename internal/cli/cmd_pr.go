@@ -5,13 +5,13 @@ import (
 	"strings"
 )
 
-// prResourceDef는 "pr" 최상위 명령의 정의다: list, view, create, comment(하위
-// list/edit/delete), status, ready, merge, close, reopen.
+// prResourceDef는 "pr" 최상위 명령의 정의다: list, view, checkout, create,
+// comment(하위 list/edit/delete), status, ready, merge, close, reopen.
 // alias: mr (command_registry.go의 commandAliases에서 연결).
 var prResourceDef = &resourceDef{
 	name:    "pr",
-	summary: "List, view, create, comment on, merge, or close pull requests, and check merge readiness (alias: mr)",
-	desc:    "List, view, create, comment on, merge, or close pull requests, and check merge readiness.",
+	summary: "List, view, check out, create, comment on, merge, or close pull requests, and check merge readiness (alias: mr)",
+	desc:    "List, view, check out, create, comment on, merge, or close pull requests, and check merge readiness.",
 	usage:   "gg pr <command> [flags]",
 	actions: []actionDef{
 		{
@@ -27,6 +27,14 @@ var prResourceDef = &resourceDef{
 			remoteOK: true, explainOK: true,
 			minPos: 1, maxPos: 1,
 			posErr: "usage: gg pr view <number>",
+			setPos: setNumber,
+		},
+		{
+			name: "checkout", summary: "Check out a pull request locally", usage: "gg pr checkout <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr checkout <number>",
 			setPos: setNumber,
 		},
 		{
@@ -180,6 +188,20 @@ var prViewBuilders = providerBuilders{
 	},
 }
 
+// prCheckoutBuilders는 PR을 로컬 작업 트리로 check out한다. 3개 provider 모두
+// 번호 하나를 받는 같은 모양의 표면이다. flag 없이 번호만 중계한다.
+var prCheckoutBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "checkout", c.req.Number}, c.target...), nil
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "checkout", c.req.Number}, c.target...), nil
+	},
+	tea: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "checkout", c.req.Number}, c.target...), nil
+	},
+}
+
 var prCreateBuilders = providerBuilders{
 	gh: func(c invocationContext) (args, env []string) {
 		args = append([]string{c.res, "create"}, c.target...)
@@ -277,8 +299,9 @@ var prCommentDeleteBuilders = providerBuilders{
 // 사전 가드에서 걸러지므로 여기에는 등록하지 않는다 — provider별 예외는 감추지
 // 않고 그 함수에 명시적으로 남긴다.
 var prInvocationTable = map[string]providerBuilders{
-	"pr list": prListBuilders,
-	"pr view": prViewBuilders,
+	"pr list":     prListBuilders,
+	"pr view":     prViewBuilders,
+	"pr checkout": prCheckoutBuilders,
 	"pr status": {
 		gh: func(c invocationContext) (args, env []string) {
 			return []string{"pr", "view", c.req.Number, "-R", c.r.Host + "/" + c.r.Slug(), "--json", ghStatusFields()}, nil
