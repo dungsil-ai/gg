@@ -8,12 +8,12 @@ import (
 )
 
 // issueResourceDef는 "issue" 최상위 명령의 정의다: list, view, create, edit,
-// comment(하위 list/edit/delete), close, reopen, delete와 관계 등록(sub-issue,
-// blocked-by, type).
+// comment(하위 list/edit/delete), close, reopen, delete, lock, unlock과 관계
+// 등록(sub-issue, blocked-by, type).
 var issueResourceDef = &resourceDef{
 	name:    "issue",
-	summary: "List, view, create, comment on, close, reopen, delete, or link issues",
-	desc:    "List, view, create, comment on, close, reopen, delete, or link issues.",
+	summary: "List, view, create, comment on, close, reopen, delete, lock, or link issues",
+	desc:    "List, view, create, comment on, close, reopen, delete, lock, or link issues.",
 	usage:   "gg issue <command> [flags]",
 	actions: []actionDef{
 		{
@@ -129,6 +129,22 @@ var issueResourceDef = &resourceDef{
 			setPos: setNumber,
 		},
 		{
+			name: "lock", summary: "Lock an issue conversation (GitHub only)", usage: "gg issue lock <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg issue lock <number>",
+			setPos: setNumber,
+		},
+		{
+			name: "unlock", summary: "Unlock a locked issue conversation (GitHub only)", usage: "gg issue unlock <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg issue unlock <number>",
+			setPos: setNumber,
+		},
+		{
 			name: "sub-issue", summary: "Register an issue as a sub-issue of a parent issue",
 			usage:    "gg issue sub-issue <number> --parent <parent> [flags]",
 			flags:    []flagDef{parentFlag},
@@ -167,6 +183,8 @@ var ghOnlyIssueActions = map[string]bool{
 	"sub-issue":  true,
 	"blocked-by": true,
 	"type":       true,
+	"lock":       true,
+	"unlock":     true,
 }
 
 // isIssueNumber는 값이 issue 번호 형태(숫자만)인지 본다. 관계 API는 번호를 endpoint
@@ -276,6 +294,21 @@ var issueDeleteBuilders = providerBuilders{
 	},
 	glab: func(c invocationContext) (args, env []string) {
 		return append([]string{"issue", "delete", c.req.Number}, c.target...), nil
+	},
+}
+
+// issueLockBuilders는 이슈 대화 잠금·해제를 중계한다. gh 전용 기능이라
+// gh builder만 등록하고, glab·tea는 ghOnlyIssueActions 사전 가드에서
+// 미지원을 확정한다 (tea login을 묻기 전에 거부된다).
+var issueLockBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		return append([]string{"issue", "lock", c.req.Number}, c.target...), nil
+	},
+}
+
+var issueUnlockBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		return append([]string{"issue", "unlock", c.req.Number}, c.target...), nil
 	},
 }
 
@@ -434,6 +467,8 @@ var issueInvocationTable = map[string]providerBuilders{
 	"issue close":          issueCloseReopenBuilders,
 	"issue reopen":         issueCloseReopenBuilders,
 	"issue delete":         issueDeleteBuilders,
+	"issue lock":           issueLockBuilders,
+	"issue unlock":         issueUnlockBuilders,
 	"issue create":         issueCreateBuilders,
 	"issue edit":           issueEditBuilders,
 	"issue sub-issue":      issueSubIssueBuilders,

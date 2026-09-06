@@ -402,7 +402,7 @@ func TestParseRequestErrors(t *testing.T) {
 		{},                                      // 명령 없음
 		{"unknown"},                             // 알 수 없는 자원
 		{"issue"},                               // action 없음
-		{"issue", "lock", "1"},                  // 지원 안 하는 action
+		{"issue", "freeze", "1"},                // 지원 안 하는 action
 		{"issue", "view"},                       // number 없음
 		{"issue", "view", "1", "2"},             // 인자 초과
 		{"issue", "comment"},                    // number 없음
@@ -550,6 +550,14 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "issue", Action: "delete", Number: "18", Yes: true},
 			repo: gh, p: GH,
 			want: Invocation{Bin: "gh", Args: []string{"issue", "delete", "18", "--yes", "-R", "github.com/o/r"}}},
+		{name: "gh issue lock",
+			req:  Request{Resource: "issue", Action: "lock", Number: "18"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"issue", "lock", "18", "-R", "github.com/o/r"}}},
+		{name: "gh issue unlock",
+			req:  Request{Resource: "issue", Action: "unlock", Number: "18"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"issue", "unlock", "18", "-R", "github.com/o/r"}}},
 		{name: "gh label list",
 			req:  Request{Resource: "label", Action: "list", Limit: "3"},
 			repo: gh, p: GH,
@@ -932,6 +940,34 @@ func TestTranslateTeaIssueCommentSubActionsUnsupported(t *testing.T) {
 	}
 }
 
+// TestTranslateIssueLockUnsupported는 lock·unlock의 provider별 미지원을 본다.
+// 두 action은 gh 전용이라 glab과 tea 모두 사전 가드 오류다.
+func TestTranslateIssueLockUnsupported(t *testing.T) {
+	cases := []struct {
+		name string
+		p    Provider
+		repo RepoURL
+	}{
+		{name: "glab", p: GLab, repo: RepoURL{Host: "gitlab.com", Owner: "o", Name: "r"}},
+		{name: "tea", p: Tea, repo: RepoURL{Host: "gitea.com", Owner: "o", Name: "r"}},
+	}
+	for _, action := range []string{"lock", "unlock"} {
+		for _, c := range cases {
+			_, err := Translate(
+				Request{Resource: "issue", Action: action, Number: "7"},
+				c.repo, c.p, "corp",
+			)
+			var usage UsageError
+			if !errors.As(err, &usage) {
+				t.Fatalf("Translate(issue %s, %s): UsageError 기대, got %v", action, c.name, err)
+			}
+			if want := "issue " + action + " is not supported for " + c.name; usage.Msg != want {
+				t.Errorf("%s 오류 = %q, want %q", c.name, usage.Msg, want)
+			}
+		}
+	}
+}
+
 func TestTranslateTeaIssueDeleteUnsupported(t *testing.T) {
 	_, err := Translate(
 		Request{Resource: "issue", Action: "delete", Number: "7"},
@@ -972,17 +1008,17 @@ func TestTranslateLabelUnsupportedForTea(t *testing.T) {
 }
 
 func TestTranslateUnsupportedAction(t *testing.T) {
-	// delete는 이제 구현됐으므로, 어떤 provider에도 builder가 없는 lock으로
+	// lock은 이제 구현됐으므로, 어떤 provider에도 builder가 없는 sponsor로
 	// dispatch fallback 오류를 본다.
-	req := Request{Resource: "issue", Action: "lock"}
+	req := Request{Resource: "issue", Action: "sponsor"}
 	repo := RepoURL{Host: "github.com", Owner: "o", Name: "r"}
 	for _, p := range []Provider{GH, GLab, Tea} {
 		_, err := Translate(req, repo, p, "corp")
 		var ue UsageError
 		if !errors.As(err, &ue) {
-			t.Fatalf("Translate(%s issue lock): UsageError 기대, got %v", p, err)
+			t.Fatalf("Translate(%s issue sponsor): UsageError 기대, got %v", p, err)
 		}
-		if !strings.Contains(ue.Msg, "does not support lock") {
+		if !strings.Contains(ue.Msg, "does not support sponsor") {
 			t.Errorf("provider %s error = %q, want unsupported action message", p, ue.Msg)
 		}
 	}
@@ -1293,11 +1329,11 @@ func TestParseRequestErrorMessages(t *testing.T) {
 	}{
 		{[]string{"unknown"}, "unknown command unknown"},
 		{[]string{"config"}, "config needs an action: list, set, unset"},
-		{[]string{"issue"}, "issue needs an action: list, view, create, edit, comment, comment list, comment edit, comment delete, close, reopen, delete, sub-issue, blocked-by, type"},
+		{[]string{"issue"}, "issue needs an action: list, view, create, edit, comment, comment list, comment edit, comment delete, close, reopen, delete, lock, unlock, sub-issue, blocked-by, type"},
 		{[]string{"label"}, "label needs an action: list, create, edit, delete"},
 		{[]string{"pr"}, "pr needs an action: list, view, checkout, diff, create, edit, comment, comment list, comment edit, comment delete, status, ready, merge, close, reopen"},
 		{[]string{"repo"}, "repo needs an action: list, view, create, clone, fork, delete, edit, rename, sync, set-default, commit, pull, push, add, am, archive, bisect, branch, bundle, checkout, cherry-pick, citool, clean, describe, diff, fetch, format-patch, gc, grep, gui, init, log, merge, mv, notes, range-diff, rebase, reset, restore, revert, rm, shortlog, show, sparse-checkout, stash, status, submodule, switch, tag, worktree, annotate, blame, bugreport, count-objects, diagnose, difftool, fsck, instaweb, maintenance, merge-tree, mergetool, prune-packed, rerere, scalar"},
-		{[]string{"issue", "lock", "1"}, "issue does not support lock"},
+		{[]string{"issue", "freeze", "1"}, "issue does not support freeze"},
 		{[]string{"label", "clone", "1"}, "label does not support clone"},
 		{[]string{"label", "edit", "bug"}, "label edit needs --name, --color, or --description"},
 		{[]string{"label", "edit"}, "usage: gg label edit <name>"},
