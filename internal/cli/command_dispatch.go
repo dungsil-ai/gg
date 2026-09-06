@@ -117,7 +117,8 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	if req.Resource == "pr" && req.Action == "merge" {
 		return Invocation{}, errors.New("pr merge is not supported for tea")
 	}
-	if req.Resource == "pr" && (req.Action == "status" || req.Action == "ready") {
+	// tea는 PR status/ready/diff 명령이 없다.
+	if req.Resource == "pr" && (req.Action == "status" || req.Action == "ready" || req.Action == "diff") {
 		return Invocation{}, usageErr("pr " + req.Action + " is not supported for tea")
 	}
 	if req.Resource == "label" {

@@ -602,6 +602,10 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "pr", Action: "reopen", Number: "7"},
 			repo: gh, p: GH,
 			want: Invocation{Bin: "gh", Args: []string{"pr", "reopen", "7", "-R", "github.com/o/r"}}},
+		{name: "gh pr diff",
+			req:  Request{Resource: "pr", Action: "diff", Number: "7"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"pr", "diff", "7", "-R", "github.com/o/r"}}},
 		{name: "gh pr comment",
 			req:  Request{Resource: "pr", Action: "comment", Number: "18", Body: "hello"},
 			repo: gh, p: GH,
@@ -676,6 +680,10 @@ func TestTranslate(t *testing.T) {
 			req:  Request{Resource: "pr", Action: "checkout", Number: "7"},
 			repo: gl, p: GLab,
 			want: Invocation{Bin: "glab", Args: []string{"mr", "checkout", "7", "--repo", "https://git.example.com/grp/sub/p"}}},
+		{name: "glab pr diff",
+			req:  Request{Resource: "pr", Action: "diff", Number: "7"},
+			repo: gl, p: GLab,
+			want: Invocation{Bin: "glab", Args: []string{"mr", "diff", "7", "--repo", "https://git.example.com/grp/sub/p"}}},
 		{name: "glab pr comment",
 			req:  Request{Resource: "pr", Action: "comment", Number: "18", Body: "hello"},
 			repo: gl, p: GLab,
@@ -827,6 +835,22 @@ func TestTranslateTeaPRReadyUnsupported(t *testing.T) {
 		t.Fatalf("Translate(pr ready, tea): UsageError 기대, got %v", err)
 	}
 	if usage.Msg != "pr ready is not supported for tea" {
+		t.Errorf("Tea 오류 = %q", usage.Msg)
+	}
+}
+
+func TestTranslateTeaPRDiffUnsupported(t *testing.T) {
+	_, err := Translate(
+		Request{Resource: "pr", Action: "diff", Number: "7"},
+		RepoURL{Host: "gitea.com", Owner: "o", Name: "r"},
+		Tea,
+		"",
+	)
+	var usage UsageError
+	if !errors.As(err, &usage) {
+		t.Fatalf("Translate(pr diff, tea): UsageError 기대, got %v", err)
+	}
+	if usage.Msg != "pr diff is not supported for tea" {
 		t.Errorf("Tea 오류 = %q", usage.Msg)
 	}
 }
@@ -1259,7 +1283,7 @@ func TestParseRequestErrorMessages(t *testing.T) {
 		{[]string{"config"}, "config needs an action: list, set, unset"},
 		{[]string{"issue"}, "issue needs an action: list, view, create, edit, comment, comment list, comment edit, comment delete, close, reopen, delete, sub-issue, blocked-by, type"},
 		{[]string{"label"}, "label needs an action: list, create, edit, delete"},
-		{[]string{"pr"}, "pr needs an action: list, view, checkout, create, comment, comment list, comment edit, comment delete, status, ready, merge, close, reopen"},
+		{[]string{"pr"}, "pr needs an action: list, view, checkout, diff, create, comment, comment list, comment edit, comment delete, status, ready, merge, close, reopen"},
 		{[]string{"repo"}, "repo needs an action: list, view, create, clone, fork, delete, edit, rename, sync, set-default, commit, pull, push, add, am, archive, bisect, branch, bundle, checkout, cherry-pick, citool, clean, describe, diff, fetch, format-patch, gc, grep, gui, init, log, merge, mv, notes, range-diff, rebase, reset, restore, revert, rm, shortlog, show, sparse-checkout, stash, status, submodule, switch, tag, worktree, annotate, blame, bugreport, count-objects, diagnose, difftool, fsck, instaweb, maintenance, merge-tree, mergetool, prune-packed, rerere, scalar"},
 		{[]string{"issue", "lock", "1"}, "issue does not support lock"},
 		{[]string{"label", "clone", "1"}, "label does not support clone"},
