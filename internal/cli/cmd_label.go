@@ -121,7 +121,7 @@ var labelDeleteBuilders = providerBuilders{
 }
 
 // labelInvocationTable은 "label <action>" 키로 provider별 arg-builder를 모은다.
-// edit와 delete는 gh builder만 있어 glab은 dispatch의 미지원 오류로 걸러진다.
+// edit는 gh builder만 있어 glab은 dispatch의 미지원 오류로 걸러진다.
 var labelInvocationTable = map[string]providerBuilders{
 	"label list":   labelListBuilders,
 	"label create": labelCreateBuilders,
