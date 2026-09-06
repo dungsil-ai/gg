@@ -768,6 +768,21 @@ Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없�
   gg pr reopen 42 --remote upstream
   ```
 
+#### PR check out (`gg pr checkout`)
+- PR을 로컬 작업 트리로 check out:
+  ```bash
+  gg pr checkout 42
+  ```
+  - GitHub: `gh pr checkout 42 -R <owner>/<repo>` 호출
+  - GitLab: `glab mr checkout 42 --repo <URL>` 호출
+  - Gitea: `tea pulls checkout 42 ...` 호출
+- check out은 조회와 달리 **현재 작업 트리의 상태를 바꾼다**. 저장소 문맥 플래그(`--repo`, `--remote`)는 현재 트리가 아니라 대상 PR의 저장소를 정하므로, 다른 저장소 문맥을 주면 그 저장소의 PR branch가 현재 트리로 check out된다:
+  ```bash
+  gg --repo https://github.com/owner/repo pr checkout 42
+  gg pr checkout 42 --remote upstream
+  ```
+- 번호 외의 대상(URL, branch 이름)과 `--branch`·`--detach` 같은 flag는 세 provider의 공통 표면이 아니라 중계하지 않는다.
+
 #### PR 댓글 입력·조회·수정·삭제 (`gg pr comment`)
 - PR에 댓글 달기:
   ```bash
