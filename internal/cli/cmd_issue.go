@@ -8,12 +8,12 @@ import (
 )
 
 // issueResourceDef는 "issue" 최상위 명령의 정의다: list, view, create,
-// comment(하위 list/edit/delete), close, reopen과 관계 등록(sub-issue,
+// comment(하위 list/edit/delete), close, reopen, delete와 관계 등록(sub-issue,
 // blocked-by, type).
 var issueResourceDef = &resourceDef{
 	name:    "issue",
-	summary: "List, view, create, comment, close, reopen, or link issues",
-	desc:    "List, view, create, comment, close, reopen, or link issues.",
+	summary: "List, view, create, comment on, close, reopen, delete, or link issues",
+	desc:    "List, view, create, comment on, close, reopen, delete, or link issues.",
 	usage:   "gg issue <command> [flags]",
 	actions: []actionDef{
 		{
@@ -102,6 +102,15 @@ var issueResourceDef = &resourceDef{
 			remoteOK: true, explainOK: true,
 			minPos: 1, maxPos: 1,
 			posErr: "usage: gg issue reopen <number>",
+			setPos: setNumber,
+		},
+		{
+			name: "delete", summary: "Delete an issue", usage: "gg issue delete <number> [flags]",
+			flags:    []flagDef{yesFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg issue delete <number>",
 			setPos: setNumber,
 		},
 		{
@@ -237,6 +246,21 @@ var issueCloseReopenBuilders = providerBuilders{
 	},
 	tea: func(c invocationContext) (args, env []string) {
 		return append([]string{"issues", c.req.Action, c.req.Number}, c.target...), nil
+	},
+}
+
+// issueDeleteBuilders는 이슈 삭제를 중계한다. gh는 대화형 확인을 건너뛰는
+// --yes flag가 있지만 glab에는 확인 flag가 없으므로 gg의 --yes는 gh에만 전달한다.
+var issueDeleteBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = []string{"issue", "delete", c.req.Number}
+		if c.req.Yes {
+			args = append(args, "--yes")
+		}
+		return append(args, c.target...), nil
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		return append([]string{"issue", "delete", c.req.Number}, c.target...), nil
 	},
 }
 
@@ -376,6 +400,7 @@ var issueInvocationTable = map[string]providerBuilders{
 	"issue comment delete": issueCommentDeleteBuilders,
 	"issue close":          issueCloseReopenBuilders,
 	"issue reopen":         issueCloseReopenBuilders,
+	"issue delete":         issueDeleteBuilders,
 	"issue create":         issueCreateBuilders,
 	"issue sub-issue":      issueSubIssueBuilders,
 	"issue blocked-by":     issueBlockedByBuilders,

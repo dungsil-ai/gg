@@ -693,7 +693,7 @@ func TestE2ENestedHelp(t *testing.T) {
 		want []string
 	}{
 		{[]string{"config", "--help"}, []string{"Usage:", "list", "List Provider 설정", "set", "unset", "Flags:", "--help"}},
-		{[]string{"issue", "--help"}, []string{"Usage:", "list", "view", "create", "comment", "close", "reopen", "--repo", "--remote", "--help"}},
+		{[]string{"issue", "--help"}, []string{"Usage:", "list", "view", "create", "comment", "close", "reopen", "delete", "--repo", "--remote", "--help"}},
 		{[]string{"issue", "list", "--help"}, []string{"Usage:", "--state", "--limit", "--repo", "--remote", "--help"}},
 		{[]string{"issue", "comment", "--help"}, []string{"Usage:", "comment <number>", "--body", "--repo", "--remote", "--help"}},
 		{[]string{"label", "--help"}, []string{"Usage:", "list", "create", "--repo", "--remote", "--help"}},
@@ -701,6 +701,7 @@ func TestE2ENestedHelp(t *testing.T) {
 		{[]string{"label", "create", "--help"}, []string{"Usage:", "--name", "--color", "--description", "--repo", "--remote", "--help"}},
 		{[]string{"issue", "close", "--help"}, []string{"Usage:", "close <number>", "--repo", "--remote", "--help"}},
 		{[]string{"issue", "reopen", "--help"}, []string{"Usage:", "reopen <number>", "--repo", "--remote", "--help"}},
+		{[]string{"issue", "delete", "--help"}, []string{"Usage:", "delete <number>", "--yes", "--repo", "--remote", "--help"}},
 		{[]string{"pr", "create", "--help"}, []string{"Usage:", "--title", "--body", "--base", "--head", "--draft", "--repo", "--remote", "--help"}},
 		{[]string{"pr", "comment", "--help"}, []string{"Usage:", "comment <number>", "--body", "--repo", "--remote", "--help"}},
 		{[]string{"pr", "comment", "list", "--help"}, []string{"Usage:", "comment list <number>", "--repo", "--remote", "--help"}},
