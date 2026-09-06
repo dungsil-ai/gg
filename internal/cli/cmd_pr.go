@@ -6,12 +6,12 @@ import (
 )
 
 // prResourceDef는 "pr" 최상위 명령의 정의다: list, view, checkout, create,
-// comment(하위 list/edit/delete), status, ready, merge, close, reopen, diff.
+// edit, comment(하위 list/edit/delete), status, ready, merge, close, reopen, diff.
 // alias: mr (command_registry.go의 commandAliases에서 연결).
 var prResourceDef = &resourceDef{
 	name:    "pr",
-	summary: "List, view, check out, create, comment on, diff, merge, or close pull requests, and check merge readiness (alias: mr)",
-	desc:    "List, view, check out, create, comment on, diff, merge, or close pull requests, and check merge readiness.",
+	summary: "List, view, check out, create, edit, comment on, diff, merge, or close pull requests, and check merge readiness (alias: mr)",
+	desc:    "List, view, check out, create, edit, comment on, diff, merge, or close pull requests, and check merge readiness.",
 	usage:   "gg pr <command> [flags]",
 	actions: []actionDef{
 		{
@@ -50,6 +50,21 @@ var prResourceDef = &resourceDef{
 			flags:    []flagDef{titleFlag, bodyFlag, baseFlag, headFlag, draftFlag},
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
+		},
+		{
+			name: "edit", summary: "Edit a pull request title or body", usage: "gg pr edit <number> [flags]",
+			flags:    []flagDef{titleFlag, bodyFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr edit <number>",
+			setPos: func(req *Request, pos []string) error {
+				if strings.TrimSpace(req.Title) == "" && strings.TrimSpace(req.Body) == "" {
+					return usageErr("pr edit needs --title or --body")
+				}
+				req.Number = pos[0]
+				return nil
+			},
 		},
 		{
 			name: "comment", summary: "Comment on a pull request", usage: "gg pr comment <number> [flags]",
@@ -264,6 +279,30 @@ func glabProjectPath(r RepoURL) string {
 	return url.PathEscape(r.Slug())
 }
 
+// prEditBuilders는 PR 제목·본문 수정을 중계한다. glab은 mr update를, tea는
+// pulls edit을 쓰며 둘 다 본문 flag로 --description을 쓴다. glab mr update는
+// pr ready의 draft·ready 전환도 담당하지만 flag 없이 부르면 제목·본문 수정이다.
+var prEditBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "edit", c.req.Number}, c.target...)
+		args = appendKV(args, "--title", c.req.Title)
+		args = appendKV(args, "--body", c.req.Body)
+		return args, nil
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "update", c.req.Number}, c.target...)
+		args = appendKV(args, "--title", c.req.Title)
+		args = appendKV(args, "--description", c.req.Body)
+		return args, nil
+	},
+	tea: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "edit", c.req.Number}, c.target...)
+		args = appendKV(args, "--title", c.req.Title)
+		args = appendKV(args, "--description", c.req.Body)
+		return args, nil
+	},
+}
+
 // prCommentBuilders는 pr comment(입력)의 builder다.
 var prCommentBuilders = providerBuilders{
 	gh: func(c invocationContext) (args, env []string) {
@@ -409,6 +448,7 @@ var prInvocationTable = map[string]providerBuilders{
 		},
 	},
 	"pr create": prCreateBuilders,
+	"pr edit":   prEditBuilders,
 
 	"pr comment":        prCommentBuilders,
 	"pr comment list":   prCommentListBuilders,
