@@ -7,19 +7,53 @@ import (
 	"text/tabwriter"
 )
 
-// authResourceDef는 "auth" 최상위 명령의 정의다: status. auth는 forge 명령이
-// 아니므로 저장소 문맥 flag와 --explain이 없다(ADR 0006).
+// authResourceDef는 "auth" 최상위 명령의 정의다: status와 gh CLI 계정 작업
+// 릴레이(login, logout, refresh, setup-git, switch, token). auth는 forge 명령이
+// 아니므로 저장소 문맥 flag와 --explain이 없다(ADR 0006). 릴레이 action은 모든
+// 인자를 gh에 그대로 전달하는 passthrough다.
 var authResourceDef = &resourceDef{
 	name:    "auth",
-	summary: "Show provider CLI login status",
-	desc:    "Show provider CLI login status.",
+	summary: "Show provider CLI login status, and relay GitHub CLI account operations",
+	desc:    "Show provider CLI login status, and relay GitHub CLI account operations.",
 	usage:   "gg auth <command>",
-	actions: []actionDef{
+	actions: append([]actionDef{
 		{
 			name: "status", summary: "Show login status for each host", usage: "gg auth status",
 			posErr: "usage: gg auth status",
 		},
-	},
+	}, authRelayActions()...),
+}
+
+// authRelayActionNames는 gh CLI 계정 작업을 그대로 전달하는 auth action이다.
+var authRelayActionNames = []string{"login", "logout", "refresh", "setup-git", "switch", "token"}
+
+func authRelayActions() []actionDef {
+	actions := make([]actionDef, len(authRelayActionNames))
+	for i, name := range authRelayActionNames {
+		actions[i] = actionDef{
+			name: name, summary: "Run gh auth " + name + " (all args pass through)",
+			usage:       "gg auth " + name + " [args...]",
+			passthrough: true, maxPos: -1,
+		}
+	}
+	return actions
+}
+
+// isAuthRelayAction은 이름이 gh 릴레이 auth action인지 본다. --help 전달 등
+// passthrough 예외 처리에서 쓴다.
+func isAuthRelayAction(name string) bool {
+	for _, n := range authRelayActionNames {
+		if n == name {
+			return true
+		}
+	}
+	return false
+}
+
+// authRelayInvocation은 auth 릴레이 action을 gh 호출로 옮긴다. action 뒤의 모든
+// 인자(--help 포함)는 검사 없이 gh auth에 그대로 전달된다.
+func authRelayInvocation(req Request) Invocation {
+	return Invocation{Bin: "gh", Args: append([]string{"auth", req.Action}, req.GitArgs...)}
 }
 
 func runAuth(req Request) error {

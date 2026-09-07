@@ -204,13 +204,13 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 
 ### 공통 핵심 명령 (Core Commands)
 - `auth`
-  - [ ] `gh auth login`
-  - [ ] `gh auth logout`
-  - [ ] `gh auth refresh`
-  - [ ] `gh auth setup-git`
+  - [x] `gh auth login` (대응: `gg auth login`; 모든 인자를 gh에 그대로 전달)
+  - [x] `gh auth logout` (대응: `gg auth logout`; 모든 인자를 gh에 그대로 전달)
+  - [x] `gh auth refresh` (대응: `gg auth refresh`; 모든 인자를 gh에 그대로 전달)
+  - [x] `gh auth setup-git` (대응: `gg auth setup-git`; 모든 인자를 gh에 그대로 전달)
   - [x] `gh auth status` (대응: `gg auth status`)
-  - [ ] `gh auth switch`
-  - [ ] `gh auth token`
+  - [x] `gh auth switch` (대응: `gg auth switch`; 모든 인자를 gh에 그대로 전달)
+  - [x] `gh auth token` (대응: `gg auth token`; 모든 인자를 gh에 그대로 전달)
 - `issue`
   - [x] `gh issue close` (대응: `gg issue close`)
   - [x] `gh issue comment` (대응: `gg issue comment`; 조회·수정·삭제는 `gg issue comment list|edit|delete`로 `gh api` 중계)
@@ -406,8 +406,8 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 
 ### 공통 핵심 명령 (Core Commands)
 - `auth`
-  - [ ] `glab auth login`
-  - [ ] `glab auth logout`
+  - [ ] `glab auth login` (gg auth 중계는 현재 gh만 지원 — provider 선택 방식 설계 후 검토)
+  - [ ] `glab auth logout` (gg auth 중계는 현재 gh만 지원 — provider 선택 방식 설계 후 검토)
   - [x] `glab auth status` (대응: `gg auth status`)
 - `issue`
   - [ ] `glab issue board`

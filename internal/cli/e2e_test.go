@@ -742,6 +742,11 @@ func TestE2EAllActionHelp(t *testing.T) {
 			if name == "repo" && isGitPassthroughAction(ad.name) {
 				continue
 			}
+			if name == "auth" && isAuthRelayAction(ad.name) {
+				// auth 릴레이는 --help를 포함한 모든 인자를 gh에 전달하므로
+				// gg help 검사에서 제외한다(auth_relay_e2e_test.go가 검증).
+				continue
+			}
 			// 2단어 action(pr comment list 등)은 토큰으로 분리해 호출한다.
 			actionArgs := append(append([]string{name}, strings.Fields(ad.name)...), "--help")
 			stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), actionArgs...)

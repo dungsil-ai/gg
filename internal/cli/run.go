@@ -63,10 +63,13 @@ func run(args []string) int {
 		return 0
 	}
 	if req.Resource == "auth" {
-		if err := runAuth(req); err != nil {
-			return fail(err)
+		if req.Action == "status" {
+			if err := runAuth(req); err != nil {
+				return fail(err)
+			}
+			return 0
 		}
-		return 0
+		return execChild(authRelayInvocation(req))
 	}
 	if req.Explain {
 		ep, err := resolvePlan(req)

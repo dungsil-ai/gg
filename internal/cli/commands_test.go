@@ -106,6 +106,12 @@ func TestNestedHelpPaths(t *testing.T) {
 				}
 				continue
 			}
+			if name == "auth" && isAuthRelayAction(ad.name) {
+				if ok {
+					t.Errorf("nestedHelp(%v)가 gh auth relay help를 가로챔: %q", path, help)
+				}
+				continue
+			}
 			if !ok || !strings.Contains(help, ad.usage) {
 				t.Errorf("nestedHelp(%v) = %q, %v", path, help, ok)
 			}

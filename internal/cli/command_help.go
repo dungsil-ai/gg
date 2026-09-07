@@ -155,7 +155,7 @@ func nestedHelp(args []string) (string, bool) {
 	case 2:
 		if rd, ok := commandDefs[head]; ok {
 			if ad := rd.action(path[1]); ad != nil {
-				if (rd.name == "repo" && isGitPassthroughAction(ad.name)) || (hasLeadingGlobal && ad.passthrough) {
+				if (rd.name == "repo" && isGitPassthroughAction(ad.name)) || (rd.name == "auth" && isAuthRelayAction(ad.name)) || (hasLeadingGlobal && ad.passthrough) {
 					return "", false
 				}
 				return renderActionHelp(rd, ad), true
