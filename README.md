@@ -348,11 +348,11 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gh run view` (대응: `gg ci view`)
   - [x] `gh run watch` (대응: `gg ci watch`)
 - `workflow`
-  - [ ] `gh workflow disable`
-  - [ ] `gh workflow enable`
-  - [ ] `gh workflow list`
-  - [ ] `gh workflow run`
-  - [ ] `gh workflow view`
+  - [x] `gh workflow disable` (대응: `gg workflow disable`; glab·tea에 workflow 하위 명령이 없어 미지원)
+  - [x] `gh workflow enable` (대응: `gg workflow enable`; glab·tea에 workflow 하위 명령이 없어 미지원)
+  - [x] `gh workflow list` (대응: `gg workflow list`; glab·tea에 workflow 하위 명령이 없어 미지원)
+  - [x] `gh workflow run` (대응: `gg workflow run [--ref]`; glab·tea에 workflow 하위 명령이 없어 미지원)
+  - [x] `gh workflow view` (대응: `gg workflow view [--ref]`; glab·tea에 workflow 하위 명령이 없어 미지원)
 - `alias`
   - [ ] `gh alias delete`
   - [ ] `gh alias import`

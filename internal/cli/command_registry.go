@@ -62,23 +62,24 @@ func setNumber(req *Request, pos []string) error {
 
 // commandDefs는 cmd_*.go가 등록한 resourceDef를 최상위 명령 이름으로 모은다.
 var commandDefs = map[string]*resourceDef{
-	"repo":    repoResourceDef,
-	"issue":   issueResourceDef,
-	"label":   labelResourceDef,
-	"pr":      prResourceDef,
-	"release": releaseResourceDef,
-	"ci":      ciResourceDef,
-	"auth":    authResourceDef,
-	"config":  configResourceDef,
+	"repo":     repoResourceDef,
+	"issue":    issueResourceDef,
+	"label":    labelResourceDef,
+	"pr":       prResourceDef,
+	"release":  releaseResourceDef,
+	"ci":       ciResourceDef,
+	"workflow": workflowResourceDef,
+	"auth":     authResourceDef,
+	"config":   configResourceDef,
 }
 
 // commandOrder는 최상위 help의 resource 표시 순서다.
-var commandOrder = []string{"repo", "issue", "label", "pr", "release", "ci", "auth", "config"}
+var commandOrder = []string{"repo", "issue", "label", "pr", "release", "ci", "workflow", "auth", "config"}
 
 // invocationTable은 "<resource> <action>" 키로 gh/glab/tea의 arg-builder를 모은다.
 // cmd_repo.go / cmd_issue.go / cmd_label.go / cmd_pr.go / cmd_release.go / cmd_ci.go가 각자의
 // table을 등록하고 여기서 취합한다.
-var invocationTable = mergeInvocationTables(repoInvocationTable, issueInvocationTable, labelInvocationTable, prInvocationTable, releaseInvocationTable, ciInvocationTable)
+var invocationTable = mergeInvocationTables(repoInvocationTable, issueInvocationTable, labelInvocationTable, prInvocationTable, releaseInvocationTable, ciInvocationTable, workflowInvocationTable)
 
 func mergeInvocationTables(tables ...map[string]providerBuilders) map[string]providerBuilders {
 	merged := make(map[string]providerBuilders)

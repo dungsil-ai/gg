@@ -178,6 +178,9 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	if req.Resource == "ci" {
 		return Invocation{}, usageErr("ci is not supported for tea")
 	}
+	if req.Resource == "workflow" {
+		return Invocation{}, usageErr("workflow is not supported for tea")
+	}
 	var res string
 	switch req.Resource {
 	case "repo":
