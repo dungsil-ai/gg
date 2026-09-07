@@ -257,6 +257,22 @@ var prResourceDef = &resourceDef{
 				return nil
 			},
 		},
+		{
+			name: "subscribe", summary: "Subscribe to a pull request (GitLab only)", usage: "gg pr subscribe <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr subscribe <number>",
+			setPos: setNumber,
+		},
+		{
+			name: "unsubscribe", summary: "Unsubscribe from a pull request (GitLab only)", usage: "gg pr unsubscribe <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr unsubscribe <number>",
+			setPos: setNumber,
+		},
 	},
 }
 
@@ -522,6 +538,22 @@ var prDeleteBuilders = providerBuilders{
 	},
 }
 
+// prSubscribeBuilders와 prUnsubscribeBuilders는 MR 알림 구독을 관리한다.
+// glab 전용 기능이라 glab builder만 등록한다 — gh와 tea는 dispatch의 builder
+// 부재 오류로 걸러지며, tea는 run.go의 tea login 건너뛰기 목록이 login을 묻기
+// 전에 미지원을 확정한다.
+var prSubscribeBuilders = providerBuilders{
+	glab: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "subscribe", c.req.Number}, c.target...), nil
+	},
+}
+
+var prUnsubscribeBuilders = providerBuilders{
+	glab: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "unsubscribe", c.req.Number}, c.target...), nil
+	},
+}
+
 // prRebaseBuilders는 MR source branch를 target branch 기준으로 리베이스한다.
 // glab 전용 기능이라 glab builder만 등록한다 — gh와 tea는 dispatch의 builder
 // 부재 오류로 걸러지며, tea는 run.go의 tea login 건너뛰기 목록이 login을 묻기
@@ -646,13 +678,15 @@ var prInvocationTable = map[string]providerBuilders{
 			return append([]string{c.res, "reopen", c.req.Number}, c.target...), nil
 		},
 	},
-	"pr create": prCreateBuilders,
-	"pr edit":   prEditBuilders,
-	"pr lock":   prLockBuilders,
-	"pr unlock": prUnlockBuilders,
-	"pr delete": prDeleteBuilders,
-	"pr rebase": prRebaseBuilders,
-	"pr review": prReviewBuilders,
+	"pr create":      prCreateBuilders,
+	"pr edit":        prEditBuilders,
+	"pr lock":        prLockBuilders,
+	"pr unlock":      prUnlockBuilders,
+	"pr delete":      prDeleteBuilders,
+	"pr rebase":      prRebaseBuilders,
+	"pr subscribe":   prSubscribeBuilders,
+	"pr unsubscribe": prUnsubscribeBuilders,
+	"pr review":      prReviewBuilders,
 
 	"pr comment":        prCommentBuilders,
 	"pr comment list":   prCommentListBuilders,
