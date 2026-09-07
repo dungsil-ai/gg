@@ -107,6 +107,11 @@ func glabInvocation(req Request, r RepoURL) (Invocation, error) {
 	if req.Resource == "pr" && req.Action == "checks" {
 		return Invocation{}, usageErr("pr checks is not supported for glab")
 	}
+	// glab mr rebase는 동작이 다른 별도 명령이라 update-branch 표면으로
+	// 중계하지 않는다.
+	if req.Resource == "pr" && req.Action == "update-branch" {
+		return Invocation{}, usageErr("pr update-branch is not supported for glab")
+	}
 	// glab에는 changes 요청과 리뷰 본문 달기 명령이 없어 approve만 중계한다.
 	if req.Resource == "pr" && req.Action == "review" && (req.RequestChanges || req.ReviewComment) {
 		return Invocation{}, usageErr("pr review --request-changes/--comment is not supported for glab")
@@ -139,6 +144,10 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	// tea에는 PR 단위 체크 조회 명령이 없다.
 	if req.Resource == "pr" && req.Action == "checks" {
 		return Invocation{}, usageErr("pr checks is not supported for tea")
+	}
+	// tea에는 PR branch 갱신 명령이 없다.
+	if req.Resource == "pr" && req.Action == "update-branch" {
+		return Invocation{}, usageErr("pr update-branch is not supported for tea")
 	}
 	// tea에는 리뷰 본문만 다는 명령이 없어 approve와 reject만 중계한다.
 	if req.Resource == "pr" && req.Action == "review" && req.ReviewComment {

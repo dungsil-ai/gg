@@ -216,14 +216,15 @@ func resolvePlan(req Request) (executionPlan, error) {
 		}
 	}
 	teaLogin := ""
-	// release/ci 전체와 pr status/ready/diff/checks/lock/unlock, pr comment
-	// list/edit/delete, pr review --comment, label edit·delete, issue 관계 등록,
-	// issue comment list/edit/delete, issue edit, issue delete는 provider를
-	// 고른 뒤 미지원을 확정하므로 tea login을 묻지 않는다. label list·create와
-	// pr review의 approve·request-changes는 tea도 중계하므로 login을 묻는다.
+	// release/ci 전체와 pr status/ready/diff/checks/lock/unlock/update-branch,
+	// pr comment list/edit/delete, pr review --comment, label edit·delete,
+	// issue 관계 등록, issue comment list/edit/delete, issue edit, issue delete는
+	// provider를 고른 뒤 미지원을 확정하므로 tea login을 묻지 않는다. label
+	// list·create와 pr review의 approve·request-changes는 tea도 중계하므로
+	// login을 묻는다.
 	unsupportedTeaAction := (req.Resource == "pr" && (req.Action == "status" || req.Action == "ready" ||
 		req.Action == "diff" ||
-		req.Action == "checks" ||
+		req.Action == "checks" || req.Action == "update-branch" ||
 		req.Action == "lock" || req.Action == "unlock" ||
 		req.Action == "comment list" || req.Action == "comment edit" || req.Action == "comment delete")) ||
 		(req.Resource == "pr" && req.Action == "review" && req.ReviewComment) ||

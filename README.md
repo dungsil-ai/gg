@@ -249,7 +249,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gh pr review` (대응: `gg pr review [--approve|--request-changes|--comment]`; glab은 approve만, tea는 approve·request-changes만 중계)
   - [ ] `gh pr status`
   - [x] `gh pr unlock` (대응: `gg pr unlock`; glab·tea에 PR 잠금 해제 하위 명령이 없어 미지원)
-  - [ ] `gh pr update-branch`
+  - [x] `gh pr update-branch` (대응: `gg pr update-branch`; glab·tea에 같은 동작의 하위 명령이 없어 미지원)
   - [x] `gh pr view` (대응: `gg pr view`)
 - `release`
   - [x] `gh release create` (대응: `gg release create`)
