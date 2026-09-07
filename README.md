@@ -562,7 +562,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 - [x] `tea clone` (대응: `gg repo clone`, `gg clone`)
 - `comment`
   - [x] `tea comment create` (대응: `gg issue comment`, `gg pr comment`)
-  - [ ] `tea comment list`
+  - [x] `tea comment list` (대응: `gg issue comment list`, `gg pr comment list`)
 - `issues`
   - [x] `tea issues close` (대응: `gg issue close`)
   - [x] `tea issues create` (대응: `gg issue create`)
@@ -668,11 +668,11 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - exit code 계약: 조회 자체가 실패할 때만 0이 아닌 exit code를 냅니다 — 하위 CLI(gh/glab) 미설치 시 127, 자식이 신호로 종료되면 128+신호 코드, 그 외 조회 실패 시 1. 조회 성공 시 병합 불가·CI 실패·승인 대기는 결과 값이며 exit 0입니다. CI 값 범위는 pass|fail|pending|none|unknown이고, NEUTRAL/SKIPPED 체크는 pass로 셉니다.
   - [x] `gg pr ready` (GitHub, GitLab 지원; Gitea 미지원)
   - [x] `gg pr comment` (PR 댓글 입력; GitHub, GitLab, Gitea 지원)
-  - [x] `gg pr comment list` / `gg pr comment edit` / `gg pr comment delete` (PR 댓글 조회·수정·삭제; GitHub, GitLab 지원 — `gh api`/`glab api` 중계. Gitea 미지원)
+  - [x] `gg pr comment list` / `gg pr comment edit` / `gg pr comment delete` (PR 댓글 조회·수정·삭제; 조회는 GitHub, GitLab, Gitea 지원 — `gh api`/`glab api`/`tea comments list` 중계. 수정·삭제는 Gitea 미지원)
   - [x] `gg mr` (`gg pr`의 alias)
 - `issue` 댓글
   - [x] `gg issue comment` (이슈 댓글 입력; GitHub, GitLab, Gitea 지원)
-  - [x] `gg issue comment list` / `gg issue comment edit` / `gg issue comment delete` (이슈 댓글 조회·수정·삭제; GitHub, GitLab 지원 — `gh api`/`glab api` 중계. Gitea 미지원)
+  - [x] `gg issue comment list` / `gg issue comment edit` / `gg issue comment delete` (이슈 댓글 조회·수정·삭제; 조회는 GitHub, GitLab, Gitea 지원 — `gh api`/`glab api`/`tea comments list` 중계. 수정·삭제는 Gitea 미지원)
 - `issue` 관계 등록
   - [x] `gg issue sub-issue` (GitHub 지원; GitLab·Gitea 미지원) — 이슈를 다른 이슈의 native sub-issue로 등록
   - [x] `gg issue blocked-by` (GitHub 지원; GitLab·Gitea 미지원) — 이슈에 blocked-by 의존성을 등록

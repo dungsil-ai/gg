@@ -216,23 +216,22 @@ func resolvePlan(req Request) (executionPlan, error) {
 		}
 	}
 	teaLogin := ""
-	// release/ci 전체와 pr status/ready/diff/checks/lock/unlock/update-branch,
-	// pr comment list/edit/delete, pr review --comment, label edit·delete,
-	// issue 관계 등록, issue comment list/edit/delete, issue edit, issue delete는
-	// provider를 고른 뒤 미지원을 확정하므로 tea login을 묻지 않는다. label
-	// list·create와 pr review의 approve·request-changes는 tea도 중계하므로
-	// login을 묻는다.
+	// release/ci 전체와 pr status/ready/diff/checks/lock/unlock/update-branch/
+	// rebase, pr comment edit/delete, pr review --comment, label edit·delete·
+	// clone, issue 관계 등록, issue comment edit/delete, issue edit, issue
+	// delete는 provider를 고른 뒤 미지원을 확정하므로 tea login을 묻지 않는다.
+	// label list·create, pr/issue comment list와 pr review의
+	// approve·request-changes는 tea도 중계하므로 login을 묻는다.
 	unsupportedTeaAction := (req.Resource == "pr" && (req.Action == "status" || req.Action == "ready" ||
 		req.Action == "diff" ||
 		req.Action == "checks" || req.Action == "update-branch" || req.Action == "rebase" ||
 		req.Action == "lock" || req.Action == "unlock" ||
-		req.Action == "comment list" || req.Action == "comment edit" || req.Action == "comment delete")) ||
+		req.Action == "comment edit" || req.Action == "comment delete")) ||
 		(req.Resource == "pr" && req.Action == "review" && req.ReviewComment) ||
 		(req.Resource == "label" && (req.Action == "edit" || req.Action == "delete" || req.Action == "clone")) ||
 		req.Resource == "release" || req.Resource == "ci" ||
 		(req.Resource == "issue" && (ghOnlyIssueActions[req.Action] || req.Action == "edit" ||
-			req.Action == "comment list" || req.Action == "comment edit" ||
-			req.Action == "comment delete" || req.Action == "delete"))
+			req.Action == "comment edit" || req.Action == "comment delete" || req.Action == "delete"))
 	if p == Tea && !(req.Resource == "repo" && req.Action == "clone") && !unsupportedTeaAction {
 		if teaLogin = teaLoginName(repo.Host); teaLogin == "" {
 			return executionPlan{}, fmt.Errorf("no tea login for %s (run: tea login add)", repo.Host)

@@ -881,7 +881,21 @@ func TestTranslateTeaPRDiffUnsupported(t *testing.T) {
 }
 
 func TestTranslateTeaPRCommentSubActionsUnsupported(t *testing.T) {
-	for _, action := range []string{"comment list", "comment edit", "comment delete"} {
+	// comment list는 tea comments list로 중계된다.
+	got, err := Translate(
+		Request{Resource: "pr", Action: "comment list", Number: "7"},
+		RepoURL{Host: "gitea.com", Owner: "o", Name: "r"},
+		Tea,
+		"pub",
+	)
+	if err != nil {
+		t.Fatalf("Translate(pr comment list, tea): %v", err)
+	}
+	if want := (Invocation{Bin: "tea", Args: []string{"comments", "list", "7", "--login", "pub", "--repo", "o/r"}}); !reflect.DeepEqual(got, want) {
+		t.Errorf("pr comment list tea = %+v, want %+v", got, want)
+	}
+
+	for _, action := range []string{"comment edit", "comment delete"} {
 		_, err := Translate(
 			Request{Resource: "pr", Action: action, Number: "7", CommentID: "77"},
 			RepoURL{Host: "gitea.com", Owner: "o", Name: "r"},
@@ -928,7 +942,21 @@ func TestTranslateLabelEditUnsupported(t *testing.T) {
 }
 
 func TestTranslateTeaIssueCommentSubActionsUnsupported(t *testing.T) {
-	for _, action := range []string{"comment list", "comment edit", "comment delete"} {
+	// comment list는 tea comments list로 중계된다.
+	got, err := Translate(
+		Request{Resource: "issue", Action: "comment list", Number: "7"},
+		RepoURL{Host: "gitea.com", Owner: "o", Name: "r"},
+		Tea,
+		"pub",
+	)
+	if err != nil {
+		t.Fatalf("Translate(issue comment list, tea): %v", err)
+	}
+	if want := (Invocation{Bin: "tea", Args: []string{"comments", "list", "7", "--login", "pub", "--repo", "o/r"}}); !reflect.DeepEqual(got, want) {
+		t.Errorf("issue comment list tea = %+v, want %+v", got, want)
+	}
+
+	for _, action := range []string{"comment edit", "comment delete"} {
 		_, err := Translate(
 			Request{Resource: "issue", Action: action, Number: "7", CommentID: "77"},
 			RepoURL{Host: "gitea.com", Owner: "o", Name: "r"},
@@ -1152,41 +1180,47 @@ func TestPlanTeaReadyUnsupportedSkipsLogin(t *testing.T) {
 	}
 }
 
-func TestPlanTeaPRCommentListUnsupportedSkipsLogin(t *testing.T) {
+func TestPlanTeaPRCommentListRelayed(t *testing.T) {
 	t.Setenv("GG_HOME", t.TempDir())
-	fakeExec(t, map[string]string{})
+	fakeExec(t, map[string]string{
+		"BIN tea":                       "tea",
+		"tea logins list --output json": `[{"name":"pub","url":"https://gitea.com"}]`,
+	})
 
-	_, err := plan(Request{
+	inv, err := plan(Request{
 		Resource: "pr",
 		Action:   "comment list",
 		Number:   "7",
 		RepoFlag: "https://gitea.com/o/r",
 	})
-	var usage UsageError
-	if !errors.As(err, &usage) {
-		t.Fatalf("plan(pr comment list, tea): UsageError 기대, got %v", err)
+	if err != nil {
+		t.Fatalf("plan(pr comment list, tea): %v", err)
 	}
-	if usage.Msg != "pr comment list is not supported for tea" {
-		t.Errorf("Tea 오류 = %q", usage.Msg)
+	want := "tea comments list 7 --login pub --repo o/r"
+	if got := inv.Bin + " " + strings.Join(inv.Args, " "); got != want {
+		t.Errorf("pr comment list tea argv = %q, want %q", got, want)
 	}
 }
 
-func TestPlanTeaIssueCommentListUnsupportedSkipsLogin(t *testing.T) {
+func TestPlanTeaIssueCommentListRelayed(t *testing.T) {
 	t.Setenv("GG_HOME", t.TempDir())
-	fakeExec(t, map[string]string{})
+	fakeExec(t, map[string]string{
+		"BIN tea":                       "tea",
+		"tea logins list --output json": `[{"name":"pub","url":"https://gitea.com"}]`,
+	})
 
-	_, err := plan(Request{
+	inv, err := plan(Request{
 		Resource: "issue",
 		Action:   "comment list",
 		Number:   "7",
 		RepoFlag: "https://gitea.com/o/r",
 	})
-	var usage UsageError
-	if !errors.As(err, &usage) {
-		t.Fatalf("plan(issue comment list, tea): UsageError 기대, got %v", err)
+	if err != nil {
+		t.Fatalf("plan(issue comment list, tea): %v", err)
 	}
-	if usage.Msg != "issue comment list is not supported for tea" {
-		t.Errorf("Tea 오류 = %q", usage.Msg)
+	want := "tea comments list 7 --login pub --repo o/r"
+	if got := inv.Bin + " " + strings.Join(inv.Args, " "); got != want {
+		t.Errorf("issue comment list tea argv = %q, want %q", got, want)
 	}
 }
 

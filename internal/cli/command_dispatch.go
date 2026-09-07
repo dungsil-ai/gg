@@ -161,13 +161,14 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	if req.Resource == "release" {
 		return Invocation{}, usageErr("release is not supported for tea")
 	}
-	// tea는 PR 댓글 추가만 지원하고 목록/수정/삭제 명령이 없다.
-	if req.Resource == "pr" && (req.Action == "comment list" || req.Action == "comment edit" || req.Action == "comment delete") {
+	// tea는 PR 댓글의 수정/삭제 명령이 없다. 목록은 comments list로 중계한다.
+	if req.Resource == "pr" && (req.Action == "comment edit" || req.Action == "comment delete") {
 		return Invocation{}, usageErr("pr " + req.Action + " is not supported for tea")
 	}
-	// tea는 이슈 댓글 추가만 지원하고 목록/수정/삭제와 이슈 수정 명령이 없다.
+	// tea는 이슈 댓글 수정/삭제와 이슈 수정 명령이 없다. 목록은 comments list로
+	// 중계한다.
 	if req.Resource == "issue" && (req.Action == "edit" ||
-		req.Action == "comment list" || req.Action == "comment edit" || req.Action == "comment delete") {
+		req.Action == "comment edit" || req.Action == "comment delete") {
 		return Invocation{}, usageErr("issue " + req.Action + " is not supported for tea")
 	}
 	// tea에는 이슈 삭제 하위 명령이 없다.
