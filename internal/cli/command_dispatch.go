@@ -154,8 +154,9 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 		return Invocation{}, usageErr("pr review --comment is not supported for tea")
 	}
 	// tea label edit·delete는 label 이름이 아니라 numeric label id(--id)를
-	// 요구해 중계하지 않는다. list·create는 이름 기반 표면이라 중계한다.
-	if req.Resource == "label" && (req.Action == "edit" || req.Action == "delete") {
+	// 요구하고 clone은 명령 자체가 없어 중계하지 않는다. list·create는 이름
+	// 기반 표면이라 중계한다.
+	if req.Resource == "label" && (req.Action == "edit" || req.Action == "delete" || req.Action == "clone") {
 		return Invocation{}, usageErr("label " + req.Action + " is not supported for tea")
 	}
 	if req.Resource == "release" {

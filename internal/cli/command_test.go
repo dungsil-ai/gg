@@ -431,7 +431,6 @@ func TestParseRequestErrors(t *testing.T) {
 		{"pr", "comment", "delete", "1"},           // comment-id 없음
 		{"pr", "comment", "delete", "1", "2", "3"}, // 인자 초과
 		{"label"},                                 // action 없음
-		{"label", "clone", "1"},                   // 지원 안 하는 action
 		{"label", "edit"},                         // name 없음
 		{"label", "edit", "bug"},                  // 고칠 값 없음
 		{"label", "delete"},                       // name 없음
@@ -1357,11 +1356,10 @@ func TestParseRequestErrorMessages(t *testing.T) {
 		{[]string{"unknown"}, "unknown command unknown"},
 		{[]string{"config"}, "config needs an action: list, set, unset"},
 		{[]string{"issue"}, "issue needs an action: list, status, view, create, edit, comment, comment list, comment edit, comment delete, close, reopen, pin, unpin, delete, lock, unlock, develop, sub-issue, blocked-by, type"},
-		{[]string{"label"}, "label needs an action: list, create, edit, delete"},
+		{[]string{"label"}, "label needs an action: clone, list, create, edit, delete"},
 		{[]string{"pr"}, "pr needs an action: list, view, checkout, checks, update-branch, diff, create, edit, comment, comment list, comment edit, comment delete, status, ready, merge, close, reopen, lock, unlock, review"},
 		{[]string{"repo"}, "repo needs an action: list, view, create, clone, fork, delete, edit, rename, sync, set-default, commit, pull, push, filter-repo, add, am, archive, bisect, branch, bundle, checkout, cherry-pick, citool, clean, describe, diff, fetch, format-patch, gc, grep, gui, init, log, merge, mv, notes, range-diff, rebase, reset, restore, revert, rm, shortlog, show, sparse-checkout, stash, status, submodule, switch, tag, worktree, annotate, blame, bugreport, count-objects, diagnose, difftool, fsck, instaweb, maintenance, merge-tree, mergetool, prune-packed, rerere, scalar"},
 		{[]string{"issue", "freeze", "1"}, "issue does not support freeze"},
-		{[]string{"label", "clone", "1"}, "label does not support clone"},
 		{[]string{"label", "edit", "bug"}, "label edit needs --name, --color, or --description"},
 		{[]string{"label", "edit"}, "usage: gg label edit <name>"},
 		{[]string{"label", "edit", "bug", "extra"}, "usage: gg label edit <name>"},

@@ -2,17 +2,31 @@ package cli
 
 import "strings"
 
-// labelResourceDef는 "label" 최상위 명령의 정의다: list, create, edit, delete.
+// labelResourceDef는 "label" 최상위 명령의 정의다: list, create, edit, clone,
+// delete.
 // list와 create는 gh, glab, tea builder를, edit는 gh builder만, delete는 gh와
 // glab builder를 등록한다. tea의 edit·delete는 label 이름이 아니라 numeric
 // label id를 요구해 teaInvocation 사전 가드에서 미지원을 확정한다 (pr ready의
 // tea 가드와 같은 원칙: provider별 예외는 감추지 않고 명시적으로 남긴다).
 var labelResourceDef = &resourceDef{
 	name:    "label",
-	summary: "List, create, edit, or delete labels",
-	desc:    "List, create, edit, or delete labels.",
+	summary: "List, create, edit, clone, or delete labels",
+	desc:    "List, create, edit, clone, or delete labels.",
 	usage:   "gg label <command> [flags]",
 	actions: []actionDef{
+		{
+			name: "clone", summary: "Clone labels from another repository (GitHub only)",
+			usage:    "gg label clone <source-repository> [flags]",
+			flags:    []flagDef{labelCloneForceFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg label clone <source-repository>",
+			setPos: func(req *Request, pos []string) error {
+				req.Source = pos[0]
+				return nil
+			},
+		},
 		{
 			name: "list", summary: "List labels", usage: "gg label list [flags]",
 			flags:    []flagDef{limitFlag},
@@ -134,10 +148,24 @@ var labelDeleteBuilders = providerBuilders{
 	},
 }
 
+// labelCloneBuilders는 다른 저장소의 label을 현재 저장소 문맥 저장소로 복사한다.
+// gh 전용 기능이라 gh builder만 등록한다. glab은 dispatch의 builder 부재 오류로,
+// tea는 사전 가드와 run.go의 tea login 건너뛰기 목록이 미지원을 확정한다.
+var labelCloneBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "clone", c.req.Source}, c.target...)
+		if c.req.Force {
+			args = append(args, "--force")
+		}
+		return args, nil
+	},
+}
+
 // labelInvocationTable은 "label <action>" 키로 provider별 arg-builder를 모은다.
 // edit는 gh builder만 있어 glab은 dispatch의 미지원 오류로, tea는 사전 가드로
 // 걸러진다. delete의 tea도 사전 가드로 걸러진다.
 var labelInvocationTable = map[string]providerBuilders{
+	"label clone":  labelCloneBuilders,
 	"label list":   labelListBuilders,
 	"label create": labelCreateBuilders,
 	"label edit":   labelEditBuilders,
