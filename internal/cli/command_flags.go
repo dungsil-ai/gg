@@ -91,6 +91,14 @@ var (
 		bin: func(r *Request) *bool { return &r.RequestChanges }}
 	reviewCommentFlag = flagDef{name: "--comment", desc: "Leave a review comment on the pull request",
 		bin: func(r *Request) *bool { return &r.ReviewComment }}
+	// issue develop의 --list와 --checkout은 gh의 개발 branch 연결 표면이다.
+	developListFlag = flagDef{name: "--list", desc: "List branches linked to the issue",
+		bin: func(r *Request) *bool { return &r.List }}
+	developCheckoutFlag = flagDef{name: "--checkout", desc: "Check out the branch after creating it",
+		bin: func(r *Request) *bool { return &r.Checkout }}
+	// develop의 --name은 만들 branch 이름이다.
+	developNameFlag = flagDef{name: "--name", arg: "<branch>", desc: "Name of the branch to create",
+		str: func(r *Request) *string { return &r.Name }}
 	branchFlag = flagDef{name: "--branch", arg: "<branch>", desc: "Filter by branch",
 		str: func(r *Request) *string { return &r.Branch }}
 	notesFlag = flagDef{name: "--notes", arg: "<text>", desc: "Set the release notes",

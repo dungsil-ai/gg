@@ -216,7 +216,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gh issue comment` (대응: `gg issue comment`; 조회·수정·삭제는 `gg issue comment list|edit|delete`로 `gh api` 중계)
   - [x] `gh issue create` (대응: `gg issue create`)
   - [x] `gh issue delete` (대응: `gg issue delete`)
-  - [ ] `gh issue develop`
+  - [x] `gh issue develop` (대응: `gg issue develop [--list|--name|--base|--checkout]`; glab·tea에 개발 branch 연결 하위 명령이 없어 미지원)
   - [x] `gh issue edit` (대응: `gg issue edit`)
   - [x] `gh issue list` (대응: `gg issue list`)
   - [x] `gh issue lock` (대응: `gg issue lock [--reason]`; glab·tea에 이슈 잠금 하위 명령이 없어 미지원)

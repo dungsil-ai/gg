@@ -9,7 +9,7 @@ import (
 
 // issueResourceDef는 "issue" 최상위 명령의 정의다: list, view, create, edit,
 // comment(하위 list/edit/delete), close, reopen, delete, pin, unpin, lock,
-// unlock, status와 관계 등록(sub-issue, blocked-by, type).
+// unlock, status, develop과 관계 등록(sub-issue, blocked-by, type).
 var issueResourceDef = &resourceDef{
 	name:    "issue",
 	summary: "List, view, create, comment on, close, reopen, delete, pin, lock, or link issues, and show issue status",
@@ -175,6 +175,16 @@ var issueResourceDef = &resourceDef{
 			setPos: setNumber,
 		},
 		{
+			name: "develop", summary: "Manage linked development branches (GitHub only)",
+			usage:    "gg issue develop <number> [--list | --name <branch>] [flags]",
+			flags:    []flagDef{developListFlag, developNameFlag, baseFlag, developCheckoutFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg issue develop <number>",
+			setPos: setNumber,
+		},
+		{
 			name: "sub-issue", summary: "Register an issue as a sub-issue of a parent issue",
 			usage:    "gg issue sub-issue <number> --parent <parent> [flags]",
 			flags:    []flagDef{parentFlag},
@@ -218,6 +228,7 @@ var ghOnlyIssueActions = map[string]bool{
 	"pin":        true,
 	"unpin":      true,
 	"status":     true,
+	"develop":    true,
 }
 
 // isIssueNumber는 값이 issue 번호 형태(숫자만)인지 본다. 관계 API는 번호를 endpoint
@@ -367,6 +378,25 @@ var issueUnpinBuilders = providerBuilders{
 // 전용 기능이라 gh builder만 등록하고, glab·tea는 ghOnlyIssueActions 사전
 // 가드와 run.go의 tea login 건너뛰기 목록이 미지원을 확정한다 (tea login을
 // 묻기 전에 거부된다).
+// issueDevelopBuilders는 이슈와 연결된 개발 branch를 조회·생성한다. gh 전용
+// 기능이라 gh builder만 등록하고, glab·tea는 ghOnlyIssueActions 사전 가드와
+// run.go의 tea login 건너뛰기 목록이 미지원을 확정한다 (tea login을 묻기
+// 전에 거부된다).
+var issueDevelopBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = append([]string{"issue", "develop", c.req.Number}, c.target...)
+		if c.req.List {
+			args = append(args, "--list")
+		}
+		args = appendKV(args, "--name", c.req.Name)
+		args = appendKV(args, "--base", c.req.Base)
+		if c.req.Checkout {
+			args = append(args, "--checkout")
+		}
+		return args, nil
+	},
+}
+
 var issueStatusBuilders = providerBuilders{
 	gh: func(c invocationContext) (args, env []string) {
 		return append([]string{"issue", "status"}, c.target...), nil
@@ -533,6 +563,7 @@ var issueInvocationTable = map[string]providerBuilders{
 	"issue pin":            issuePinBuilders,
 	"issue unpin":          issueUnpinBuilders,
 	"issue status":         issueStatusBuilders,
+	"issue develop":        issueDevelopBuilders,
 	"issue create":         issueCreateBuilders,
 	"issue edit":           issueEditBuilders,
 	"issue sub-issue":      issueSubIssueBuilders,
