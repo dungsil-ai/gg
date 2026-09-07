@@ -18,6 +18,9 @@ func writeFakeReadyBin(t *testing.T, dir, name, logFile string, stdout, stderr s
 		path = filepath.Join(dir, name+".cmd")
 		var b strings.Builder
 		b.WriteString("@echo off\r\n")
+		// chcp 65001로 로그를 UTF-8로 기록한다. 기본 OEM 코드페이지(CP949 등)로
+		// 남으면 한글 argv 단언이 깨진다 (writeFakeBin과 같은 처리).
+		b.WriteString("chcp 65001 >nul\r\n")
 		if logFile != "" {
 			b.WriteString("echo " + name + " %* >> \"" + logFile + "\"\r\n")
 		}

@@ -282,5 +282,5 @@ func TestE2EPRMergeHelp(t *testing.T) {
 	assertGGHelp(t, bin, []string{"pr", "merge", "--help"}, []string{
 		"Usage:", "pr merge <number>", "--merge", "--squash", "--rebase", "--delete-branch", "--auto", "--repo", "--remote", "--help",
 	})
-	assertGGHelp(t, bin, []string{"--help"}, []string{"comment on, diff, merge, lock, or close pull requests"})
+	assertGGHelp(t, bin, []string{"--help"}, []string{"comment on, diff, merge, lock, review, or close pull requests"})
 }
