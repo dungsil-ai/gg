@@ -215,6 +215,16 @@ var prResourceDef = &resourceDef{
 			setPos: setNumber,
 		},
 		{
+			name: "rebase", summary: "Rebase a pull request against its base branch (GitLab only)",
+			usage:    "gg pr rebase <number> [flags]",
+			flags:    []flagDef{rebaseSkipCIFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr rebase <number>",
+			setPos: setNumber,
+		},
+		{
 			name: "review", summary: "Review a pull request (approve, request changes, or comment)",
 			usage:    "gg pr review <number> (--approve | --request-changes | --comment) [flags]",
 			flags:    []flagDef{approveFlag, requestChangesFlag, reviewCommentFlag, bodyFlag},
@@ -490,6 +500,20 @@ var prReviewBuilders = providerBuilders{
 	},
 }
 
+// prRebaseBuilders는 MR source branch를 target branch 기준으로 리베이스한다.
+// glab 전용 기능이라 glab builder만 등록한다 — gh와 tea는 dispatch의 builder
+// 부재 오류로 걸러지며, tea는 run.go의 tea login 건너뛰기 목록이 login을 묻기
+// 전에 미지원을 확정한다.
+var prRebaseBuilders = providerBuilders{
+	glab: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "rebase", c.req.Number}, c.target...)
+		if c.req.SkipCI {
+			args = append(args, "--skip-ci")
+		}
+		return args, nil
+	},
+}
+
 // prInvocationTable은 "pr <action>" 키로 gh/glab/tea의 arg-builder를 모은다.
 // tea의 pr status/ready와 pr comment list/edit/delete는 teaInvocation의
 // 사전 가드에서 걸러지므로 여기에는 등록하지 않는다 — provider별 예외는 감추지
@@ -604,6 +628,7 @@ var prInvocationTable = map[string]providerBuilders{
 	"pr edit":   prEditBuilders,
 	"pr lock":   prLockBuilders,
 	"pr unlock": prUnlockBuilders,
+	"pr rebase": prRebaseBuilders,
 	"pr review": prReviewBuilders,
 
 	"pr comment":        prCommentBuilders,

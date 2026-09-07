@@ -45,6 +45,7 @@ type Request struct {
 	Destination                string // issue transfer의 대상 저장소
 
 	List, Checkout bool // issue develop: 연결 branch 목록 조회, branch 생성 후 check out
+	SkipCI         bool // pr rebase: 리베이스 후 CI 파이프라인 건너뛰기
 
 	FilterPaths    []string // filter-repo: --path 반복
 	FilterRenames  []string // filter-repo: --path-rename <old:new> 반복
