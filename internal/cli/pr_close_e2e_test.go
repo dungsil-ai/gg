@@ -15,7 +15,9 @@ func writeFakeTeaWithLogin(t *testing.T, dir, logFile string) {
 	var path, body string
 	if runtime.GOOS == "windows" {
 		path = filepath.Join(dir, "tea.cmd")
-		body = "@echo off\r\nif \"%1\"==\"logins\" if \"%2\"==\"list\" (\r\n  echo [{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]\r\n  exit /b 0\r\n)\r\necho tea %* >> \"" + logFile + "\"\r\nexit /b 0\r\n"
+		// chcp 65001로 로그를 UTF-8로 기록한다. 기본 OEM 코드페이지(CP949 등)로
+		// 남으면 한글 argv 단언이 깨진다 (writeFakeBin과 같은 처리).
+		body = "@echo off\r\nchcp 65001 >nul\r\nif \"%1\"==\"logins\" if \"%2\"==\"list\" (\r\n  echo [{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]\r\n  exit /b 0\r\n)\r\necho tea %* >> \"" + logFile + "\"\r\nexit /b 0\r\n"
 	} else {
 		path = filepath.Join(dir, "tea")
 		body = "#!/bin/sh\nif [ \"$1\" = \"logins\" ] && [ \"$2\" = \"list\" ]; then\n  echo '[{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]'\n  exit 0\nfi\necho \"tea $@\" >> \"" + logFile + "\"\nexit 0\n"

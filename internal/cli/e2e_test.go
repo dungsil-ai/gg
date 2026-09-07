@@ -1874,18 +1874,18 @@ func TestE2EGitLabIssueCommentCloseReopen(t *testing.T) {
 	}
 }
 
-func TestE2EGiteaLabelUnsupported(t *testing.T) {
+func TestE2EGiteaLabelEditUnsupported(t *testing.T) {
 	bin := buildGG(t)
 	fakeDir := t.TempDir()
 	logFile := filepath.Join(t.TempDir(), "calls.log")
 	writeFakeBin(t, fakeDir, "tea", logFile)
 	repo := tempRepo(t, "https://gitea.com/o/r.git")
 
-	out, code := runGG(t, bin, fakeDir, repo, "label", "list")
+	out, code := runGG(t, bin, fakeDir, repo, "label", "edit", "bug", "--color", "00ff00")
 	if code != 2 {
 		t.Fatalf("exit = %d, want 2: %s", code, out)
 	}
-	if !strings.Contains(out, "label list is not supported for tea") {
+	if !strings.Contains(out, "label edit is not supported for tea") {
 		t.Errorf("output에 미지원 오류 없음: %s", out)
 	}
 	if got := readLog(t, logFile); got != "" {

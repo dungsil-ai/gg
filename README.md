@@ -571,10 +571,10 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `tea issues open` (대응: `gg issue view`)
   - [x] `tea issues reopen` (대응: `gg issue reopen`)
 - `labels`
-  - [ ] `tea labels create`
-  - [ ] `tea labels delete`
-  - [ ] `tea labels list`
-  - [ ] `tea labels update`
+  - [x] `tea labels create` (대응: `gg label create`)
+  - [ ] `tea labels delete` (tea가 label 이름이 아니라 numeric label id `--id`를 요구해 `gg label delete`로 중계하지 않음)
+  - [x] `tea labels list` (대응: `gg label list`)
+  - [ ] `tea labels update` (tea가 label 이름이 아니라 numeric label id `--id`를 요구해 `gg label edit`로 중계하지 않음)
 - `logins`
   - [ ] `tea logins add`
   - [ ] `tea logins delete`

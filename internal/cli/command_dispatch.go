@@ -128,7 +128,9 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	if req.Resource == "pr" && (req.Action == "lock" || req.Action == "unlock") {
 		return Invocation{}, usageErr("pr " + req.Action + " is not supported for tea")
 	}
-	if req.Resource == "label" {
+	// tea label edit·delete는 label 이름이 아니라 numeric label id(--id)를
+	// 요구해 중계하지 않는다. list·create는 이름 기반 표면이라 중계한다.
+	if req.Resource == "label" && (req.Action == "edit" || req.Action == "delete") {
 		return Invocation{}, usageErr("label " + req.Action + " is not supported for tea")
 	}
 	if req.Resource == "release" {
@@ -161,6 +163,8 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 		res = "issues"
 	case "pr":
 		res = "pulls"
+	case "label":
+		res = "labels"
 	}
 	auth := []string{"--login", login}
 	c := invocationContext{
