@@ -172,8 +172,8 @@ func TestE2EAuthStatusUsageErrors(t *testing.T) {
 func TestE2EAuthHelpOmitsRepositoryContextFlags(t *testing.T) {
 	bin := buildGG(t)
 	assertGGHelp(t, bin, []string{"auth", "--help"}, []string{
-		"Show provider CLI login status.", "Usage:", "gg auth <command>",
-		"status", "Show login status for each host", "Flags:", "--help",
+		"Show provider CLI login status, and relay GitHub CLI account operations.", "Usage:", "gg auth <command>",
+		"status", "Show login status for each host", "login", "Run gh auth login (all args pass through)", "Flags:", "--help",
 	})
 	assertGGHelp(t, bin, []string{"auth", "status", "--help"}, []string{
 		"Show login status for each host.", "Usage:", "gg auth status", "Flags:", "--help",
