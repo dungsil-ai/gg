@@ -235,7 +235,7 @@ func resolvePlan(req Request) (executionPlan, error) {
 		(req.Resource == "release" && (req.Action == "view" || req.Action == "download" ||
 			req.Action == "upload" || req.Action == "delete-asset")) ||
 		req.Resource == "ci" || req.Resource == "workflow" ||
-		(req.Resource == "repo" && req.Action == "contributors") ||
+		(req.Resource == "repo" && (req.Action == "contributors" || req.Action == "search" || req.Action == "transfer")) ||
 		(req.Resource == "issue" && (ghOnlyIssueActions[req.Action] || req.Action == "edit" ||
 			req.Action == "subscribe" || req.Action == "unsubscribe" ||
 			req.Action == "comment edit" || req.Action == "comment delete" || req.Action == "delete"))
