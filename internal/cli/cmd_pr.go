@@ -190,6 +190,14 @@ var prResourceDef = &resourceDef{
 			setPos: setNumber,
 		},
 		{
+			name: "clean", summary: "Delete local and remote branches of a merged pull request (Gitea only)", usage: "gg pr clean <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr clean <number>",
+			setPos: setNumber,
+		},
+		{
 			name: "reopen", summary: "Reopen a closed pull request", usage: "gg pr reopen <number> [flags]",
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
@@ -587,6 +595,15 @@ var prTodoBuilders = providerBuilders{
 	},
 }
 
+// prCleanBuilders는 병합된 PR의 로컬·원격 feature branch를 정리한다. tea 전용
+// 기능이라 tea builder만 등록한다 — gh와 glab는 dispatch의 builder 부재 오류로
+// 걸러지고, tea login은 실행에 필요하므로 조회한다.
+var prCleanBuilders = providerBuilders{
+	tea: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "clean", c.req.Number}, c.target...), nil
+	},
+}
+
 // prSubscribeBuilders와 prUnsubscribeBuilders는 MR 알림 구독을 관리한다.
 // glab 전용 기능이라 glab builder만 등록한다 — gh와 tea는 dispatch의 builder
 // 부재 오류로 걸러지며, tea는 run.go의 tea login 건너뛰기 목록이 login을 묻기
@@ -736,6 +753,7 @@ var prInvocationTable = map[string]providerBuilders{
 	"pr approvers":   prApproversBuilders,
 	"pr revoke":      prRevokeBuilders,
 	"pr todo":        prTodoBuilders,
+	"pr clean":       prCleanBuilders,
 	"pr subscribe":   prSubscribeBuilders,
 	"pr unsubscribe": prUnsubscribeBuilders,
 	"pr review":      prReviewBuilders,
