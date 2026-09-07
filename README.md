@@ -358,7 +358,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `gh alias import`
   - [ ] `gh alias list`
   - [ ] `gh alias set`
-- [ ] `gh api`
+- [x] `gh api` (대응: `gg api [args...]`; ADR 0007 — 모든 인자를 gh api에 전달, 기본 domain이 아니면 GH_HOST 주입)
 - `attestation`
   - [ ] `gh attestation download`
   - [ ] `gh attestation trusted-root`
@@ -475,7 +475,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `glab alias delete`
   - [ ] `glab alias list`
   - [ ] `glab alias set`
-- [ ] `glab api`
+- [x] `glab api` (대응: `gg api [args...]`; ADR 0007 — 모든 인자를 glab api에 전달, 기본 domain이 아니면 GITLAB_HOST 주입)
 - `ask`
   - [ ] `glab ask git`
 - `changelog`
@@ -621,7 +621,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `tea admin repos`
   - [ ] `tea admin runners`
   - [ ] `tea admin users`
-- [ ] `tea api`
+- [x] `tea api` (대응: `gg api [args...]`; ADR 0007 — --login/--repo를 붙여 전달)
 - `branches`
   - [ ] `tea branches list`
 - [ ] `tea logout`
