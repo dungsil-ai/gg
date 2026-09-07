@@ -106,8 +106,18 @@ func TestE2EGiteaIssueCommentCreateAndUnsupported(t *testing.T) {
 		t.Errorf("tea argv = %q, want %q", got, want)
 	}
 
+	if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out, code = runGG(t, bin, fakeDir, repo, "issue", "comment", "list", "18")
+	if code != 0 {
+		t.Fatalf("gg issue comment list: exit %d: %s", code, out)
+	}
+	if got, want := readLog(t, logFile), "tea comments list 18 --login pub --repo o/r"; got != want {
+		t.Errorf("tea comments list argv = %q, want %q", got, want)
+	}
+
 	for _, args := range [][]string{
-		{"issue", "comment", "list", "18"},
 		{"issue", "comment", "edit", "18", "77", "--body", "text"},
 		{"issue", "comment", "delete", "18", "77"},
 	} {

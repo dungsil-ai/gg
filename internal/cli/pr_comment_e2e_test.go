@@ -150,8 +150,18 @@ func TestE2EGiteaPRCommentCreateAndUnsupported(t *testing.T) {
 		t.Errorf("tea argv = %q, want %q", got, want)
 	}
 
+	if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out, code = runGG(t, bin, fakeDir, repo, "pr", "comment", "list", "18")
+	if code != 0 {
+		t.Fatalf("gg pr comment list: exit %d: %s", code, out)
+	}
+	if got, want := readLog(t, logFile), "tea comments list 18 --login pub --repo o/r"; got != want {
+		t.Errorf("tea comments list argv = %q, want %q", got, want)
+	}
+
 	for _, args := range [][]string{
-		{"pr", "comment", "list", "18"},
 		{"pr", "comment", "edit", "18", "77", "--body", "text"},
 		{"pr", "comment", "delete", "18", "77"},
 	} {

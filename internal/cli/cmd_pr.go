@@ -415,9 +415,10 @@ var prCommentBuilders = providerBuilders{
 	},
 }
 
-// prCommentListBuilders는 PR 대화 댓글 목록을 JSON으로 조회한다. GitHub의 PR
-// 대화 댓글은 이슈 댓글과 같은 endpoint를 공유하고, GitLab은 MR note API를 쓴다.
+// prCommentListBuilders는 PR 대화 댓글 목록을 조회한다. GitHub의 PR 대화 댓글은
+// 이슈 댓글과 같은 endpoint를 공유하고, GitLab은 MR note API를 쓴다.
 // gh/glab의 api 하위 명령은 --repo flag가 없으므로 호스트는 Env로 전달한다.
+// tea는 Gitea에서 PR 댓글이 이슈 댓글 API를 공유하므로 comments list로 조회한다.
 var prCommentListBuilders = providerBuilders{
 	gh: func(c invocationContext) (args, env []string) {
 		args = []string{"api", "repos/" + c.r.Slug() + "/issues/" + c.req.Number + "/comments"}
@@ -426,6 +427,9 @@ var prCommentListBuilders = providerBuilders{
 	glab: func(c invocationContext) (args, env []string) {
 		args = []string{"api", "projects/" + glabProjectPath(c.r) + "/merge_requests/" + c.req.Number + "/notes"}
 		return args, []string{"GITLAB_HOST=" + c.r.Host}
+	},
+	tea: func(c invocationContext) (args, env []string) {
+		return append([]string{"comments", "list", c.req.Number}, c.target...), nil
 	},
 }
 
