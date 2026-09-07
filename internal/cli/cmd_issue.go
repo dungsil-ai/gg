@@ -9,7 +9,7 @@ import (
 
 // issueResourceDef는 "issue" 최상위 명령의 정의다: list, view, create, edit,
 // comment(하위 list/edit/delete), close, reopen, delete, pin, unpin, lock,
-// unlock, status, develop과 관계 등록(sub-issue, blocked-by, type).
+// unlock, status, develop, transfer와 관계 등록(sub-issue, blocked-by, type).
 var issueResourceDef = &resourceDef{
 	name:    "issue",
 	summary: "List, view, create, comment on, close, reopen, delete, pin, lock, or link issues, and show issue status",
@@ -185,6 +185,19 @@ var issueResourceDef = &resourceDef{
 			setPos: setNumber,
 		},
 		{
+			name: "transfer", summary: "Transfer an issue to another repository (GitHub only)",
+			usage:    "gg issue transfer <number> <destination-repository> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 2, maxPos: 2,
+			posErr: "usage: gg issue transfer <number> <destination-repository>",
+			setPos: func(req *Request, pos []string) error {
+				req.Number = pos[0]
+				req.Destination = pos[1]
+				return nil
+			},
+		},
+		{
 			name: "sub-issue", summary: "Register an issue as a sub-issue of a parent issue",
 			usage:    "gg issue sub-issue <number> --parent <parent> [flags]",
 			flags:    []flagDef{parentFlag},
@@ -229,6 +242,7 @@ var ghOnlyIssueActions = map[string]bool{
 	"unpin":      true,
 	"status":     true,
 	"develop":    true,
+	"transfer":   true,
 }
 
 // isIssueNumber는 값이 issue 번호 형태(숫자만)인지 본다. 관계 API는 번호를 endpoint
@@ -394,6 +408,15 @@ var issueDevelopBuilders = providerBuilders{
 			args = append(args, "--checkout")
 		}
 		return args, nil
+	},
+}
+
+// issueTransferBuilders는 이슈를 다른 저장소로 옮긴다. gh 전용 기능이라 gh
+// builder만 등록하고, glab·tea는 ghOnlyIssueActions 사전 가드와 run.go의
+// tea login 건너뛰기 목록이 미지원을 확정한다 (tea login을 묻기 전에 거부된다).
+var issueTransferBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		return append([]string{"issue", "transfer", c.req.Number, c.req.Destination}, c.target...), nil
 	},
 }
 
@@ -564,6 +587,7 @@ var issueInvocationTable = map[string]providerBuilders{
 	"issue unpin":          issueUnpinBuilders,
 	"issue status":         issueStatusBuilders,
 	"issue develop":        issueDevelopBuilders,
+	"issue transfer":       issueTransferBuilders,
 	"issue create":         issueCreateBuilders,
 	"issue edit":           issueEditBuilders,
 	"issue sub-issue":      issueSubIssueBuilders,
