@@ -133,6 +133,65 @@ func TestE2ELabelCreateUsageErrors(t *testing.T) {
 	}
 }
 
+func TestE2ETeaLabelListCreateArgv(t *testing.T) {
+	bin := buildGG(t)
+
+	cases := []struct {
+		name   string
+		remote string
+		args   []string
+		want   string
+	}{
+		{
+			name:   "tea label list without limit",
+			remote: "https://gitea.com/o/r.git",
+			args:   []string{"label", "list"},
+			want:   "tea labels list --login pub --repo o/r",
+		},
+		{
+			name:   "tea label list with limit",
+			remote: "https://gitea.com/o/r.git",
+			args:   []string{"label", "list", "--limit", "5"},
+			want:   "tea labels list --login pub --repo o/r --limit 5",
+		},
+		{
+			name:   "tea label create minimal",
+			remote: "https://gitea.com/o/r.git",
+			args:   []string{"label", "create", "--name", "bug"},
+			want:   "tea labels create --login pub --repo o/r --name bug",
+		},
+		{
+			name:   "tea label create full",
+			remote: "https://gitea.com/o/r.git",
+			args:   []string{"label", "create", "--name", "bug", "--color", "ff0000", "--description", "버그"},
+			want:   "tea labels create --login pub --repo o/r --name bug --color ff0000 --description 버그",
+		},
+		{
+			name:   "tea label create repo flag",
+			remote: "https://gitea.com/o/r.git",
+			args:   []string{"--repo", "https://gitea.com/custom/repo", "label", "create", "--name", "bug"},
+			want:   "tea labels create --login pub --repo custom/repo --name bug",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeDir := t.TempDir()
+			logFile := filepath.Join(t.TempDir(), "calls.log")
+			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			repo := tempRepo(t, tc.remote)
+
+			out, code := runGG(t, bin, fakeDir, repo, tc.args...)
+			if code != 0 {
+				t.Fatalf("gg %v: exit %d: %s", tc.args, code, out)
+			}
+			if got := readLog(t, logFile); got != tc.want {
+				t.Errorf("gg %v argv = %q, want %q", tc.args, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestE2ELabelExplain(t *testing.T) {
 	bin, fakeDir, logFile := setupFakeGH(t)
 	repo := tempRepo(t, "https://github.com/o/r.git")
