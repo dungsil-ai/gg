@@ -1,9 +1,9 @@
 package cli
 
 // repoResourceDef는 "repo" 최상위 명령의 정의다: list, view, create, clone, fork,
-// delete, edit, rename, sync, set-default, commit, pull, push와 Git 전달 명령
-// (cmd_git.go) 전체를 포함한다. archive는 git archive passthrough가 쓰는 이름이라
-// gh repo archive(저장소 보관)는 이 자리에 둘 수 없다.
+// delete, edit, rename, sync, set-default, contributors, commit, pull, push와 Git
+// 전달 명령 (cmd_git.go) 전체를 포함한다. archive는 git archive passthrough가
+// 쓰는 이름이라 gh repo archive(저장소 보관)는 이 자리에 둘 수 없다.
 var repoResourceDef = &resourceDef{
 	name:    "repo",
 	summary: "List, view, create, or manage repositories, or run supported Git commands",
@@ -51,6 +51,14 @@ var repoResourceDef = &resourceDef{
 		},
 		{
 			name: "fork", summary: "Create a fork of the repository", usage: "gg repo fork [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+		},
+		{
+			// contributors는 glab 전용 기능이라 glab builder만 등록한다 — gh와
+			// tea는 dispatch의 builder 부재 오류로 걸러지고, tea는 tea login을
+			// 묻기 전에 거부된다.
+			name: "contributors", summary: "List repository contributors (GitLab only)", usage: "gg repo contributors [flags]",
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
 		},
@@ -134,8 +142,17 @@ var repoResourceDef = &resourceDef{
 	}, gitPassthroughActions()...),
 }
 
+// repoContributorsBuilders는 저장소 기여자 목록을 조회한다. glab 전용 기능이라
+// glab builder만 등록한다.
+var repoContributorsBuilders = providerBuilders{
+	glab: func(c invocationContext) (args, env []string) {
+		return append([]string{"repo", "contributors"}, c.target...), nil
+	},
+}
+
 // repoInvocationTable은 "repo <action>" 키로 gh/glab/tea의 arg-builder를 모은다.
 var repoInvocationTable = map[string]providerBuilders{
+	"repo contributors": repoContributorsBuilders,
 	"repo list": {
 		gh: func(c invocationContext) (args, env []string) {
 			args = appendKV([]string{"repo", "list"}, "--limit", c.req.Limit)
