@@ -461,7 +461,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `glab repo delete` (대응: `gg repo delete`, `gg delete`)
   - [x] `glab repo fork` (대응: `gg repo fork`, `gg fork`)
   - [x] `glab repo list` (대응: `gg repo list`, `gg list`)
-  - [ ] `glab repo mirror`
+  - [x] `glab repo mirror` (대응: `gg repo mirror --url <url>`; gh·tea에 미러링 구성 하위 명령이 없어 미지원)
   - [x] `glab repo search` (대응: `gg repo search --search <text>`; gh·tea에 저장소 검색 하위 명령이 없어 미지원)
   - [x] `glab repo transfer` (대응: `gg repo transfer --target-namespace <namespace> [--yes]`; gh·tea에 이전 하위 명령이 없어 미지원)
   - [x] `glab repo view` (대응: `gg repo view`, `gg view`)

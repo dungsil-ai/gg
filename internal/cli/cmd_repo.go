@@ -65,6 +65,21 @@ var repoResourceDef = &resourceDef{
 			remoteOK: true, explainOK: true,
 		},
 		{
+			// mirror는 glab 전용 기능이라 glab builder만 등록한다 — gh와 tea는
+			// dispatch의 builder 부재 오류로 걸러지고, tea는 tea login을 묻기
+			// 전에 거부된다.
+			name: "mirror", summary: "Configure repository mirroring (GitLab only)", usage: "gg repo mirror --url <url> [flags]",
+			flags:    []flagDef{repoMirrorURLFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			setPos: func(req *Request, pos []string) error {
+				if strings.TrimSpace(req.MirrorURL) == "" {
+					return usageErr("repo mirror needs --url <url>")
+				}
+				return nil
+			},
+		},
+		{
 			name: "search", summary: "Search repositories by name (GitLab only)", usage: "gg repo search --search <text> [flags]",
 			flags:    []flagDef{repoSearchFlag},
 			showRepo: true, showRemote: true, showExplain: true,
@@ -176,6 +191,15 @@ var repoContributorsBuilders = providerBuilders{
 	},
 }
 
+// repoMirrorBuilders는 저장소 미러링을 구성한다. glab 전용 기능이라 glab
+// builder만 등록한다.
+var repoMirrorBuilders = providerBuilders{
+	glab: func(c invocationContext) (args, env []string) {
+		args = append([]string{"repo", "mirror"}, c.target...)
+		return appendKV(args, "--url", c.req.MirrorURL), nil
+	},
+}
+
 // repoSearchBuilders와 repoTransferBuilders는 저장소 검색과 소유권 이전을
 // 중계한다. glab 전용 기능이라 glab builder만 등록한다 — gh와 tea는 dispatch의
 // builder 부재 오류로 걸러지고, tea는 tea login을 묻기 전에 거부된다.
@@ -200,6 +224,7 @@ var repoTransferBuilders = providerBuilders{
 // repoInvocationTable은 "repo <action>" 키로 gh/glab/tea의 arg-builder를 모은다.
 var repoInvocationTable = map[string]providerBuilders{
 	"repo contributors": repoContributorsBuilders,
+	"repo mirror":       repoMirrorBuilders,
 	"repo search":       repoSearchBuilders,
 	"repo transfer":     repoTransferBuilders,
 	"repo list": {
