@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -124,10 +125,54 @@ func TestTranslatePRMerge(t *testing.T) {
 		}
 	}
 
-	if _, err := Translate(Request{Resource: "pr", Action: "merge", Number: "42"}, te, Tea, "pub"); err == nil {
-		t.Error("tea pr merge는 오류를 내야 한다")
-	} else if !strings.Contains(err.Error(), "not supported") {
-		t.Errorf("tea pr merge 오류 = %v, want not supported", err)
+	teaMerge := []struct {
+		name string
+		req  Request
+		want Invocation
+	}{
+		{name: "tea 기본 병합",
+			req:  Request{Resource: "pr", Action: "merge", Number: "42"},
+			want: Invocation{Bin: "tea", Args: []string{"pulls", "merge", "42", "--login", "pub", "--repo", "o/r"}}},
+		{name: "tea squash 방식",
+			req:  Request{Resource: "pr", Action: "merge", Number: "42", Squash: true},
+			want: Invocation{Bin: "tea", Args: []string{"pulls", "merge", "42", "--style", "squash", "--login", "pub", "--repo", "o/r"}}},
+		{name: "tea rebase 방식",
+			req:  Request{Resource: "pr", Action: "merge", Number: "42", Rebase: true},
+			want: Invocation{Bin: "tea", Args: []string{"pulls", "merge", "42", "--style", "rebase", "--login", "pub", "--repo", "o/r"}}},
+		{name: "tea merge 방식",
+			req:  Request{Resource: "pr", Action: "merge", Number: "42", Merge: true},
+			want: Invocation{Bin: "tea", Args: []string{"pulls", "merge", "42", "--style", "merge", "--login", "pub", "--repo", "o/r"}}},
+	}
+	for _, c := range teaMerge {
+		got, err := Translate(c.req, te, Tea, "pub")
+		if err != nil {
+			t.Errorf("%s: %v", c.name, err)
+			continue
+		}
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%s = %+v, want %+v", c.name, got, c.want)
+		}
+	}
+
+	for _, tc := range []struct {
+		name string
+		req  Request
+		want string
+	}{
+		{name: "tea 자동 병합", req: Request{Resource: "pr", Action: "merge", Number: "42", Auto: true},
+			want: "pr merge --auto/--delete-branch is not supported for tea"},
+		{name: "tea branch 삭제", req: Request{Resource: "pr", Action: "merge", Number: "42", DeleteBranch: true},
+			want: "pr merge --auto/--delete-branch is not supported for tea"},
+	} {
+		_, err := Translate(tc.req, te, Tea, "pub")
+		var usage UsageError
+		if !errors.As(err, &usage) {
+			t.Errorf("%s: UsageError 기대, got %v", tc.name, err)
+			continue
+		}
+		if usage.Msg != tc.want {
+			t.Errorf("%s 오류 = %q, want %q", tc.name, usage.Msg, tc.want)
+		}
 	}
 }
 
@@ -246,34 +291,73 @@ func TestE2EPRMergeChildPassthrough(t *testing.T) {
 	}
 }
 
-func TestE2EPRMergeUnsupportedForTea(t *testing.T) {
+func TestE2EPRMergeTeaArgv(t *testing.T) {
+	bin := buildGG(t)
+
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "tea 기본 병합",
+			args: []string{"pr", "merge", "42"},
+			want: "tea pulls merge 42 --login pub --repo o/r",
+		},
+		{
+			name: "tea squash 병합",
+			args: []string{"pr", "merge", "42", "--squash"},
+			want: "tea pulls merge 42 --style squash --login pub --repo o/r",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeDir := t.TempDir()
+			logFile := filepath.Join(t.TempDir(), "calls.log")
+			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			repo := tempRepo(t, "https://gitea.com/o/r.git")
+
+			out, code := runGG(t, bin, fakeDir, repo, tc.args...)
+			if code != 0 {
+				t.Fatalf("gg %v: exit %d: %s", tc.args, code, out)
+			}
+			if got := readLog(t, logFile); got != tc.want {
+				t.Errorf("gg %v argv = %q, want %q", tc.args, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestE2EPRMergeTeaUnsupportedFlags(t *testing.T) {
 	bin := buildGG(t)
 	fakeDir := t.TempDir()
 	logFile := filepath.Join(t.TempDir(), "calls.log")
-	writeFakeBin(t, fakeDir, "tea", logFile)
-	// tea login 응답을 내는 fake
-	var path, body string
-	if runtime.GOOS == "windows" {
-		path = filepath.Join(fakeDir, "tea.cmd")
-		body = "@echo off\r\nif \"%1\"==\"logins\" if \"%2\"==\"list\" (\r\n  echo [{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]\r\n  exit /b 0\r\n)\r\necho tea %* >> \"" + logFile + "\"\r\nexit /b 0\r\n"
-	} else {
-		path = filepath.Join(fakeDir, "tea")
-		body = "#!/bin/sh\nif [ \"$1\" = \"logins\" ] && [ \"$2\" = \"list\" ]; then\n  echo '[{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]'\n  exit 0\nfi\necho \"tea $@\" >> \"" + logFile + "\"\nexit 0\n"
-	}
-	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	writeFakeTeaWithLogin(t, fakeDir, logFile)
 	repo := tempRepo(t, "https://gitea.com/o/r.git")
 
-	out, code := runGG(t, bin, fakeDir, repo, "pr", "merge", "42")
-	if code == 0 {
-		t.Fatalf("tea pr merge는 실패해야 한다: %s", out)
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "tea 자동 병합", args: []string{"pr", "merge", "42", "--auto"}},
+		{name: "tea branch 삭제", args: []string{"pr", "merge", "42", "--delete-branch"}},
 	}
-	if !strings.Contains(out, "not supported") {
-		t.Errorf("output missing \"not supported\":\n%s", out)
-	}
-	if got := readLog(t, logFile); got != "" {
-		t.Errorf("tea에게 명령이 실행되면 안 된다: %q", got)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			clearFile(t, logFile)
+			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)
+			if code != 2 {
+				t.Errorf("gg %v: exit code = %d, want 2 (stdout: %s, stderr: %s)", tc.args, code, stdout, stderr)
+			}
+			if !strings.Contains(stderr, "pr merge --auto/--delete-branch is not supported for tea") {
+				t.Errorf("gg %v: stderr = %q", tc.args, stderr)
+			}
+			if got := readLog(t, logFile); got != "" {
+				t.Errorf("tea에게 명령이 실행되면 안 된다: %q", got)
+			}
+		})
 	}
 }
 

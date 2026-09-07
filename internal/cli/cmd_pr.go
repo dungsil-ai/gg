@@ -491,7 +491,7 @@ var prReviewBuilders = providerBuilders{
 }
 
 // prInvocationTable은 "pr <action>" 키로 gh/glab/tea의 arg-builder를 모은다.
-// tea의 pr merge/status/ready와 pr comment list/edit/delete는 teaInvocation의
+// tea의 pr status/ready와 pr comment list/edit/delete는 teaInvocation의
 // 사전 가드에서 걸러지므로 여기에는 등록하지 않는다 — provider별 예외는 감추지
 // 않고 그 함수에 명시적으로 남긴다.
 var prInvocationTable = map[string]providerBuilders{
@@ -560,6 +560,20 @@ var prInvocationTable = map[string]providerBuilders{
 			} else {
 				// pipeline 성공 대기 자동 병합을 명시적으로 끈다
 				args = append(args, "--when-pipeline-succeeds=false")
+			}
+			return append(args, c.target...), nil
+		},
+		// tea는 --style merge|rebase|squash로 병합 방식을 고른다. 방식 flag가
+		// 없으면 tea의 기본 방식(merge)을 따른다.
+		tea: func(c invocationContext) (args, env []string) {
+			args = []string{c.res, "merge", c.req.Number}
+			switch {
+			case c.req.Squash:
+				args = append(args, "--style", "squash")
+			case c.req.Rebase:
+				args = append(args, "--style", "rebase")
+			case c.req.Merge:
+				args = append(args, "--style", "merge")
 			}
 			return append(args, c.target...), nil
 		},
