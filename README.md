@@ -486,10 +486,10 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `glab ci cancel` (대응: `gg ci cancel`)
   - [x] `glab ci delete` (대응: `gg ci delete`)
   - [x] `glab ci get` (대응: `gg ci view`)
-  - [ ] `glab ci lint`
+  - [x] `glab ci lint` (대응: `gg ci lint`; gh·tea에 CI 설정 검증 하위 명령이 없어 미지원)
   - [x] `glab ci list` (대응: `gg ci list`)
   - [x] `glab ci retry` (대응: `gg ci retry`)
-  - [ ] `glab ci run`
+  - [x] `glab ci run` (대응: `gg ci run [--branch]`; gh·tea에 파이프라인 생성 하위 명령이 없어 미지원)
   - [ ] `glab ci status`
   - [x] `glab ci trace` (대응: `gg ci watch`)
   - [ ] `glab ci trigger`

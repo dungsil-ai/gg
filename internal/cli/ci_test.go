@@ -53,7 +53,7 @@ func TestParseRequestCI(t *testing.T) {
 		args []string
 		want string
 	}{
-		{args: []string{"ci"}, want: "ci needs an action: list, view, watch, retry, cancel, delete, download"},
+		{args: []string{"ci"}, want: "ci needs an action: list, view, watch, retry, cancel, delete, download, lint, run"},
 		{args: []string{"ci", "status"}, want: "ci does not support status"},
 		{args: []string{"ci", "list", "extra"}, want: "unexpected argument extra"},
 		{args: []string{"ci", "view", "1", "2"}, want: "usage: gg ci view [<id>]"},
