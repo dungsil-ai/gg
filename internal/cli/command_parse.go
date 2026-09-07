@@ -43,6 +43,8 @@ type Request struct {
 	Parent, Blocker, IssueType string // issue 관계 등록: 부모·blocker 번호와 issue 종류 이름
 	RelatedID                  string // plan 단계에서 gh로 조회한 관계 issue의 numeric database id
 
+	List, Checkout bool // issue develop: 연결 branch 목록 조회, branch 생성 후 check out
+
 	FilterPaths    []string // filter-repo: --path 반복
 	FilterRenames  []string // filter-repo: --path-rename <old:new> 반복
 	FilterReplaces []string // filter-repo: --replace-text 반복 (인라인 regex==>replacement 또는 파일 경로)
