@@ -274,6 +274,14 @@ var prResourceDef = &resourceDef{
 			setPos: setNumber,
 		},
 		{
+			name: "todo", summary: "Add a pull request to your To-Do List (GitLab only)", usage: "gg pr todo <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr todo <number>",
+			setPos: setNumber,
+		},
+		{
 			name: "subscribe", summary: "Subscribe to a pull request (GitLab only)", usage: "gg pr subscribe <number> [flags]",
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
@@ -570,6 +578,15 @@ var prRevokeBuilders = providerBuilders{
 	},
 }
 
+// prTodoBuilders는 MR을 To-Do List에 추가한다. glab 전용 기능이라 glab
+// builder만 등록한다 — gh와 tea는 dispatch의 builder 부재 오류로 걸러지며,
+// tea는 run.go의 tea login 건너뛰기 목록이 login을 묻기 전에 미지원을 확정한다.
+var prTodoBuilders = providerBuilders{
+	glab: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "todo", c.req.Number}, c.target...), nil
+	},
+}
+
 // prSubscribeBuilders와 prUnsubscribeBuilders는 MR 알림 구독을 관리한다.
 // glab 전용 기능이라 glab builder만 등록한다 — gh와 tea는 dispatch의 builder
 // 부재 오류로 걸러지며, tea는 run.go의 tea login 건너뛰기 목록이 login을 묻기
@@ -718,6 +735,7 @@ var prInvocationTable = map[string]providerBuilders{
 	"pr rebase":      prRebaseBuilders,
 	"pr approvers":   prApproversBuilders,
 	"pr revoke":      prRevokeBuilders,
+	"pr todo":        prTodoBuilders,
 	"pr subscribe":   prSubscribeBuilders,
 	"pr unsubscribe": prUnsubscribeBuilders,
 	"pr review":      prReviewBuilders,

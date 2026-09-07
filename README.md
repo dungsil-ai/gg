@@ -418,7 +418,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `glab issue note` (대응: `gg issue comment`; `gg issue comment list|edit|delete`는 `glab api` 중계)
   - [x] `glab issue reopen` (대응: `gg issue reopen`)
   - [x] `glab issue subscribe` (대응: `gg issue subscribe`; gh·tea에 구독 하위 명령이 없어 미지원)
-  - [ ] `glab issue todo`
+  - [ ] `glab issue todo` (glab에 issue todo 하위 명령이 없어 중계 대상이 아님 — 문서 기준)
   - [x] `glab issue unsubscribe` (대응: `gg issue unsubscribe`; gh·tea에 구독 해제 하위 명령이 없어 미지원)
   - [x] `glab issue update` (대응: `gg issue edit`)
   - [x] `glab issue view` (대응: `gg issue view`)
@@ -442,7 +442,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `glab mr reopen` (대응: `gg pr reopen`)
   - [x] `glab mr revoke` (대응: `gg pr revoke`; gh·tea에 승인 철회 하위 명령이 없어 미지원)
   - [x] `glab mr subscribe` (대응: `gg pr subscribe`; gh·tea에 구독 하위 명령이 없어 미지원)
-  - [ ] `glab mr todo`
+  - [x] `glab mr todo` (대응: `gg pr todo`; gh·tea에 To-Do 추가 하위 명령이 없어 미지원)
   - [x] `glab mr unsubscribe` (대응: `gg pr unsubscribe`; gh·tea에 구독 해제 하위 명령이 없어 미지원)
   - [x] `glab mr update` (대응: `gg pr ready`, `gg pr edit`)
   - [x] `glab mr view` (대응: `gg pr view`)

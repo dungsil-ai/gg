@@ -228,7 +228,7 @@ func resolvePlan(req Request) (executionPlan, error) {
 		req.Action == "checks" || req.Action == "update-branch" || req.Action == "rebase" ||
 		req.Action == "lock" || req.Action == "unlock" || req.Action == "delete" ||
 		req.Action == "subscribe" || req.Action == "unsubscribe" ||
-		req.Action == "approvers" || req.Action == "revoke" ||
+		req.Action == "approvers" || req.Action == "revoke" || req.Action == "todo" ||
 		req.Action == "comment edit" || req.Action == "comment delete")) ||
 		(req.Resource == "pr" && req.Action == "review" && req.ReviewComment) ||
 		(req.Resource == "label" && (req.Action == "edit" || req.Action == "delete" || req.Action == "clone")) ||
