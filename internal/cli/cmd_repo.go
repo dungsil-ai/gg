@@ -201,12 +201,17 @@ var repoMirrorBuilders = providerBuilders{
 }
 
 // repoSearchBuilders와 repoTransferBuilders는 저장소 검색과 소유권 이전을
-// 중계한다. glab 전용 기능이라 glab builder만 등록한다 — gh와 tea는 dispatch의
-// builder 부재 오류로 걸러지고, tea는 tea login을 묻기 전에 거부된다.
+// 중계한다. 검색은 glab과 tea로 중계하고(glab은 --search flag, tea는 검색어
+// positional), 이전은 glab 전용이다 — gh는 두 하위 명령이 모두 없어 dispatch의
+// builder 부재 오류로 걸러지고, tea의 이전도 같은 방식으로 거부되며 tea login은
+// 묻기 전에 건너뛴다.
 var repoSearchBuilders = providerBuilders{
 	glab: func(c invocationContext) (args, env []string) {
 		args = append([]string{"repo", "search"}, c.target...)
 		return appendKV(args, "--search", c.req.Search), nil
+	},
+	tea: func(c invocationContext) (args, env []string) {
+		return append([]string{"repos", "search", c.req.Search}, c.target...), nil
 	},
 }
 
