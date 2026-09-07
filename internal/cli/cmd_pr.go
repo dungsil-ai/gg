@@ -258,6 +258,22 @@ var prResourceDef = &resourceDef{
 			},
 		},
 		{
+			name: "approvers", summary: "List approvers of a pull request (GitLab only)", usage: "gg pr approvers <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr approvers <number>",
+			setPos: setNumber,
+		},
+		{
+			name: "revoke", summary: "Revoke your approval of a pull request (GitLab only)", usage: "gg pr revoke <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr revoke <number>",
+			setPos: setNumber,
+		},
+		{
 			name: "subscribe", summary: "Subscribe to a pull request (GitLab only)", usage: "gg pr subscribe <number> [flags]",
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
@@ -538,6 +554,22 @@ var prDeleteBuilders = providerBuilders{
 	},
 }
 
+// prApproversBuilders와 prRevokeBuilders는 MR 승인자 조회와 승인 철회를
+// 중계한다. glab 전용 기능이라 glab builder만 등록한다 — gh와 tea는 dispatch의
+// builder 부재 오류로 걸러지며, tea는 run.go의 tea login 건너뛰기 목록이 login을
+// 묻기 전에 미지원을 확정한다.
+var prApproversBuilders = providerBuilders{
+	glab: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "approvers", c.req.Number}, c.target...), nil
+	},
+}
+
+var prRevokeBuilders = providerBuilders{
+	glab: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "revoke", c.req.Number}, c.target...), nil
+	},
+}
+
 // prSubscribeBuilders와 prUnsubscribeBuilders는 MR 알림 구독을 관리한다.
 // glab 전용 기능이라 glab builder만 등록한다 — gh와 tea는 dispatch의 builder
 // 부재 오류로 걸러지며, tea는 run.go의 tea login 건너뛰기 목록이 login을 묻기
@@ -684,6 +716,8 @@ var prInvocationTable = map[string]providerBuilders{
 	"pr unlock":      prUnlockBuilders,
 	"pr delete":      prDeleteBuilders,
 	"pr rebase":      prRebaseBuilders,
+	"pr approvers":   prApproversBuilders,
+	"pr revoke":      prRevokeBuilders,
 	"pr subscribe":   prSubscribeBuilders,
 	"pr unsubscribe": prUnsubscribeBuilders,
 	"pr review":      prReviewBuilders,
