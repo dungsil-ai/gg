@@ -227,6 +227,22 @@ var issueResourceDef = &resourceDef{
 			posErr: "usage: gg issue type <number> --name <name>",
 			setPos: setIssueType,
 		},
+		{
+			name: "subscribe", summary: "Subscribe to an issue (GitLab only)", usage: "gg issue subscribe <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg issue subscribe <number>",
+			setPos: setNumber,
+		},
+		{
+			name: "unsubscribe", summary: "Unsubscribe from an issue (GitLab only)", usage: "gg issue unsubscribe <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg issue unsubscribe <number>",
+			setPos: setNumber,
+		},
 	},
 }
 
@@ -420,6 +436,22 @@ var issueTransferBuilders = providerBuilders{
 	},
 }
 
+// issueSubscribeBuilders와 issueUnsubscribeBuilders는 알림 구독을 관리한다.
+// glab 전용 기능이라 glab builder만 등록한다 — gh와 tea는 dispatch의 builder
+// 부재 오류로 걸러지며, tea는 run.go의 tea login 건너뛰기 목록이 login을 묻기
+// 전에 미지원을 확정한다.
+var issueSubscribeBuilders = providerBuilders{
+	glab: func(c invocationContext) (args, env []string) {
+		return append([]string{"issue", "subscribe", c.req.Number}, c.target...), nil
+	},
+}
+
+var issueUnsubscribeBuilders = providerBuilders{
+	glab: func(c invocationContext) (args, env []string) {
+		return append([]string{"issue", "unsubscribe", c.req.Number}, c.target...), nil
+	},
+}
+
 var issueStatusBuilders = providerBuilders{
 	gh: func(c invocationContext) (args, env []string) {
 		return append([]string{"issue", "status"}, c.target...), nil
@@ -597,4 +629,6 @@ var issueInvocationTable = map[string]providerBuilders{
 	"issue sub-issue":      issueSubIssueBuilders,
 	"issue blocked-by":     issueBlockedByBuilders,
 	"issue type":           issueTypeBuilders,
+	"issue subscribe":      issueSubscribeBuilders,
+	"issue unsubscribe":    issueUnsubscribeBuilders,
 }
