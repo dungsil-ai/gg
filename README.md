@@ -23,15 +23,15 @@ go install github.com/dungsil-ai/gg@latest
 
 ## 릴리즈 절차
 
-준비자는 저장소 default branch(`main`)에서 변경사항을 stage하지 않은 상태로 다음 순서를 실행합니다.
+`main`은 PR 없이 직접 push할 수 없으므로 릴리즈도 PR로 생성합니다.
 
 ```bash
-gg commit --allow-empty -m "release: vMAJOR.MINOR.PATCH"
-gg tag -a vMAJOR.MINOR.PATCH -m "Release vMAJOR.MINOR.PATCH"
-gg push --atomic origin HEAD:refs/heads/main refs/tags/vMAJOR.MINOR.PATCH
+gh workflow run Release --ref main -f tag=vMAJOR.MINOR.PATCH
 ```
 
-전용 빈 릴리즈 커밋을 만들고, 그 `HEAD`에 annotated tag를 만든 뒤, 커밋과 tag를 같은 원격 transaction으로 atomic push합니다. `--atomic`은 두 ref 중 하나라도 원격이 거부하면 나머지도 갱신하지 않아 partial push를 막습니다. 원격이 atomic push를 지원하지 않아도 non-atomic fallback이나 force push는 쓰지 않습니다.
+위 dispatch는 `release/vMAJOR.MINOR.PATCH` branch에 전용 빈 릴리즈 커밋(`release: vMAJOR.MINOR.PATCH`)을 만들고 PR을 올린 뒤, 정확한 subject로 squash auto-merge를 예약합니다. PR이 `main`에 squash 병합되면 push 이벤트에서 같은 subject의 annotated tag를 자동으로 만들고 push하고, tag push에서 Release workflow가 GitHub Release를 게시합니다.
+
+수동으로 병합해야 한다면 squash로만 병합하고 subject를 `release: vMAJOR.MINOR.PATCH`로, body를 비워 병합합니다. rebase 병합은 빈 커밋을 제거하므로 사용하지 않습니다. `main` 직접 push나 `--atomic` push, force push는 사용하지 않습니다.
 
 release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게시합니다.
 

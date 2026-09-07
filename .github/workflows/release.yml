@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - "v*"
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       tag:
@@ -19,8 +21,151 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Release
+  prepare-release-pr:
+    name: Prepare release PR
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Create release branch and PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ inputs.tag }}"
+          echo "Tag: $TAG"
+
+          if ! echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Error: Tag '$TAG' does not match semantic versioning format '^v[0-9]+\.[0-9]+\.[0-9]+$'."
+            exit 1
+          fi
+
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          if [ -z "$DEFAULT_BRANCH" ]; then
+            echo "Error: Repository default branch is empty."
+            exit 1
+          fi
+          echo "Default branch: $DEFAULT_BRANCH"
+
+          git fetch --tags --force origin
+          if git show-ref --verify --quiet "refs/tags/$TAG"; then
+            echo "Tag '$TAG' already exists locally; nothing to prepare."
+            exit 0
+          fi
+          set +e
+          LS_REMOTE_TAG_OUTPUT=$(git ls-remote --exit-code --tags origin "refs/tags/$TAG" 2>&1)
+          LS_REMOTE_TAG_STATUS=$?
+          set -e
+          if [ "$LS_REMOTE_TAG_STATUS" -eq 0 ]; then
+            echo "Tag '$TAG' already exists on origin; nothing to prepare."
+            exit 0
+          elif [ "$LS_REMOTE_TAG_STATUS" -ne 2 ]; then
+            echo "Error: Failed to check remote tag '$TAG' (exit code $LS_REMOTE_TAG_STATUS):"
+            echo "$LS_REMOTE_TAG_OUTPUT"
+            exit 1
+          fi
+
+          BRANCH="release/$TAG"
+          echo "Release branch: $BRANCH"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          set +e
+          LS_REMOTE_BRANCH_OUTPUT=$(git ls-remote --exit-code --heads origin "refs/heads/$BRANCH" 2>&1)
+          LS_REMOTE_BRANCH_STATUS=$?
+          set -e
+          if [ "$LS_REMOTE_BRANCH_STATUS" -eq 0 ]; then
+            echo "Branch '$BRANCH' already exists on origin; reusing it."
+            git fetch origin "$BRANCH"
+            git checkout -B "$BRANCH" "origin/$BRANCH"
+            git pull --ff-only origin "$BRANCH"
+          elif [ "$LS_REMOTE_BRANCH_STATUS" -ne 2 ]; then
+            echo "Error: Failed to check remote branch '$BRANCH' (exit code $LS_REMOTE_BRANCH_STATUS):"
+            echo "$LS_REMOTE_BRANCH_OUTPUT"
+            exit 1
+          else
+            git fetch origin "$DEFAULT_BRANCH"
+            git checkout -b "$BRANCH" "origin/$DEFAULT_BRANCH"
+            git commit --allow-empty -m "release: $TAG"
+            git push origin "$BRANCH"
+            echo "Created and pushed branch '$BRANCH' with empty release commit."
+          fi
+
+          HEAD_MSG=$(git log -1 --format=%s HEAD)
+          EXPECTED_MSG="release: $TAG"
+          echo "Branch HEAD subject: $HEAD_MSG"
+          echo "Expected subject: $EXPECTED_MSG"
+          if [ "$HEAD_MSG" != "$EXPECTED_MSG" ]; then
+            echo "Error: Branch '$BRANCH' HEAD subject '$HEAD_MSG' does not match expected release subject '$EXPECTED_MSG'."
+            exit 1
+          fi
+
+          HEAD_TREE=$(git rev-parse "HEAD^{tree}")
+          PARENT_TREE=$(git rev-parse "HEAD~1^{tree}" 2>/dev/null || echo "")
+          if [ -z "$PARENT_TREE" ]; then
+            echo "Error: Branch HEAD has no parent commit."
+            exit 1
+          fi
+          if [ "$HEAD_TREE" != "$PARENT_TREE" ]; then
+            echo "Error: Branch HEAD is not an empty commit (tree changed from parent)."
+            exit 1
+          fi
+
+          PR_NUMBER=$(gh pr list --head "$BRANCH" --base "$DEFAULT_BRANCH" --json number --jq '.[0].number // empty')
+          if [ -z "$PR_NUMBER" ]; then
+            echo "Creating release PR for '$BRANCH' into '$DEFAULT_BRANCH'..."
+            PR_BODY_FILE=$(mktemp)
+            cat > "$PR_BODY_FILE" <<EOF
+          ## 요약
+
+          릴리즈 커밋 \`release: $TAG\`를 \`$DEFAULT_BRANCH\`에 병합하기 위한 PR입니다.
+
+          ## 수정 내역
+
+          - 빈 릴리즈 커밋 \`release: $TAG\` 추가 (트리 변경 없음)
+
+          ## 검증 사항
+
+          - squash 병합 시 subject를 \`release: $TAG\`로, body를 비워 병합합니다.
+          - rebase 병합은 빈 커밋을 제거하므로 사용하지 않습니다.
+          - 병합 후 push 이벤트에서 tag \`$TAG\`가 자동 생성되고 Release workflow가 게시합니다.
+
+          ## Ref
+
+          - workflow_dispatch tag: $TAG
+          EOF
+            gh pr create --base "$DEFAULT_BRANCH" --head "$BRANCH" --title "release: $TAG" --body-file "$PR_BODY_FILE"
+            rm -f "$PR_BODY_FILE"
+            PR_NUMBER=$(gh pr list --head "$BRANCH" --base "$DEFAULT_BRANCH" --json number --jq '.[0].number // empty')
+          else
+            echo "Release PR #$PR_NUMBER already exists; reusing it."
+          fi
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "Error: Failed to resolve release PR number for '$BRANCH'."
+            exit 1
+          fi
+          echo "Release PR: #$PR_NUMBER"
+
+          AUTO_MERGE=$(gh pr view "$PR_NUMBER" --json autoMergeRequest --jq '.autoMergeRequest != null')
+          if [ "$AUTO_MERGE" = "true" ]; then
+            echo "Auto-merge is already enabled for PR #$PR_NUMBER."
+          else
+            echo "Enabling squash auto-merge with exact subject 'release: $TAG'..."
+            gh pr merge --squash --subject "release: $TAG" --body "" --auto "$PR_NUMBER"
+            echo "Auto-merge enabled for PR #$PR_NUMBER."
+          fi
+
+  tag-release:
+    name: Tag release commit
+    if: github.event_name == 'push' && github.ref_type == 'branch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -30,78 +175,23 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Resolve release tag
-        id: release_tag
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ inputs.tag }}"
-          else
-            TAG="${{ github.ref_name }}"
-          fi
-          echo "Tag: $TAG"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-
       - name: Create and push release tag
-        if: github.event_name == 'workflow_dispatch'
         run: |
-          TAG="${{ steps.release_tag.outputs.tag }}"
-          echo "Tag: $TAG"
+          HEAD_COMMIT=$(git rev-parse HEAD)
+          COMMIT_MSG=$(git log -1 --format=%s HEAD)
+          echo "HEAD commit: $HEAD_COMMIT"
+          echo "Commit subject: $COMMIT_MSG"
 
-          if ! echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "Error: Tag '$TAG' does not match semantic versioning format '^v[0-9]+\.[0-9]+\.[0-9]+$'."
-            exit 1
-          fi
-
-          git fetch --tags --force origin
-          if git show-ref --verify --quiet "refs/tags/$TAG"; then
-            echo "Tag '$TAG' already exists; reusing it without modification."
+          if ! echo "$COMMIT_MSG" | grep -Eq '^release: (v[0-9]+\.[0-9]+\.[0-9]+)$'; then
+            echo "Not a release commit; skipping tag creation."
             exit 0
           fi
 
-          HEAD_COMMIT=$(git rev-parse HEAD)
-          echo "HEAD commit: $HEAD_COMMIT"
+          TAG=$(echo "$COMMIT_MSG" | sed -E 's/^release: //')
+          echo "Tag: $TAG"
 
-          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
-          if [ -z "$DEFAULT_BRANCH" ]; then
-            echo "Error: Repository default branch is empty."
-            exit 1
-          fi
-
-          DEFAULT_BRANCH_REF="refs/heads/$DEFAULT_BRANCH"
-          set +e
-          DEFAULT_BRANCH_OUTPUT=$(git ls-remote --exit-code --refs origin "$DEFAULT_BRANCH_REF" 2>&1)
-          DEFAULT_BRANCH_STATUS=$?
-          set -e
-
-          if [ "$DEFAULT_BRANCH_STATUS" -ne 0 ]; then
-            echo "Error: Failed to resolve current tip of default branch '$DEFAULT_BRANCH' (exit code $DEFAULT_BRANCH_STATUS):"
-            echo "$DEFAULT_BRANCH_OUTPUT"
-            exit 1
-          fi
-
-          DEFAULT_BRANCH_TIP=${DEFAULT_BRANCH_OUTPUT%%$'\t'*}
-          echo "Default branch: $DEFAULT_BRANCH"
-          echo "Default branch tip: $DEFAULT_BRANCH_TIP"
-          COMMIT_MSG=$(git log -1 --format=%s "$HEAD_COMMIT")
-          EXPECTED_MSG="release: $TAG"
-          echo "Commit subject: $COMMIT_MSG"
-          echo "Expected subject: $EXPECTED_MSG"
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          if [ "$HEAD_COMMIT" != "$DEFAULT_BRANCH_TIP" ] || [ "$COMMIT_MSG" != "$EXPECTED_MSG" ]; then
-            echo "Creating empty release commit '$EXPECTED_MSG' on default branch tip '$DEFAULT_BRANCH'..."
-            git checkout "$DEFAULT_BRANCH"
-            git pull --ff-only origin "$DEFAULT_BRANCH"
-            git commit --allow-empty -m "$EXPECTED_MSG"
-            git push origin "$DEFAULT_BRANCH"
-            HEAD_COMMIT=$(git rev-parse HEAD)
-            echo "New HEAD commit: $HEAD_COMMIT"
-          fi
-
-          HEAD_TREE=$(git rev-parse "${HEAD_COMMIT}^{tree}")
-          PARENT_TREE=$(git rev-parse "${HEAD_COMMIT}~1^{tree}" 2>/dev/null || echo "")
+          HEAD_TREE=$(git rev-parse "HEAD^{tree}")
+          PARENT_TREE=$(git rev-parse "HEAD~1^{tree}" 2>/dev/null || echo "")
           echo "HEAD tree: $HEAD_TREE"
           echo "Parent tree: $PARENT_TREE"
 
@@ -115,9 +205,80 @@ jobs:
             exit 1
           fi
 
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          if [ -z "$DEFAULT_BRANCH" ]; then
+            echo "Error: Repository default branch is empty."
+            exit 1
+          fi
+
+          set +e
+          DEFAULT_BRANCH_OUTPUT=$(git ls-remote --exit-code --refs origin "refs/heads/$DEFAULT_BRANCH" 2>&1)
+          DEFAULT_BRANCH_STATUS=$?
+          set -e
+
+          if [ "$DEFAULT_BRANCH_STATUS" -ne 0 ]; then
+            echo "Error: Failed to resolve current tip of default branch '$DEFAULT_BRANCH' (exit code $DEFAULT_BRANCH_STATUS):"
+            echo "$DEFAULT_BRANCH_OUTPUT"
+            exit 1
+          fi
+
+          DEFAULT_BRANCH_TIP=${DEFAULT_BRANCH_OUTPUT%%$'\t'*}
+          echo "Default branch: $DEFAULT_BRANCH"
+          echo "Default branch tip: $DEFAULT_BRANCH_TIP"
+          if [ "$HEAD_COMMIT" != "$DEFAULT_BRANCH_TIP" ]; then
+            echo "Error: Release commit '$HEAD_COMMIT' is not the current tip of default branch '$DEFAULT_BRANCH' ('$DEFAULT_BRANCH_TIP')."
+            exit 1
+          fi
+
+          git fetch --tags --force origin
+          if git show-ref --verify --quiet "refs/tags/$TAG"; then
+            TAG_TARGET=$(git rev-parse "refs/tags/$TAG^{}")
+            if [ "$TAG_TARGET" = "$HEAD_COMMIT" ]; then
+              echo "Tag '$TAG' already points to HEAD; skipping."
+              exit 0
+            fi
+            echo "Error: Tag '$TAG' already exists pointing to '$TAG_TARGET'."
+            exit 1
+          fi
+
+          set +e
+          LS_REMOTE_TAG_OUTPUT=$(git ls-remote --exit-code --tags origin "refs/tags/$TAG" 2>&1)
+          LS_REMOTE_TAG_STATUS=$?
+          set -e
+          if [ "$LS_REMOTE_TAG_STATUS" -eq 0 ]; then
+            echo "Error: Tag '$TAG' already exists on origin."
+            exit 1
+          elif [ "$LS_REMOTE_TAG_STATUS" -ne 2 ]; then
+            echo "Error: Failed to check remote tag '$TAG' (exit code $LS_REMOTE_TAG_STATUS):"
+            echo "$LS_REMOTE_TAG_OUTPUT"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "refs/tags/$TAG"
           echo "Created and pushed tag '$TAG'."
+
+  release:
+    name: Release
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release tag
+        id: release_tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          echo "Tag: $TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Verify release commit and tag
         run: |
