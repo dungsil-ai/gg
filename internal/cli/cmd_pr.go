@@ -7,12 +7,12 @@ import (
 
 // prResourceDef는 "pr" 최상위 명령의 정의다: list, view, checkout, create,
 // edit, comment(하위 list/edit/delete), status, checks, ready, merge, close,
-// reopen, diff, lock, unlock, review. alias: mr (command_registry.go의
-// commandAliases에서 연결).
+// reopen, diff, lock, unlock, review, update-branch. alias: mr
+// (command_registry.go의 commandAliases에서 연결).
 var prResourceDef = &resourceDef{
 	name:    "pr",
-	summary: "List, view, check out, create, edit, comment on, diff, check CI, merge, lock, review, or close pull requests, and check merge readiness (alias: mr)",
-	desc:    "List, view, check out, create, edit, comment on, diff, check CI, merge, lock, review, or close pull requests, and check merge readiness.",
+	summary: "List, view, check out, create, edit, comment on, diff, check CI, merge, lock, review, update, or close pull requests, and check merge readiness (alias: mr)",
+	desc:    "List, view, check out, create, edit, comment on, diff, check CI, merge, lock, review, update, or close pull requests, and check merge readiness.",
 	usage:   "gg pr <command> [flags]",
 	actions: []actionDef{
 		{
@@ -44,6 +44,15 @@ var prResourceDef = &resourceDef{
 			remoteOK: true, explainOK: true,
 			minPos: 1, maxPos: 1,
 			posErr: "usage: gg pr checks <number>",
+			setPos: setNumber,
+		},
+		{
+			name: "update-branch", summary: "Update a pull request branch with its base branch (GitHub only)",
+			usage:    "gg pr update-branch <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr update-branch <number>",
 			setPos: setNumber,
 		},
 		{
@@ -294,6 +303,16 @@ var prChecksBuilders = providerBuilders{
 	},
 }
 
+// prUpdateBranchBuilders는 PR branch를 base branch 최신 상태로 갱신한다. gh
+// 전용 기능이라 gh builder만 등록하고, glab·tea는 사전 가드와 run.go의 tea
+// login 건너뛰기 목록이 미지원을 확정한다 (glab mr rebase는 동작이 다른 별도
+// 명령이라 같은 표면으로 중계하지 않는다).
+var prUpdateBranchBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "update-branch", c.req.Number}, c.target...), nil
+	},
+}
+
 // prDiffBuilders는 PR의 변경 내용을 diff로 보여준다. tea에는 diff 하위 명령이
 // 없어 builder를 등록하지 않는다 — teaInvocation의 사전 가드가 tea login을
 // 묻기 전에 미지원을 확정한다.
@@ -476,11 +495,12 @@ var prReviewBuilders = providerBuilders{
 // 사전 가드에서 걸러지므로 여기에는 등록하지 않는다 — provider별 예외는 감추지
 // 않고 그 함수에 명시적으로 남긴다.
 var prInvocationTable = map[string]providerBuilders{
-	"pr list":     prListBuilders,
-	"pr view":     prViewBuilders,
-	"pr checkout": prCheckoutBuilders,
-	"pr checks":   prChecksBuilders,
-	"pr diff":     prDiffBuilders,
+	"pr list":          prListBuilders,
+	"pr view":          prViewBuilders,
+	"pr checkout":      prCheckoutBuilders,
+	"pr checks":        prChecksBuilders,
+	"pr update-branch": prUpdateBranchBuilders,
+	"pr diff":          prDiffBuilders,
 	"pr status": {
 		gh: func(c invocationContext) (args, env []string) {
 			return []string{"pr", "view", c.req.Number, "-R", c.r.Host + "/" + c.r.Slug(), "--json", ghStatusFields()}, nil
