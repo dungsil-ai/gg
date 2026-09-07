@@ -341,8 +341,8 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `gh variable set`
 - `run`
   - [x] `gh run cancel` (대응: `gg ci cancel`)
-  - [ ] `gh run delete`
-  - [ ] `gh run download`
+  - [x] `gh run delete` (대응: `gg ci delete`; GitLab은 `glab ci delete`로 중계)
+  - [x] `gh run download` (대응: `gg ci download`; glab·tea에 같은 역할의 하위 명령이 없어 미지원)
   - [x] `gh run list` (대응: `gg ci list`)
   - [x] `gh run rerun` (대응: `gg ci retry`)
   - [x] `gh run view` (대응: `gg ci view`)
@@ -484,7 +484,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 - `ci`
   - [ ] `glab ci artifacts`
   - [x] `glab ci cancel` (대응: `gg ci cancel`)
-  - [ ] `glab ci delete`
+  - [x] `glab ci delete` (대응: `gg ci delete`)
   - [x] `glab ci get` (대응: `gg ci view`)
   - [ ] `glab ci lint`
   - [x] `glab ci list` (대응: `gg ci list`)

@@ -1,12 +1,13 @@
 package cli
 
-// ciResourceDef는 "ci" 최상위 명령의 정의다: list, view, watch, retry, cancel.
-// alias: actions (command_registry.go의 commandAliases에서 연결). GitHub은 gh run,
-// GitLab은 glab ci로 중계하고, tea는 teaInvocation의 사전 가드에서 미지원으로 걸러진다.
+// ciResourceDef는 "ci" 최상위 명령의 정의다: list, view, watch, retry, cancel,
+// delete, download. alias: actions (command_registry.go의 commandAliases에서
+// 연결). GitHub은 gh run, GitLab은 glab ci로 중계하고, tea는 teaInvocation의
+// 사전 가드에서 미지원으로 걸러진다. download는 gh 전용이다.
 var ciResourceDef = &resourceDef{
 	name:    "ci",
-	summary: "List, view, watch, retry, or cancel CI runs and pipelines (alias: actions)",
-	desc:    "List, view, watch, retry, or cancel CI runs and pipelines.",
+	summary: "List, view, watch, retry, cancel, or delete CI runs and pipelines, and download artifacts (alias: actions)",
+	desc:    "List, view, watch, retry, cancel, or delete CI runs and pipelines, and download artifacts.",
 	usage:   "gg ci <command> [flags]",
 	actions: []actionDef{
 		{
@@ -45,6 +46,23 @@ var ciResourceDef = &resourceDef{
 			remoteOK: true, explainOK: true,
 			minPos: 1, maxPos: 1,
 			posErr: "usage: gg ci cancel <id>",
+			setPos: setNumber,
+		},
+		{
+			name: "delete", summary: "Delete a CI run or pipeline", usage: "gg ci delete <id> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg ci delete <id>",
+			setPos: setNumber,
+		},
+		{
+			name: "download", summary: "Download artifacts of a CI run (GitHub only)", usage: "gg ci download <id> [flags]",
+			flags:    []flagDef{patternFlag, dirFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg ci download <id>",
 			setPos: setNumber,
 		},
 	},
@@ -110,6 +128,23 @@ var ciInvocationTable = map[string]providerBuilders{
 		},
 		glab: func(c invocationContext) (args, env []string) {
 			return append([]string{c.res, "cancel", "pipeline", c.req.Number}, c.target...), nil
+		},
+	},
+	"ci delete": {
+		gh: func(c invocationContext) (args, env []string) {
+			return append([]string{"run", "delete", c.req.Number}, c.target...), nil
+		},
+		glab: func(c invocationContext) (args, env []string) {
+			return append([]string{c.res, "delete", c.req.Number}, c.target...), nil
+		},
+	},
+	// download는 GitHub Actions의 run artifact 전용 기능이라 gh builder만 등록한다.
+	"ci download": {
+		gh: func(c invocationContext) (args, env []string) {
+			args = append([]string{"run", "download", c.req.Number}, c.target...)
+			args = appendKV(args, "--pattern", c.req.Pattern)
+			args = appendKV(args, "--dir", c.req.Dir)
+			return args, nil
 		},
 	},
 }
