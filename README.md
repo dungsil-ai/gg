@@ -429,7 +429,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `glab label list` (대응: `gg label list`)
 - `mr`
   - [x] `glab mr approve` (대응: `gg pr review --approve`)
-  - [ ] `glab mr approvers`
+  - [x] `glab mr approvers` (대응: `gg pr approvers`; gh·tea에 승인자 조회 하위 명령이 없어 미지원)
   - [x] `glab mr checkout` (대응: `gg pr checkout`)
   - [x] `glab mr close` (대응: `gg pr close`)
   - [x] `glab mr create` (대응: `gg pr create`)
@@ -440,7 +440,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `glab mr note` (대응: `gg pr comment`; `gg pr comment list|edit|delete`는 `glab api` 중계)
   - [x] `glab mr rebase` (대응: `gg pr rebase [--skip-ci]`; gh·tea에 MR 리베이스 하위 명령이 없어 미지원)
   - [x] `glab mr reopen` (대응: `gg pr reopen`)
-  - [ ] `glab mr revoke`
+  - [x] `glab mr revoke` (대응: `gg pr revoke`; gh·tea에 승인 철회 하위 명령이 없어 미지원)
   - [x] `glab mr subscribe` (대응: `gg pr subscribe`; gh·tea에 구독 하위 명령이 없어 미지원)
   - [ ] `glab mr todo`
   - [x] `glab mr unsubscribe` (대응: `gg pr unsubscribe`; gh·tea에 구독 해제 하위 명령이 없어 미지원)
