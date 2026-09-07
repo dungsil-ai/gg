@@ -182,6 +182,14 @@ var prResourceDef = &resourceDef{
 			setPos: setNumber,
 		},
 		{
+			name: "delete", summary: "Delete a pull request (GitLab only)", usage: "gg pr delete <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr delete <number>",
+			setPos: setNumber,
+		},
+		{
 			name: "reopen", summary: "Reopen a closed pull request", usage: "gg pr reopen <number> [flags]",
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
@@ -504,6 +512,16 @@ var prReviewBuilders = providerBuilders{
 	},
 }
 
+// prDeleteBuilders는 PR을 삭제한다. glab 전용 기능이라 glab builder만 등록한다
+// — gh와 tea는 dispatch의 builder 부재 오류로 걸러지며, tea는 run.go의 tea
+// login 건너뛰기 목록이 login을 묻기 전에 미지원을 확정한다. glab에는 확인
+// flag가 없어 gg의 --yes는 전달하지 않는다 (issue delete와 같은 원칙).
+var prDeleteBuilders = providerBuilders{
+	glab: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "delete", c.req.Number}, c.target...), nil
+	},
+}
+
 // prRebaseBuilders는 MR source branch를 target branch 기준으로 리베이스한다.
 // glab 전용 기능이라 glab builder만 등록한다 — gh와 tea는 dispatch의 builder
 // 부재 오류로 걸러지며, tea는 run.go의 tea login 건너뛰기 목록이 login을 묻기
@@ -632,6 +650,7 @@ var prInvocationTable = map[string]providerBuilders{
 	"pr edit":   prEditBuilders,
 	"pr lock":   prLockBuilders,
 	"pr unlock": prUnlockBuilders,
+	"pr delete": prDeleteBuilders,
 	"pr rebase": prRebaseBuilders,
 	"pr review": prReviewBuilders,
 

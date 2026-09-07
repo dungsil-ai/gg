@@ -225,7 +225,7 @@ func resolvePlan(req Request) (executionPlan, error) {
 	unsupportedTeaAction := (req.Resource == "pr" && (req.Action == "status" || req.Action == "ready" ||
 		req.Action == "diff" ||
 		req.Action == "checks" || req.Action == "update-branch" || req.Action == "rebase" ||
-		req.Action == "lock" || req.Action == "unlock" ||
+		req.Action == "lock" || req.Action == "unlock" || req.Action == "delete" ||
 		req.Action == "comment edit" || req.Action == "comment delete")) ||
 		(req.Resource == "pr" && req.Action == "review" && req.ReviewComment) ||
 		(req.Resource == "label" && (req.Action == "edit" || req.Action == "delete" || req.Action == "clone")) ||

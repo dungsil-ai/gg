@@ -433,7 +433,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `glab mr checkout` (대응: `gg pr checkout`)
   - [x] `glab mr close` (대응: `gg pr close`)
   - [x] `glab mr create` (대응: `gg pr create`)
-  - [ ] `glab mr delete`
+  - [x] `glab mr delete` (대응: `gg pr delete`; gh·tea에 PR 삭제 하위 명령이 없어 미지원)
   - [x] `glab mr diff` (대응: `gg pr diff`)
   - [x] `glab mr list` (대응: `gg pr list`)
   - [x] `glab mr merge` (대응: `gg pr merge`)
