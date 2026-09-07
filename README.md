@@ -456,7 +456,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 - `repo`
   - [ ] `glab repo archive` (저장소 보관이 아니라 스냅샷 다운로드 명령이라 `gg repo archive`와 연결하지 않음)
   - [x] `glab repo clone` (대응: `gg repo clone`, `gg clone`)
-  - [ ] `glab repo contributors`
+  - [x] `glab repo contributors` (대응: `gg repo contributors`; gh·tea에 기여자 조회 하위 명령이 없어 미지원)
   - [x] `glab repo create` (대응: `gg repo create`, `gg create`)
   - [x] `glab repo delete` (대응: `gg repo delete`, `gg delete`)
   - [x] `glab repo fork` (대응: `gg repo fork`, `gg fork`)
