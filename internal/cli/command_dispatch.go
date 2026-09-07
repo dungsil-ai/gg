@@ -103,6 +103,10 @@ func glabInvocation(req Request, r RepoURL) (Invocation, error) {
 	if req.Resource == "pr" && (req.Action == "lock" || req.Action == "unlock") {
 		return Invocation{}, usageErr("pr " + req.Action + " is not supported for glab")
 	}
+	// glab에는 MR 단위 체크 조회 명령이 없다. pipeline 조회는 gg ci list를 쓴다.
+	if req.Resource == "pr" && req.Action == "checks" {
+		return Invocation{}, usageErr("pr checks is not supported for glab")
+	}
 	// glab에는 changes 요청과 리뷰 본문 달기 명령이 없어 approve만 중계한다.
 	if req.Resource == "pr" && req.Action == "review" && (req.RequestChanges || req.ReviewComment) {
 		return Invocation{}, usageErr("pr review --request-changes/--comment is not supported for glab")
@@ -131,6 +135,10 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	// tea는 PR 잠금·해제 명령이 없다.
 	if req.Resource == "pr" && (req.Action == "lock" || req.Action == "unlock") {
 		return Invocation{}, usageErr("pr " + req.Action + " is not supported for tea")
+	}
+	// tea에는 PR 단위 체크 조회 명령이 없다.
+	if req.Resource == "pr" && req.Action == "checks" {
+		return Invocation{}, usageErr("pr checks is not supported for tea")
 	}
 	// tea에는 리뷰 본문만 다는 명령이 없어 approve와 reject만 중계한다.
 	if req.Resource == "pr" && req.Action == "review" && req.ReviewComment {
