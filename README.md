@@ -594,11 +594,11 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `tea pulls reject` (대응: `gg pr review --request-changes`)
   - [x] `tea pulls reopen` (대응: `gg pr reopen`)
 - `releases`
-  - [ ] `tea releases create`
-  - [ ] `tea releases delete`
-  - [ ] `tea releases download`
-  - [ ] `tea releases edit`
-  - [ ] `tea releases list`
+  - [x] `tea releases create` (대응: `gg release create`; 자산 파일은 `--asset` 반복 flag로 전달)
+  - [x] `tea releases delete` (대응: `gg release delete`; `--yes`는 `--confirm`으로, `--cleanup-tag`는 `--delete-tag`로 중계)
+  - [ ] `tea releases download` (tea에 download 하위 명령이 없어 `gg release download`로 중계하지 않음)
+  - [x] `tea releases edit` (대응: `gg release edit`; draft·prerelease는 `--draft=true` 형태의 문자열 flag라 켤 때만 중계)
+  - [x] `tea releases list` (대응: `gg release list`)
 - `repos`
   - [x] `tea repos create` (대응: `gg repo create`, `gg create`)
   - [x] `tea repos delete` (대응: `gg repo delete`, `gg delete`)

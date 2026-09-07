@@ -158,9 +158,6 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	if req.Resource == "label" && (req.Action == "edit" || req.Action == "delete" || req.Action == "clone") {
 		return Invocation{}, usageErr("label " + req.Action + " is not supported for tea")
 	}
-	if req.Resource == "release" {
-		return Invocation{}, usageErr("release is not supported for tea")
-	}
 	// tea는 PR 댓글의 수정/삭제 명령이 없다. 목록은 comments list로 중계한다.
 	if req.Resource == "pr" && (req.Action == "comment edit" || req.Action == "comment delete") {
 		return Invocation{}, usageErr("pr " + req.Action + " is not supported for tea")
@@ -191,6 +188,8 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 		res = "pulls"
 	case "label":
 		res = "labels"
+	case "release":
+		res = "releases"
 	}
 	auth := []string{"--login", login}
 	c := invocationContext{

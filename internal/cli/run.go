@@ -216,8 +216,9 @@ func resolvePlan(req Request) (executionPlan, error) {
 		}
 	}
 	teaLogin := ""
-	// release/ci 전체와 pr status/ready/diff/checks/lock/unlock/update-branch/
-	// rebase, pr comment edit/delete, pr review --comment, label edit·delete·
+	// ci 전체와 release의 view·download·upload·delete-asset, pr status/ready/
+	// diff/checks/lock/unlock/update-branch/rebase, pr comment edit/delete,
+	// pr review --comment, label edit·delete·
 	// clone, issue 관계 등록, issue comment edit/delete, issue edit, issue
 	// delete는 provider를 고른 뒤 미지원을 확정하므로 tea login을 묻지 않는다.
 	// label list·create, pr/issue comment list와 pr review의
@@ -229,7 +230,9 @@ func resolvePlan(req Request) (executionPlan, error) {
 		req.Action == "comment edit" || req.Action == "comment delete")) ||
 		(req.Resource == "pr" && req.Action == "review" && req.ReviewComment) ||
 		(req.Resource == "label" && (req.Action == "edit" || req.Action == "delete" || req.Action == "clone")) ||
-		req.Resource == "release" || req.Resource == "ci" ||
+		(req.Resource == "release" && (req.Action == "view" || req.Action == "download" ||
+			req.Action == "upload" || req.Action == "delete-asset")) ||
+		req.Resource == "ci" ||
 		(req.Resource == "issue" && (ghOnlyIssueActions[req.Action] || req.Action == "edit" ||
 			req.Action == "comment edit" || req.Action == "comment delete" || req.Action == "delete"))
 	if p == Tea && !(req.Resource == "repo" && req.Action == "clone") && !unsupportedTeaAction {

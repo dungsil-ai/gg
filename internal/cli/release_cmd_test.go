@@ -189,15 +189,27 @@ func TestTranslateReleaseUnsupported(t *testing.T) {
 			t.Errorf("glab 오류 = %q", ue.Msg)
 		}
 	}
-	// tea release는 전체 미지원이다.
-	_, err := Translate(Request{Resource: "release", Action: "list"},
-		RepoURL{Host: "gitea.com", Owner: "o", Name: "r"}, Tea, "corp")
-	var ue UsageError
-	if !errors.As(err, &ue) {
-		t.Fatalf("Translate(release list, tea): UsageError 기대, got %v", err)
+	// tea release는 list/create/edit/delete만 중계한다. view/download/upload/
+	// delete-asset은 builder가 없어 dispatch의 미지원 오류로 걸러진다.
+	te := RepoURL{Host: "gitea.com", Owner: "o", Name: "r"}
+	got, err := Translate(Request{Resource: "release", Action: "list", Limit: "5"}, te, Tea, "corp")
+	if err != nil {
+		t.Fatalf("Translate(release list, tea): %v", err)
 	}
-	if ue.Msg != "release is not supported for tea" {
-		t.Errorf("tea 오류 = %q", ue.Msg)
+	wantInv := Invocation{Bin: "tea", Args: []string{"releases", "list", "--login", "corp", "--repo", "o/r", "--limit", "5"}}
+	if !reflect.DeepEqual(got, wantInv) {
+		t.Errorf("tea release list\n got %+v\nwant %+v", got, wantInv)
+	}
+
+	for _, action := range []string{"view", "download", "upload", "delete-asset"} {
+		_, err := Translate(Request{Resource: "release", Action: action, Tag: "v1.0.0"}, te, Tea, "corp")
+		var ue UsageError
+		if !errors.As(err, &ue) {
+			t.Fatalf("Translate(release %s, tea): UsageError 기대, got %v", action, err)
+		}
+		if ue.Msg != "release does not support "+action {
+			t.Errorf("tea 오류 = %q", ue.Msg)
+		}
 	}
 }
 
@@ -218,16 +230,28 @@ func TestTranslateReleaseGlabCreateDraftUnsupported(t *testing.T) {
 	}
 }
 
-func TestPlanReleaseTeaSkipsLogin(t *testing.T) {
+func TestPlanReleaseTeaListRelayedAndViewSkipsLogin(t *testing.T) {
 	t.Setenv("GG_HOME", t.TempDir())
-	fakeExec(t, map[string]string{})
+	fakeExec(t, map[string]string{
+		"BIN tea":                       "tea",
+		"tea logins list --output json": `[{"name":"pub","url":"https://gitea.com"}]`,
+	})
 
-	_, err := plan(Request{Resource: "release", Action: "list", RepoFlag: "https://gitea.com/o/r"})
+	inv, err := plan(Request{Resource: "release", Action: "list", RepoFlag: "https://gitea.com/o/r"})
+	if err != nil {
+		t.Fatalf("plan(release list, tea): %v", err)
+	}
+	if got, want := inv.Bin+" "+strings.Join(inv.Args, " "), "tea releases list --login pub --repo o/r"; got != want {
+		t.Errorf("release list tea argv = %q, want %q", got, want)
+	}
+
+	// view는 tea 미지원이라 login을 묻지 않고 usage error로 끝난다.
+	_, err = plan(Request{Resource: "release", Action: "view", Tag: "v1.0.0", RepoFlag: "https://gitea.com/o/r"})
 	var ue UsageError
 	if !errors.As(err, &ue) {
-		t.Fatalf("plan(release list, tea): UsageError 기대, got %v", err)
+		t.Fatalf("plan(release view, tea): UsageError 기대, got %v", err)
 	}
-	if ue.Msg != "release is not supported for tea" {
+	if ue.Msg != "release does not support view" {
 		t.Errorf("tea 오류 = %q", ue.Msg)
 	}
 }
@@ -275,23 +299,59 @@ func TestE2EReleaseInvocations(t *testing.T) {
 	}
 }
 
-// TestE2EReleaseGiteaUnsupported는 gitea remote에서 gg release가 tea를 실행하지
-// 않고 usage error로 끝나는지 본다.
-func TestE2EReleaseGiteaUnsupported(t *testing.T) {
+// TestE2EReleaseGiteaArgv는 gitea remote에서 중계되는 release action과
+// 여전히 미지원인 action을 본다.
+func TestE2EReleaseGiteaArgv(t *testing.T) {
 	bin := buildGG(t)
 	fakeDir := t.TempDir()
 	logFile := filepath.Join(t.TempDir(), "calls.log")
-	writeFakeBin(t, fakeDir, "tea", logFile)
+	writeFakeTeaWithLogin(t, fakeDir, logFile)
 	repo := tempRepo(t, "https://gitea.com/o/r.git")
 
-	out, code := runGG(t, bin, fakeDir, repo, "release", "list")
-	if code != 2 {
-		t.Fatalf("exit = %d, want 2: %s", code, out)
+	relays := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"release", "list"}, "tea releases list --login pub --repo o/r"},
+		{[]string{"release", "list", "--limit", "5"}, "tea releases list --login pub --repo o/r --limit 5"},
+		{[]string{"release", "create", "v1.0.0", "--title", "t", "--notes", "n", "--ref", "main"}, "tea releases create --login pub --repo o/r --tag v1.0.0 --title t --note n --target main"},
+		{[]string{"release", "create", "v1.0.0", "a.zip"}, "tea releases create --login pub --repo o/r --tag v1.0.0 --asset a.zip"},
+		{[]string{"release", "delete", "v1.0.0", "--yes", "--cleanup-tag"}, "tea releases delete v1.0.0 --login pub --repo o/r --confirm --delete-tag"},
+		{[]string{"release", "edit", "v1.0.0", "--title", "t2"}, "tea releases edit v1.0.0 --login pub --repo o/r --title t2"},
+		{[]string{"release", "edit", "v1.0.0", "--draft"}, "tea releases edit v1.0.0 --login pub --repo o/r --draft=true"},
 	}
-	if !strings.Contains(out, "release is not supported for tea") {
-		t.Errorf("output: %s", out)
+	for _, tc := range relays {
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, tc.args...)
+		if code != 0 {
+			t.Fatalf("gg %v: exit %d: %s", tc.args, code, out)
+		}
+		if got := readLog(t, logFile); got != tc.want {
+			t.Errorf("gg %v argv = %q, want %q", tc.args, got, tc.want)
+		}
 	}
-	if got := readLog(t, logFile); got != "" {
-		t.Errorf("tea should not run, got %q", got)
+
+	// view·download·upload·delete-asset은 여전히 미지원이다.
+	for _, args := range [][]string{
+		{"release", "view", "v1.0.0"},
+		{"release", "download"},
+		{"release", "upload", "v1.0.0", "a.zip"},
+		{"release", "delete-asset", "v1.0.0", "a.zip"},
+	} {
+		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, code := runGG(t, bin, fakeDir, repo, args...)
+		if code != 2 {
+			t.Fatalf("gg %v: exit = %d, want 2: %s", args, code, out)
+		}
+		if !strings.Contains(out, "does not support") {
+			t.Errorf("gg %v output에 미지원 오류 없음: %s", args, out)
+		}
+		if got := readLog(t, logFile); got != "" {
+			t.Errorf("gg %v tea should not run, got %q", args, got)
+		}
 	}
 }

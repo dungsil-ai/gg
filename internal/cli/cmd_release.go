@@ -1,11 +1,11 @@
 package cli
 
 // releaseResourceDef는 "release" 최상위 명령의 정의다: list, view, create, edit,
-// delete, download, upload, delete-asset. 공통 6개 action은 gh/glab으로 중계하고,
-// edit/delete-asset은 glab에 없는 하위 명령이라 glab builder를 등록하지 않아
-// dispatch의 미지원 오류로 걸러진다. tea는 teaInvocation의 사전 가드에서 전체
-// 미지원으로 확정한다 (ci의 tea 가드와 같은 원칙: provider별 예외는 감추지 않고
-// 명시적으로 남긴다).
+// delete, download, upload, delete-asset. list/create/edit/delete는 tea로도
+// 중계한다. edit/delete-asset은 glab에, view/download/upload/delete-asset은
+// tea에 없는 하위 명령이라 builder를 등록하지 않아 dispatch의 미지원 오류로
+// 걸러진다 (ci의 tea 가드와 같은 원칙: provider별 예외는 감추지 않고 명시적으로
+// 남긴다).
 var releaseResourceDef = &resourceDef{
 	name:    "release",
 	summary: "List, view, create, edit, or delete releases, and download or upload release assets",
@@ -120,6 +120,10 @@ var releaseListBuilders = providerBuilders{
 		args = append([]string{c.res, "list"}, c.target...)
 		return appendKV(args, "--per-page", c.req.Limit), nil
 	},
+	tea: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "list"}, c.target...)
+		return appendKV(args, "--limit", c.req.Limit), nil
+	},
 }
 
 var releaseViewBuilders = providerBuilders{
@@ -160,6 +164,24 @@ var releaseCreateBuilders = providerBuilders{
 		args = appendKV(args, "--ref", c.req.Ref)
 		return append(args, c.target...), nil
 	},
+	// tea는 자산 파일을 positional이 아니라 --asset 반복 flag로 받는다.
+	tea: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "create"}, c.target...)
+		args = appendKV(args, "--tag", c.req.Tag)
+		args = appendKV(args, "--title", c.req.Title)
+		args = appendKV(args, "--note", c.req.Notes)
+		args = appendKV(args, "--target", c.req.Ref)
+		if c.req.Draft {
+			args = append(args, "--draft")
+		}
+		if c.req.Prerelease {
+			args = append(args, "--prerelease")
+		}
+		for _, f := range c.req.Files {
+			args = append(args, "--asset", f)
+		}
+		return args, nil
+	},
 }
 
 var releaseDeleteBuilders = providerBuilders{
@@ -168,6 +190,18 @@ var releaseDeleteBuilders = providerBuilders{
 	},
 	glab: func(c invocationContext) (args, env []string) {
 		return releaseDeleteArgs(c, "--with-tag"), nil
+	},
+	// tea의 --confirm은 gh의 --yes에, --delete-tag는 --cleanup-tag에 대응한다.
+	// --yes가 없으면 tea 자체의 확인 절차에 맡긴다.
+	tea: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "delete", c.req.Tag}, c.target...)
+		if c.req.Yes {
+			args = append(args, "--confirm")
+		}
+		if c.req.CleanupTag {
+			args = append(args, "--delete-tag")
+		}
+		return args, nil
 	},
 }
 
@@ -225,6 +259,20 @@ var releaseEditBuilders = providerBuilders{
 		}
 		return args, nil
 	},
+	// tea의 draft·prerelease는 문자열 flag이라 gg가 켤 때만 --draft=true 형태로
+	// 중계한다. gg의 boolean flag로는 끄는 표현이 없다.
+	tea: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "edit", c.req.Tag}, c.target...)
+		args = appendKV(args, "--title", c.req.Title)
+		args = appendKV(args, "--note", c.req.Notes)
+		if c.req.Draft {
+			args = append(args, "--draft=true")
+		}
+		if c.req.Prerelease {
+			args = append(args, "--prerelease=true")
+		}
+		return args, nil
+	},
 }
 
 var releaseDeleteAssetBuilders = providerBuilders{
@@ -237,8 +285,9 @@ var releaseDeleteAssetBuilders = providerBuilders{
 	},
 }
 
-// releaseInvocationTable은 "release <action>" 키로 gh/glab의 arg-builder를 모은다.
-// edit/delete-asset은 glab builder가 없어 dispatch에서 미지원으로 걸러진다.
+// releaseInvocationTable은 "release <action>" 키로 provider별 arg-builder를 모은다.
+// edit/delete-asset은 glab builder가, view/download/upload/delete-asset은 tea
+// builder가 없어 dispatch에서 미지원으로 걸러진다.
 var releaseInvocationTable = map[string]providerBuilders{
 	"release list":         releaseListBuilders,
 	"release view":         releaseViewBuilders,
