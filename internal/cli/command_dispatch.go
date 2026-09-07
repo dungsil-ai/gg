@@ -1,9 +1,6 @@
 package cli
 
-import (
-	"errors"
-	"slices"
-)
+import "slices"
 
 // Invocation은 실행할 자식 process다.
 type Invocation struct {
@@ -130,8 +127,10 @@ func glabInvocation(req Request, r RepoURL) (Invocation, error) {
 }
 
 func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
-	if req.Resource == "pr" && req.Action == "merge" {
-		return Invocation{}, errors.New("pr merge is not supported for tea")
+	// tea merge에는 자동 병합과 branch 삭제 개념이 없다. 조용히 무시하면
+	// 사용자 예상과 다르게 동작하므로 사용법 오류로 막는다.
+	if req.Resource == "pr" && req.Action == "merge" && (req.Auto || req.DeleteBranch) {
+		return Invocation{}, usageErr("pr merge --auto/--delete-branch is not supported for tea")
 	}
 	// tea는 PR status/ready/diff 명령이 없다.
 	if req.Resource == "pr" && (req.Action == "status" || req.Action == "ready" || req.Action == "diff") {

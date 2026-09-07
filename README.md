@@ -589,7 +589,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `tea pulls create` (대응: `gg pr create`)
   - [x] `tea pulls edit` (대응: `gg pr edit`)
   - [x] `tea pulls list` (대응: `gg pr list`)
-  - [ ] `tea pulls merge`
+  - [x] `tea pulls merge` (대응: `gg pr merge [--merge|--rebase|--squash]`; `--auto`·`--delete-branch`는 tea에 없어 미지원)
   - [x] `tea pulls open` (대응: `gg pr view`)
   - [x] `tea pulls reject` (대응: `gg pr review --request-changes`)
   - [x] `tea pulls reopen` (대응: `gg pr reopen`)
