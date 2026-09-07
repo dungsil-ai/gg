@@ -81,13 +81,6 @@ func TestE2ERepoSearchTransferUnsupported(t *testing.T) {
 			args:     []string{"repo", "transfer", "--target-namespace", "newgrp"},
 			want:     "repo does not support transfer",
 		},
-		{
-			name:     "tea search",
-			remote:   "https://gitea.com/o/r.git",
-			fakeName: "tea",
-			args:     []string{"repo", "search", "--search", "gg"},
-			want:     "repo does not support search",
-		},
 	}
 
 	for _, tc := range cases {
@@ -164,6 +157,22 @@ func TestE2ERepoSearchTransferUsageErrors(t *testing.T) {
 				t.Errorf("fake provider should not be called, got: %q", got)
 			}
 		})
+	}
+}
+
+func TestE2ETeaRepoSearchArgv(t *testing.T) {
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	writeFakeTeaWithLogin(t, fakeDir, logFile)
+	repo := tempRepo(t, "https://gitea.com/o/r.git")
+
+	out, code := runGG(t, bin, fakeDir, repo, "repo", "search", "--search", "gg")
+	if code != 0 {
+		t.Fatalf("gg repo search: exit %d: %s", code, out)
+	}
+	if got, want := readLog(t, logFile), "tea repos search gg --login pub --repo o/r"; got != want {
+		t.Errorf("tea repos search argv = %q, want %q", got, want)
 	}
 }
 

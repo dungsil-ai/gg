@@ -602,10 +602,10 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 - `repos`
   - [x] `tea repos create` (대응: `gg repo create`, `gg create`)
   - [x] `tea repos delete` (대응: `gg repo delete`, `gg delete`)
-  - [ ] `tea repos flags`
+  - [ ] `tea repos flags` (tea에 flags 하위 명령이 없어 중계 대상이 아님 — flags.go는 공용 헬퍼)
   - [x] `tea repos fork` (대응: `gg repo fork`, `gg fork`)
   - [x] `tea repos list` (대응: `gg repo list`, `gg list`)
-  - [ ] `tea repos search`
+  - [x] `tea repos search` (대응: `gg repo search --search <text>`; 검색어는 positional로 전달)
   - [x] `tea repos view` (대응: `gg repo view`, `gg view`)
 - [x] `tea help` (대응: `gg help`, `gg --help`, `gg -h`)
 - [x] `tea version` (대응: 단독 `gg -verison`, 단독 `gg -v`)
