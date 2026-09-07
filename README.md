@@ -246,7 +246,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gh pr merge` (대응: `gg pr merge`)
   - [x] `gh pr ready` (대응: `gg pr ready`)
   - [x] `gh pr reopen` (대응: `gg pr reopen`)
-  - [ ] `gh pr review`
+  - [x] `gh pr review` (대응: `gg pr review [--approve|--request-changes|--comment]`; glab은 approve만, tea는 approve·request-changes만 중계)
   - [ ] `gh pr status`
   - [x] `gh pr unlock` (대응: `gg pr unlock`; glab·tea에 PR 잠금 해제 하위 명령이 없어 미지원)
   - [ ] `gh pr update-branch`
@@ -428,7 +428,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `glab label edit` (glab이 label 이름이 아니라 numeric label id `--label-id`를 요구해 `gg label edit`로 중계하지 않음)
   - [x] `glab label list` (대응: `gg label list`)
 - `mr`
-  - [ ] `glab mr approve`
+  - [x] `glab mr approve` (대응: `gg pr review --approve`)
   - [ ] `glab mr approvers`
   - [x] `glab mr checkout` (대응: `gg pr checkout`)
   - [x] `glab mr close` (대응: `gg pr close`)
@@ -582,7 +582,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `tea logins list`
   - [ ] `tea logins view`
 - `pulls`
-  - [ ] `tea pulls approve`
+  - [x] `tea pulls approve` (대응: `gg pr review --approve`)
   - [x] `tea pulls checkout` (대응: `gg pr checkout`)
   - [ ] `tea pulls clean`
   - [x] `tea pulls close` (대응: `gg pr close`)
@@ -591,7 +591,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `tea pulls list` (대응: `gg pr list`)
   - [ ] `tea pulls merge`
   - [x] `tea pulls open` (대응: `gg pr view`)
-  - [ ] `tea pulls reject`
+  - [x] `tea pulls reject` (대응: `gg pr review --request-changes`)
   - [x] `tea pulls reopen` (대응: `gg pr reopen`)
 - `releases`
   - [ ] `tea releases create`
@@ -801,6 +801,32 @@ Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없�
   ```bash
   gg --repo https://github.com/owner/repo pr diff 42
   gg pr diff 42 --remote upstream
+  ```
+
+#### PR 리뷰 (`gg pr review`)
+- PR을 승인(approve):
+  ```bash
+  gg pr review 42 --approve
+  ```
+  - GitHub: `gh pr review 42 --approve -R <owner>/<repo>` 호출
+  - GitLab: `glab mr approve 42 --repo <URL>` 호출
+  - Gitea: `tea pulls approve 42 ...` 호출
+- 변경 요청 (`--request-changes`는 본문이 필요합니다):
+  ```bash
+  gg pr review 42 --request-changes --body "수정이 필요합니다"
+  ```
+  - GitHub: `gh pr review 42 --request-changes --body "..." -R <owner>/<repo>` 호출
+  - Gitea: `tea pulls reject 42 "수정이 필요합니다" ...` 호출
+- 리뷰 본문만 달기 (`--comment`):
+  ```bash
+  gg pr review 42 --comment --body "검토 중입니다"
+  ```
+  - GitHub: `gh pr review 42 --comment --body "..." -R <owner>/<repo>` 호출
+- 세 리뷰 종류 중 정확히 하나를 지정해야 하며, glab은 `--request-changes`·`--comment`, tea는 `--comment`를 지원하지 않습니다.
+- 저장소 문맥 플래그와 함께 사용:
+  ```bash
+  gg --repo https://github.com/owner/repo pr review 42 --approve
+  gg pr review 42 --approve --remote upstream
   ```
 
 #### PR 댓글 입력·조회·수정·삭제 (`gg pr comment`)

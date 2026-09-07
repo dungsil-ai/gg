@@ -38,6 +38,8 @@ type Request struct {
 	Merge, Squash, Rebase bool
 	DeleteBranch, Auto    bool
 
+	Approve, RequestChanges, ReviewComment bool // pr review의 리뷰 종류. 정확히 하나만 켠다.
+
 	Parent, Blocker, IssueType string // issue 관계 등록: 부모·blocker 번호와 issue 종류 이름
 	RelatedID                  string // plan 단계에서 gh로 조회한 관계 issue의 numeric database id
 

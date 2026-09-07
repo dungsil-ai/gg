@@ -84,6 +84,13 @@ var (
 		bin: func(r *Request) *bool { return &r.DeleteBranch }}
 	autoMergeFlag = flagDef{name: "--auto", desc: "Enable auto-merge after required approvals and CI pass",
 		bin: func(r *Request) *bool { return &r.Auto }}
+	// pr review의 리뷰 종류 flag. setPos에서 정확히 하나만 켜졌는지 검증한다.
+	approveFlag = flagDef{name: "--approve", desc: "Approve the pull request",
+		bin: func(r *Request) *bool { return &r.Approve }}
+	requestChangesFlag = flagDef{name: "--request-changes", desc: "Request changes on the pull request",
+		bin: func(r *Request) *bool { return &r.RequestChanges }}
+	reviewCommentFlag = flagDef{name: "--comment", desc: "Leave a review comment on the pull request",
+		bin: func(r *Request) *bool { return &r.ReviewComment }}
 	branchFlag = flagDef{name: "--branch", arg: "<branch>", desc: "Filter by branch",
 		str: func(r *Request) *string { return &r.Branch }}
 	notesFlag = flagDef{name: "--notes", arg: "<text>", desc: "Set the release notes",

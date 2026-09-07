@@ -103,6 +103,10 @@ func glabInvocation(req Request, r RepoURL) (Invocation, error) {
 	if req.Resource == "pr" && (req.Action == "lock" || req.Action == "unlock") {
 		return Invocation{}, usageErr("pr " + req.Action + " is not supported for glab")
 	}
+	// glab에는 changes 요청과 리뷰 본문 달기 명령이 없어 approve만 중계한다.
+	if req.Resource == "pr" && req.Action == "review" && (req.RequestChanges || req.ReviewComment) {
+		return Invocation{}, usageErr("pr review --request-changes/--comment is not supported for glab")
+	}
 	res := req.Resource
 	if res == "pr" {
 		res = "mr"
@@ -127,6 +131,10 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	// tea는 PR 잠금·해제 명령이 없다.
 	if req.Resource == "pr" && (req.Action == "lock" || req.Action == "unlock") {
 		return Invocation{}, usageErr("pr " + req.Action + " is not supported for tea")
+	}
+	// tea에는 리뷰 본문만 다는 명령이 없어 approve와 reject만 중계한다.
+	if req.Resource == "pr" && req.Action == "review" && req.ReviewComment {
+		return Invocation{}, usageErr("pr review --comment is not supported for tea")
 	}
 	// tea label edit·delete는 label 이름이 아니라 numeric label id(--id)를
 	// 요구해 중계하지 않는다. list·create는 이름 기반 표면이라 중계한다.

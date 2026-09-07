@@ -7,11 +7,11 @@ import (
 
 // prResourceDef는 "pr" 최상위 명령의 정의다: list, view, checkout, create,
 // edit, comment(하위 list/edit/delete), status, ready, merge, close, reopen,
-// diff, lock, unlock. alias: mr (command_registry.go의 commandAliases에서 연결).
+// diff, lock, unlock, review. alias: mr (command_registry.go의 commandAliases에서 연결).
 var prResourceDef = &resourceDef{
 	name:    "pr",
-	summary: "List, view, check out, create, edit, comment on, diff, merge, lock, or close pull requests, and check merge readiness (alias: mr)",
-	desc:    "List, view, check out, create, edit, comment on, diff, merge, lock, or close pull requests, and check merge readiness.",
+	summary: "List, view, check out, create, edit, comment on, diff, merge, lock, review, or close pull requests, and check merge readiness (alias: mr)",
+	desc:    "List, view, check out, create, edit, comment on, diff, merge, lock, review, or close pull requests, and check merge readiness.",
 	usage:   "gg pr <command> [flags]",
 	actions: []actionDef{
 		{
@@ -195,6 +195,31 @@ var prResourceDef = &resourceDef{
 			minPos: 1, maxPos: 1,
 			posErr: "usage: gg pr unlock <number>",
 			setPos: setNumber,
+		},
+		{
+			name: "review", summary: "Review a pull request (approve, request changes, or comment)",
+			usage:    "gg pr review <number> (--approve | --request-changes | --comment) [flags]",
+			flags:    []flagDef{approveFlag, requestChangesFlag, reviewCommentFlag, bodyFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr review <number> (--approve | --request-changes | --comment)",
+			setPos: func(req *Request, pos []string) error {
+				kinds := 0
+				for _, b := range []bool{req.Approve, req.RequestChanges, req.ReviewComment} {
+					if b {
+						kinds++
+					}
+				}
+				if kinds != 1 {
+					return usageErr("usage: gg pr review <number> (--approve | --request-changes | --comment)")
+				}
+				if req.RequestChanges && strings.TrimSpace(req.Body) == "" {
+					return usageErr("pr review --request-changes needs --body <text>")
+				}
+				req.Number = pos[0]
+				return nil
+			},
 		},
 	},
 }
@@ -395,6 +420,38 @@ var prUnlockBuilders = providerBuilders{
 	},
 }
 
+// prReviewBuilders는 PR 리뷰를 중계한다. approve는 세 provider 모두 같은 개념이
+// 있다(gh pr review --approve, glab mr approve, tea pulls approve). request
+// changes는 tea pulls reject로 중계하고 glab에는 명령이 없다. 리뷰 본문 달기
+// (--comment)는 gh 전용이다. glab·tea의 미지원 조합은 glabInvocation·
+// teaInvocation 사전 가드에서 확정한다.
+var prReviewBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "review", c.req.Number}, c.target...)
+		switch {
+		case c.req.Approve:
+			args = append(args, "--approve")
+		case c.req.RequestChanges:
+			args = append(args, "--request-changes")
+			args = appendKV(args, "--body", c.req.Body)
+		case c.req.ReviewComment:
+			args = append(args, "--comment")
+			args = appendKV(args, "--body", c.req.Body)
+		}
+		return args, nil
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "approve", c.req.Number}, c.target...), nil
+	},
+	tea: func(c invocationContext) (args, env []string) {
+		if c.req.RequestChanges {
+			// tea pulls reject는 사유를 positional 필수 인자로 받는다.
+			return append([]string{c.res, "reject", c.req.Number, c.req.Body}, c.target...), nil
+		}
+		return append([]string{c.res, "approve", c.req.Number}, c.target...), nil
+	},
+}
+
 // prInvocationTable은 "pr <action>" 키로 gh/glab/tea의 arg-builder를 모은다.
 // tea의 pr merge/status/ready와 pr comment list/edit/delete는 teaInvocation의
 // 사전 가드에서 걸러지므로 여기에는 등록하지 않는다 — provider별 예외는 감추지
@@ -493,6 +550,7 @@ var prInvocationTable = map[string]providerBuilders{
 	"pr edit":   prEditBuilders,
 	"pr lock":   prLockBuilders,
 	"pr unlock": prUnlockBuilders,
+	"pr review": prReviewBuilders,
 
 	"pr comment":        prCommentBuilders,
 	"pr comment list":   prCommentListBuilders,
