@@ -99,6 +99,9 @@ var (
 	// develop의 --name은 만들 branch 이름이다.
 	developNameFlag = flagDef{name: "--name", arg: "<branch>", desc: "Name of the branch to create",
 		str: func(r *Request) *string { return &r.Name }}
+	// label clone의 --force는 이미 있는 label을 덮어쓴다.
+	labelCloneForceFlag = flagDef{name: "--force", desc: "Overwrite existing labels in the destination",
+		bin: func(r *Request) *bool { return &r.Force }}
 	branchFlag = flagDef{name: "--branch", arg: "<branch>", desc: "Filter by branch",
 		str: func(r *Request) *string { return &r.Branch }}
 	notesFlag = flagDef{name: "--notes", arg: "<text>", desc: "Set the release notes",

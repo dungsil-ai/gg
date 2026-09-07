@@ -166,14 +166,14 @@ func resolvePlan(req Request) (executionPlan, error) {
 			return executionPlan{inv: Invocation{Bin: "gh", Args: args}}, nil
 		}
 	}
-	if req.Action == "clone" && isHTTPURL(req.CloneURL) {
+	if req.Resource == "repo" && req.Action == "clone" && isHTTPURL(req.CloneURL) {
 		if !req.AllowInsecureHTTP {
 			return executionPlan{}, usageErr("HTTP clone is blocked by default; use HTTPS or SSH (or pass --allow-insecure-http)")
 		}
 		fmt.Fprintln(os.Stderr, "gg: warning: allowing insecure HTTP clone; credentials or repository data may be exposed")
 	}
 	rawURL := req.RepoFlag
-	if req.Action == "clone" {
+	if req.Resource == "repo" && req.Action == "clone" {
 		rawURL = req.CloneURL
 	}
 	if rawURL == "" {
@@ -228,12 +228,12 @@ func resolvePlan(req Request) (executionPlan, error) {
 		req.Action == "lock" || req.Action == "unlock" ||
 		req.Action == "comment list" || req.Action == "comment edit" || req.Action == "comment delete")) ||
 		(req.Resource == "pr" && req.Action == "review" && req.ReviewComment) ||
-		(req.Resource == "label" && (req.Action == "edit" || req.Action == "delete")) ||
+		(req.Resource == "label" && (req.Action == "edit" || req.Action == "delete" || req.Action == "clone")) ||
 		req.Resource == "release" || req.Resource == "ci" ||
 		(req.Resource == "issue" && (ghOnlyIssueActions[req.Action] || req.Action == "edit" ||
 			req.Action == "comment list" || req.Action == "comment edit" ||
 			req.Action == "comment delete" || req.Action == "delete"))
-	if p == Tea && req.Action != "clone" && !unsupportedTeaAction {
+	if p == Tea && !(req.Resource == "repo" && req.Action == "clone") && !unsupportedTeaAction {
 		if teaLogin = teaLoginName(repo.Host); teaLogin == "" {
 			return executionPlan{}, fmt.Errorf("no tea login for %s (run: tea login add)", repo.Host)
 		}

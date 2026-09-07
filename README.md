@@ -228,7 +228,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gh issue unpin` (대응: `gg issue unpin`; glab·tea에 이슈 고정 해제 하위 명령이 없어 미지원)
   - [x] `gh issue view` (대응: `gg issue view`)
 - `label`
-  - [ ] `gh label clone`
+  - [x] `gh label clone` (대응: `gg label clone [--force]`; glab·tea에 label 복제 하위 명령이 없어 미지원)
   - [x] `gh label create` (대응: `gg label create`)
   - [x] `gh label delete` (대응: `gg label delete`)
   - [x] `gh label edit` (대응: `gg label edit`)
