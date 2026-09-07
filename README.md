@@ -235,7 +235,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gh label list` (대응: `gg label list`)
 - `pr`
   - [x] `gh pr checkout` (대응: `gg pr checkout`)
-  - [ ] `gh pr checks`
+  - [x] `gh pr checks` (대응: `gg pr checks`; glab·tea에 PR 단위 체크 조회 하위 명령이 없어 미지원)
   - [x] `gh pr close` (대응: `gg pr close`)
   - [x] `gh pr comment` (대응: `gg pr comment`; 조회·수정·삭제는 `gg pr comment list|edit|delete`로 `gh api` 중계)
   - [x] `gh pr create` (대응: `gg pr create`)
