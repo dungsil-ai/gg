@@ -412,7 +412,7 @@ ADR 0007: GitHub 고유 자원(codespace, project, secret, gist 등)은 세 prov
   - [ ] `glab auth logout` (gg auth 중계는 현재 gh만 지원 — provider 선택 방식 설계 후 검토)
   - [x] `glab auth status` (대응: `gg auth status`)
 - `issue`
-  - [ ] `glab issue board`
+  - [ ] `glab issue board` (보드 조회는 GitLab 고유 기능으로 별도 설계 필요 — ADR 0007)
   - [x] `glab issue close` (대응: `gg issue close`)
   - [x] `glab issue create` (대응: `gg issue create`)
   - [x] `glab issue delete` (대응: `gg issue delete`; glab에는 확인 flag가 없어 `--yes`는 gh에만 전달)
@@ -588,7 +588,7 @@ ADR 0007: GitLab 고유 기능(incident, schedule, stack 등)은 개별 수요�
 - `pulls`
   - [x] `tea pulls approve` (대응: `gg pr review --approve`)
   - [x] `tea pulls checkout` (대응: `gg pr checkout`)
-  - [ ] `tea pulls clean`
+  - [x] `tea pulls clean` (대응: `gg pr clean`; gh·glab에 같은 하위 명령이 없어 미지원)
   - [x] `tea pulls close` (대응: `gg pr close`)
   - [x] `tea pulls create` (대응: `gg pr create`)
   - [x] `tea pulls edit` (대응: `gg pr edit`)
