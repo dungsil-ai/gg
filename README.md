@@ -281,6 +281,8 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 <details>
 <summary>기타 및 플랫폼 고유 명령 (GitHub Actions, Codespaces, Project 등)</summary>
 
+ADR 0007: GitHub 고유 자원(codespace, project, secret, gist 등)은 세 provider 간 공통 표면이 성립하지 않는다. 개별 수요가 확인될 때 별도 ADR로 표면을 설계하기 전까지 미체크를 유지한다.
+
 - `browse`
   - [ ] `gh browse`
 - `cache`
@@ -471,6 +473,8 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 <details>
 <summary>기타 및 플랫폼 고유 명령 (CI/CD, Incident, Duo, Snippet 등)</summary>
 
+ADR 0007: GitLab 고유 기능(incident, schedule, stack 등)은 개별 수요가 확인될 때 별도 ADR로 표면을 설계하기 전까지 미체크를 유지한다.
+
 - `alias`
   - [ ] `glab alias delete`
   - [ ] `glab alias list`
@@ -576,11 +580,11 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `tea labels list` (대응: `gg label list`)
   - [ ] `tea labels update` (tea가 label 이름이 아니라 numeric label id `--id`를 요구해 `gg label edit`로 중계하지 않음)
 - `logins`
-  - [ ] `tea logins add`
-  - [ ] `tea logins delete`
-  - [ ] `tea logins edit`
-  - [ ] `tea logins list`
-  - [ ] `tea logins view`
+  - [ ] `tea logins add` (tea CLI 자신의 로컬 인증 설정 관리라 gg가 중계하지 않음 — gg config가 host→provider 매핑을 대신한다. ADR 0007)
+  - [ ] `tea logins delete` (tea CLI 자신의 로컬 인증 설정 관리라 gg가 중계하지 않음 — ADR 0007)
+  - [ ] `tea logins edit` (tea CLI 자신의 로컬 인증 설정 관리라 gg가 중계하지 않음 — ADR 0007)
+  - [ ] `tea logins list` (gg auth status가 로그인 조회에 내부적으로 사용한다 — 독립 중계 대상이 아님. ADR 0007)
+  - [ ] `tea logins view` (tea CLI 자신의 로컬 인증 설정 관리라 gg가 중계하지 않음 — ADR 0007)
 - `pulls`
   - [x] `tea pulls approve` (대응: `gg pr review --approve`)
   - [x] `tea pulls checkout` (대응: `gg pr checkout`)
@@ -612,6 +616,8 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 
 <details>
 <summary>기타 및 플랫폼 고유 명령 (Admin, Times, Milestones 등)</summary>
+
+ADR 0007: Gitea CLI 고유 기능(admin, times, milestones 등)은 개별 수요가 확인될 때 별도 ADR로 표면을 설계하기 전까지 미체크를 유지한다.
 
 - `actions`
   - [ ] `tea actions runs`
