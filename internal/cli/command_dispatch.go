@@ -80,10 +80,6 @@ func dispatch(provider string, c invocationContext) (Invocation, error) {
 }
 
 func ghInvocation(req Request, r RepoURL) (Invocation, error) {
-	// label은 아직 glab만 중계한다. builder가 등록될 때까지 여기서 미지원을 확정한다.
-	if req.Resource == "label" {
-		return Invocation{}, usageErr("label " + req.Action + " is not supported for gh")
-	}
 	c := invocationContext{
 		req:    req,
 		r:      r,
@@ -121,7 +117,8 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	if req.Resource == "pr" && req.Action == "merge" {
 		return Invocation{}, errors.New("pr merge is not supported for tea")
 	}
-	if req.Resource == "pr" && (req.Action == "status" || req.Action == "ready") {
+	// tea는 PR status/ready/diff 명령이 없다.
+	if req.Resource == "pr" && (req.Action == "status" || req.Action == "ready" || req.Action == "diff") {
 		return Invocation{}, usageErr("pr " + req.Action + " is not supported for tea")
 	}
 	if req.Resource == "label" {
@@ -133,6 +130,15 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	// tea는 PR 댓글 추가만 지원하고 목록/수정/삭제 명령이 없다.
 	if req.Resource == "pr" && (req.Action == "comment list" || req.Action == "comment edit" || req.Action == "comment delete") {
 		return Invocation{}, usageErr("pr " + req.Action + " is not supported for tea")
+	}
+	// tea는 이슈 댓글 추가만 지원하고 목록/수정/삭제와 이슈 수정 명령이 없다.
+	if req.Resource == "issue" && (req.Action == "edit" ||
+		req.Action == "comment list" || req.Action == "comment edit" || req.Action == "comment delete") {
+		return Invocation{}, usageErr("issue " + req.Action + " is not supported for tea")
+	}
+	// tea에는 이슈 삭제 하위 명령이 없다.
+	if req.Resource == "issue" && req.Action == "delete" {
+		return Invocation{}, usageErr("issue delete is not supported for tea")
 	}
 	if req.Resource == "issue" && ghOnlyIssueActions[req.Action] {
 		return Invocation{}, usageErr("issue " + req.Action + " is not supported for tea")

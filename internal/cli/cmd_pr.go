@@ -5,13 +5,13 @@ import (
 	"strings"
 )
 
-// prResourceDef는 "pr" 최상위 명령의 정의다: list, view, create, comment(하위
-// list/edit/delete), status, ready, merge.
+// prResourceDef는 "pr" 최상위 명령의 정의다: list, view, checkout, create,
+// edit, comment(하위 list/edit/delete), status, ready, merge, close, reopen, diff.
 // alias: mr (command_registry.go의 commandAliases에서 연결).
 var prResourceDef = &resourceDef{
 	name:    "pr",
-	summary: "List, view, create, comment on, or merge pull requests, and check merge readiness (alias: mr)",
-	desc:    "List, view, create, comment on, or merge pull requests, and check merge readiness.",
+	summary: "List, view, check out, create, edit, comment on, diff, merge, or close pull requests, and check merge readiness (alias: mr)",
+	desc:    "List, view, check out, create, edit, comment on, diff, merge, or close pull requests, and check merge readiness.",
 	usage:   "gg pr <command> [flags]",
 	actions: []actionDef{
 		{
@@ -30,10 +30,41 @@ var prResourceDef = &resourceDef{
 			setPos: setNumber,
 		},
 		{
+			name: "checkout", summary: "Check out a pull request locally", usage: "gg pr checkout <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr checkout <number>",
+			setPos: setNumber,
+		},
+		{
+			name: "diff", summary: "Show changes of a pull request", usage: "gg pr diff <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr diff <number>",
+			setPos: setNumber,
+		},
+		{
 			name: "create", summary: "Create a pull request", usage: "gg pr create [flags]",
 			flags:    []flagDef{titleFlag, bodyFlag, baseFlag, headFlag, draftFlag},
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
+		},
+		{
+			name: "edit", summary: "Edit a pull request title or body", usage: "gg pr edit <number> [flags]",
+			flags:    []flagDef{titleFlag, bodyFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr edit <number>",
+			setPos: func(req *Request, pos []string) error {
+				if strings.TrimSpace(req.Title) == "" && strings.TrimSpace(req.Body) == "" {
+					return usageErr("pr edit needs --title or --body")
+				}
+				req.Number = pos[0]
+				return nil
+			},
 		},
 		{
 			name: "comment", summary: "Comment on a pull request", usage: "gg pr comment <number> [flags]",
@@ -124,6 +155,22 @@ var prResourceDef = &resourceDef{
 				return nil
 			},
 		},
+		{
+			name: "close", summary: "Close a pull request", usage: "gg pr close <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr close <number>",
+			setPos: setNumber,
+		},
+		{
+			name: "reopen", summary: "Reopen a closed pull request", usage: "gg pr reopen <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr reopen <number>",
+			setPos: setNumber,
+		},
 	},
 }
 
@@ -161,6 +208,32 @@ var prViewBuilders = providerBuilders{
 	},
 	tea: func(c invocationContext) (args, env []string) {
 		return append([]string{c.res, c.req.Number}, c.target...), nil
+	},
+}
+
+// prCheckoutBuilders는 PR을 로컬 작업 트리로 check out한다. 3개 provider 모두
+// 번호 하나를 받는 같은 모양의 표면이다. flag 없이 번호만 중계한다.
+var prCheckoutBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "checkout", c.req.Number}, c.target...), nil
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "checkout", c.req.Number}, c.target...), nil
+	},
+	tea: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "checkout", c.req.Number}, c.target...), nil
+	},
+}
+
+// prDiffBuilders는 PR의 변경 내용을 diff로 보여준다. tea에는 diff 하위 명령이
+// 없어 builder를 등록하지 않는다 — teaInvocation의 사전 가드가 tea login을
+// 묻기 전에 미지원을 확정한다.
+var prDiffBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "diff", c.req.Number}, c.target...), nil
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "diff", c.req.Number}, c.target...), nil
 	},
 }
 
@@ -204,6 +277,30 @@ var prCreateBuilders = providerBuilders{
 // "grp/sub"처럼 /를 포함할 수 있으므로 경로 세그먼트 하나로 인코딩한다.
 func glabProjectPath(r RepoURL) string {
 	return url.PathEscape(r.Slug())
+}
+
+// prEditBuilders는 PR 제목·본문 수정을 중계한다. glab은 mr update를, tea는
+// pulls edit을 쓰며 둘 다 본문 flag로 --description을 쓴다. glab mr update는
+// pr ready의 draft·ready 전환도 담당하지만 flag 없이 부르면 제목·본문 수정이다.
+var prEditBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "edit", c.req.Number}, c.target...)
+		args = appendKV(args, "--title", c.req.Title)
+		args = appendKV(args, "--body", c.req.Body)
+		return args, nil
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "update", c.req.Number}, c.target...)
+		args = appendKV(args, "--title", c.req.Title)
+		args = appendKV(args, "--description", c.req.Body)
+		return args, nil
+	},
+	tea: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "edit", c.req.Number}, c.target...)
+		args = appendKV(args, "--title", c.req.Title)
+		args = appendKV(args, "--description", c.req.Body)
+		return args, nil
+	},
 }
 
 // prCommentBuilders는 pr comment(입력)의 builder다.
@@ -261,8 +358,10 @@ var prCommentDeleteBuilders = providerBuilders{
 // 사전 가드에서 걸러지므로 여기에는 등록하지 않는다 — provider별 예외는 감추지
 // 않고 그 함수에 명시적으로 남긴다.
 var prInvocationTable = map[string]providerBuilders{
-	"pr list": prListBuilders,
-	"pr view": prViewBuilders,
+	"pr list":     prListBuilders,
+	"pr view":     prViewBuilders,
+	"pr checkout": prCheckoutBuilders,
+	"pr diff":     prDiffBuilders,
 	"pr status": {
 		gh: func(c invocationContext) (args, env []string) {
 			return []string{"pr", "view", c.req.Number, "-R", c.r.Host + "/" + c.r.Slug(), "--json", ghStatusFields()}, nil
@@ -326,7 +425,30 @@ var prInvocationTable = map[string]providerBuilders{
 			return append(args, c.target...), nil
 		},
 	},
+	"pr close": {
+		gh: func(c invocationContext) (args, env []string) {
+			return append([]string{"pr", "close", c.req.Number}, c.target...), nil
+		},
+		glab: func(c invocationContext) (args, env []string) {
+			return append([]string{c.res, "close", c.req.Number}, c.target...), nil
+		},
+		tea: func(c invocationContext) (args, env []string) {
+			return append([]string{c.res, "close", c.req.Number}, c.target...), nil
+		},
+	},
+	"pr reopen": {
+		gh: func(c invocationContext) (args, env []string) {
+			return append([]string{"pr", "reopen", c.req.Number}, c.target...), nil
+		},
+		glab: func(c invocationContext) (args, env []string) {
+			return append([]string{c.res, "reopen", c.req.Number}, c.target...), nil
+		},
+		tea: func(c invocationContext) (args, env []string) {
+			return append([]string{c.res, "reopen", c.req.Number}, c.target...), nil
+		},
+	},
 	"pr create": prCreateBuilders,
+	"pr edit":   prEditBuilders,
 
 	"pr comment":        prCommentBuilders,
 	"pr comment list":   prCommentListBuilders,

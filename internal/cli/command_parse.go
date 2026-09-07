@@ -12,12 +12,12 @@ func usageErr(m string) error      { return UsageError{Msg: m} }
 
 // Request는 파싱된 공통 명령이다.
 type Request struct {
-	Resource                   string // "repo" | "issue" | "label" | "pr" | "release" | "ci" | "config"
+	Resource                   string // "repo" | "issue" | "label" | "pr" | "release" | "ci" | "auth" | "config"
 	Action                     string // resource action 또는 Git passthrough action
 	RepoFlag                   string // --repo 값
 	RemoteFlag                 string // --remote 값
 	Number                     string // issue/pr/ci 대상 번호
-	CommentID                  string // pr comment edit/delete의 댓글 ID
+	CommentID                  string // pr·issue comment edit/delete의 댓글 ID
 	CloneURL                   string
 	CloneDir                   string
 	GitArgs                    []string // passthrough action은 검사 없이 git으로 전달
@@ -25,6 +25,8 @@ type Request struct {
 
 	Title, Body, Base, Head, State, Limit, Description       string
 	Name, Color                                              string
+	NewName                                                  string // label edit의 새 이름. 고칠 label은 Name이 받는다.
+	Reason                                                   string // issue lock의 잠금 사유
 	Tag, Notes, Ref, Pattern, Dir, Asset                     string // release: 태그, 노트, 태그 생성 기준 ref, download 필터·경로, asset 이름
 	Branch                                                   string
 	Source                                                   string // repo sync가 분기를 당겨 올 원본 저장소
@@ -113,6 +115,20 @@ globalFlags:
 	}
 	if req.Explain && !ad.explainOK {
 		return req, usageErr("--explain is not supported for " + req.Resource + " " + req.Action)
+	}
+	// auth는 forge 명령이 아니므로 저장소 문맥과 설명 모드가 없다(ADR 0006).
+	// 문맥 flag는 Forge 대상 저장소를 고르는 수단인데 auth status의 조회 대상은
+	// Provider 설정과 기본 domain 목록이다.
+	if req.Resource == "auth" {
+		if req.RepoFlag != "" {
+			return req, usageErr("--repo is not supported for " + req.Resource + " " + req.Action)
+		}
+		if req.RemoteFlag != "" {
+			return req, usageErr("--remote is not supported for " + req.Resource + " " + req.Action)
+		}
+		if req.Explain {
+			return req, usageErr("--explain is not supported for " + req.Resource + " " + req.Action)
+		}
 	}
 	return req, nil
 }

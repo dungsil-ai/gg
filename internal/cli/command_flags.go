@@ -37,6 +37,14 @@ var (
 	// label처럼 같은 flag 문자열을 action별 정의로 나눠 받는다.
 	issueTypeNameFlag = flagDef{name: "--name", arg: "<name>", desc: "Set the issue type name",
 		str: func(r *Request) *string { return &r.IssueType }}
+	// label edit의 --name은 새 이름이고 고칠 label은 positional로 받는다. create의
+	// --name과 같은 문자열이지만 다른 Request 필드를 채운다.
+	labelEditNameFlag = flagDef{name: "--name", arg: "<text>", desc: "Set the new label name",
+		str: func(r *Request) *string { return &r.NewName }}
+	// issue lock의 --reason은 gh의 잠금 사유 enum(off_topic, resolved, spam,
+	// too_heated)을 받는다. 값 검증은 lock action의 setPos가 한다.
+	lockReasonFlag = flagDef{name: "--reason", arg: "<reason>", desc: "Lock reason (off_topic, resolved, spam, too_heated)",
+		str: func(r *Request) *string { return &r.Reason }}
 	parentFlag = flagDef{name: "--parent", arg: "<number>", desc: "Set the parent issue number",
 		str: func(r *Request) *string { return &r.Parent }}
 	blockerFlag = flagDef{name: "--blocker", arg: "<number>", desc: "Set the blocking issue number",

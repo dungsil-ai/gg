@@ -208,44 +208,44 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `gh auth logout`
   - [ ] `gh auth refresh`
   - [ ] `gh auth setup-git`
-  - [ ] `gh auth status`
+  - [x] `gh auth status` (대응: `gg auth status`)
   - [ ] `gh auth switch`
   - [ ] `gh auth token`
 - `issue`
   - [x] `gh issue close` (대응: `gg issue close`)
-  - [x] `gh issue comment` (대응: `gg issue comment`)
+  - [x] `gh issue comment` (대응: `gg issue comment`; 조회·수정·삭제는 `gg issue comment list|edit|delete`로 `gh api` 중계)
   - [x] `gh issue create` (대응: `gg issue create`)
-  - [ ] `gh issue delete`
+  - [x] `gh issue delete` (대응: `gg issue delete`)
   - [ ] `gh issue develop`
-  - [ ] `gh issue edit`
+  - [x] `gh issue edit` (대응: `gg issue edit`)
   - [x] `gh issue list` (대응: `gg issue list`)
-  - [ ] `gh issue lock`
+  - [x] `gh issue lock` (대응: `gg issue lock [--reason]`; glab·tea에 이슈 잠금 하위 명령이 없어 미지원)
   - [ ] `gh issue pin`
   - [x] `gh issue reopen` (대응: `gg issue reopen`)
   - [ ] `gh issue status`
   - [ ] `gh issue transfer`
-  - [ ] `gh issue unlock`
+  - [x] `gh issue unlock` (대응: `gg issue unlock`; glab·tea에 이슈 잠금 해제 하위 명령이 없어 미지원)
   - [ ] `gh issue unpin`
   - [x] `gh issue view` (대응: `gg issue view`)
 - `label`
   - [ ] `gh label clone`
-  - [ ] `gh label create`
-  - [ ] `gh label delete`
-  - [ ] `gh label edit`
-  - [ ] `gh label list`
+  - [x] `gh label create` (대응: `gg label create`)
+  - [x] `gh label delete` (대응: `gg label delete`)
+  - [x] `gh label edit` (대응: `gg label edit`)
+  - [x] `gh label list` (대응: `gg label list`)
 - `pr`
-  - [ ] `gh pr checkout`
+  - [x] `gh pr checkout` (대응: `gg pr checkout`)
   - [ ] `gh pr checks`
-  - [ ] `gh pr close`
+  - [x] `gh pr close` (대응: `gg pr close`)
   - [x] `gh pr comment` (대응: `gg pr comment`; 조회·수정·삭제는 `gg pr comment list|edit|delete`로 `gh api` 중계)
   - [x] `gh pr create` (대응: `gg pr create`)
-  - [ ] `gh pr diff`
-  - [ ] `gh pr edit`
+  - [x] `gh pr diff` (대응: `gg pr diff`)
+  - [x] `gh pr edit` (대응: `gg pr edit`)
   - [x] `gh pr list` (대응: `gg pr list`)
   - [ ] `gh pr lock`
   - [x] `gh pr merge` (대응: `gg pr merge`)
   - [x] `gh pr ready` (대응: `gg pr ready`)
-  - [ ] `gh pr reopen`
+  - [x] `gh pr reopen` (대응: `gg pr reopen`)
   - [ ] `gh pr review`
   - [ ] `gh pr status`
   - [ ] `gh pr unlock`
@@ -408,41 +408,43 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 - `auth`
   - [ ] `glab auth login`
   - [ ] `glab auth logout`
-  - [ ] `glab auth status`
+  - [x] `glab auth status` (대응: `gg auth status`)
 - `issue`
   - [ ] `glab issue board`
   - [x] `glab issue close` (대응: `gg issue close`)
   - [x] `glab issue create` (대응: `gg issue create`)
-  - [ ] `glab issue delete`
+  - [x] `glab issue delete` (대응: `gg issue delete`; glab에는 확인 flag가 없어 `--yes`는 gh에만 전달)
   - [x] `glab issue list` (대응: `gg issue list`)
-  - [x] `glab issue note` (대응: `gg issue comment`)
+  - [x] `glab issue note` (대응: `gg issue comment`; `gg issue comment list|edit|delete`는 `glab api` 중계)
   - [x] `glab issue reopen` (대응: `gg issue reopen`)
   - [ ] `glab issue subscribe`
   - [ ] `glab issue todo`
   - [ ] `glab issue unsubscribe`
-  - [ ] `glab issue update`
+  - [x] `glab issue update` (대응: `gg issue edit`)
   - [x] `glab issue view` (대응: `gg issue view`)
 - `label`
   - [x] `glab label create` (대응: `gg label create`)
+  - [x] `glab label delete` (대응: `gg label delete`; glab에는 확인 flag가 없어 `--yes`는 gh에만 전달)
+  - [ ] `glab label edit` (glab이 label 이름이 아니라 numeric label id `--label-id`를 요구해 `gg label edit`로 중계하지 않음)
   - [x] `glab label list` (대응: `gg label list`)
 - `mr`
   - [ ] `glab mr approve`
   - [ ] `glab mr approvers`
-  - [ ] `glab mr checkout`
-  - [ ] `glab mr close`
+  - [x] `glab mr checkout` (대응: `gg pr checkout`)
+  - [x] `glab mr close` (대응: `gg pr close`)
   - [x] `glab mr create` (대응: `gg pr create`)
   - [ ] `glab mr delete`
-  - [ ] `glab mr diff`
+  - [x] `glab mr diff` (대응: `gg pr diff`)
   - [x] `glab mr list` (대응: `gg pr list`)
   - [x] `glab mr merge` (대응: `gg pr merge`)
   - [x] `glab mr note` (대응: `gg pr comment`; `gg pr comment list|edit|delete`는 `glab api` 중계)
   - [ ] `glab mr rebase`
-  - [ ] `glab mr reopen`
+  - [x] `glab mr reopen` (대응: `gg pr reopen`)
   - [ ] `glab mr revoke`
   - [ ] `glab mr subscribe`
   - [ ] `glab mr todo`
   - [ ] `glab mr unsubscribe`
-  - [x] `glab mr update` (대응: `gg pr ready`)
+  - [x] `glab mr update` (대응: `gg pr ready`, `gg pr edit`)
   - [x] `glab mr view` (대응: `gg pr view`)
 - `release`
   - [x] `glab release create` (대응: `gg release create`; `--draft`·`--prerelease` 미지원)
@@ -564,7 +566,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 - `issues`
   - [x] `tea issues close` (대응: `gg issue close`)
   - [x] `tea issues create` (대응: `gg issue create`)
-  - [ ] `tea issues delete`
+  - [ ] `tea issues delete` (tea CLI에 이슈 삭제 하위 명령이 없어 미지원)
   - [x] `tea issues list` (대응: `gg issue list`)
   - [x] `tea issues open` (대응: `gg issue view`)
   - [x] `tea issues reopen` (대응: `gg issue reopen`)
@@ -581,15 +583,16 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `tea logins view`
 - `pulls`
   - [ ] `tea pulls approve`
-  - [ ] `tea pulls checkout`
+  - [x] `tea pulls checkout` (대응: `gg pr checkout`)
   - [ ] `tea pulls clean`
-  - [ ] `tea pulls close`
+  - [x] `tea pulls close` (대응: `gg pr close`)
   - [x] `tea pulls create` (대응: `gg pr create`)
+  - [x] `tea pulls edit` (대응: `gg pr edit`)
   - [x] `tea pulls list` (대응: `gg pr list`)
   - [ ] `tea pulls merge`
   - [x] `tea pulls open` (대응: `gg pr view`)
   - [ ] `tea pulls reject`
-  - [ ] `tea pulls reopen`
+  - [x] `tea pulls reopen` (대응: `gg pr reopen`)
 - `releases`
   - [ ] `tea releases create`
   - [ ] `tea releases delete`
@@ -657,6 +660,9 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 
 ## gg 고유 기능 목록
 
+- `auth`
+  - [x] `gg auth status` (provider 설정 host와 기본 domain의 로그인 상태를 한 표로 조회; gh, glab, tea 지원)
+  - exit code 계약: 표 조회 자체가 실패할 때만 0이 아닌 exit code를 냅니다 — 손상된 config.json 읽기 시 1. 행별 `no`·`no cli`는 결과 값이며 exit 0입니다.
 - `pr`
   - [x] `gg pr status` (GitHub, GitLab 지원; Gitea 미지원)
   - exit code 계약: 조회 자체가 실패할 때만 0이 아닌 exit code를 냅니다 — 하위 CLI(gh/glab) 미설치 시 127, 자식이 신호로 종료되면 128+신호 코드, 그 외 조회 실패 시 1. 조회 성공 시 병합 불가·CI 실패·승인 대기는 결과 값이며 exit 0입니다. CI 값 범위는 pass|fail|pending|none|unknown이고, NEUTRAL/SKIPPED 체크는 pass로 셉니다.
@@ -664,6 +670,9 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gg pr comment` (PR 댓글 입력; GitHub, GitLab, Gitea 지원)
   - [x] `gg pr comment list` / `gg pr comment edit` / `gg pr comment delete` (PR 댓글 조회·수정·삭제; GitHub, GitLab 지원 — `gh api`/`glab api` 중계. Gitea 미지원)
   - [x] `gg mr` (`gg pr`의 alias)
+- `issue` 댓글
+  - [x] `gg issue comment` (이슈 댓글 입력; GitHub, GitLab, Gitea 지원)
+  - [x] `gg issue comment list` / `gg issue comment edit` / `gg issue comment delete` (이슈 댓글 조회·수정·삭제; GitHub, GitLab 지원 — `gh api`/`glab api` 중계. Gitea 미지원)
 - `issue` 관계 등록
   - [x] `gg issue sub-issue` (GitHub 지원; GitLab·Gitea 미지원) — 이슈를 다른 이슈의 native sub-issue로 등록
   - [x] `gg issue blocked-by` (GitHub 지원; GitLab·Gitea 미지원) — 이슈에 blocked-by 의존성을 등록
@@ -707,6 +716,21 @@ Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없�
 
 ### 사용 예시 (Usage Examples)
 
+#### 로그인 상태 조회 (`gg auth status`)
+- Provider 설정의 host와 기본 domain(`github.com`, `gitlab.com`, `gitea.com`)의 로그인 상태를 한 표로 조회:
+  ```bash
+  gg auth status
+  ```
+  ```text
+  HOST             PROVIDER  LOGIN
+  git.example.com  tea       my-login
+  gitea.com        tea       no cli
+  github.com       gh        dungsil
+  gitlab.com       glab      yes
+  ```
+- LOGIN 값 범위는 로그인 이름(gh, tea), `yes`(glab처럼 로그인은 확인되지만 이름을 제공하지 않을 때), `no`(미로그인), `no cli`(provider CLI 미설치)입니다.
+- 저장소 문맥 flag(`--repo`, `--remote`)와 `--explain`은 받지 않습니다. 조회 대상은 저장소가 아니라 Provider 설정과 기본 domain 목록이기 때문입니다.
+
 #### PR / MR Ready & Draft 전환 (`gg pr ready`)
 - PR을 Ready 상태로 전환:
   ```bash
@@ -726,6 +750,57 @@ Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없�
   ```bash
   gg --repo https://github.com/owner/repo pr ready 42
   gg pr ready 42 --remote upstream --undo
+  ```
+
+#### PR / MR 닫기·다시 열기 (`gg pr close`, `gg pr reopen`)
+- PR 닫기:
+  ```bash
+  gg pr close 42
+  ```
+  - GitHub: `gh pr close 42 -R <owner>/<repo>` 호출
+  - GitLab: `glab mr close 42 --repo <URL>` 호출
+  - Gitea: `tea pulls close 42 ...` 호출
+- 닫은 PR 다시 열기:
+  ```bash
+  gg pr reopen 42
+  ```
+  - GitHub: `gh pr reopen 42 -R <owner>/<repo>` 호출
+  - GitLab: `glab mr reopen 42 --repo <URL>` 호출
+  - Gitea: `tea pulls reopen 42 ...` 호출
+- 저장소 문맥 플래그와 함께 사용:
+  ```bash
+  gg --repo https://github.com/owner/repo pr close 42
+  gg pr reopen 42 --remote upstream
+  ```
+
+#### PR check out (`gg pr checkout`)
+- PR을 로컬 작업 트리로 check out:
+  ```bash
+  gg pr checkout 42
+  ```
+  - GitHub: `gh pr checkout 42 -R <owner>/<repo>` 호출
+  - GitLab: `glab mr checkout 42 --repo <URL>` 호출
+  - Gitea: `tea pulls checkout 42 ...` 호출
+- check out은 조회와 달리 **현재 작업 트리의 상태를 바꾼다**. 저장소 문맥 플래그(`--repo`, `--remote`)는 현재 트리가 아니라 대상 PR의 저장소를 정하므로, 다른 저장소 문맥을 주면 그 저장소의 PR branch가 현재 트리로 check out된다:
+  ```bash
+  gg --repo https://github.com/owner/repo pr checkout 42
+  gg pr checkout 42 --remote upstream
+  ```
+- 번호 외의 대상(URL, branch 이름)과 `--branch`·`--detach` 같은 flag는 세 provider의 공통 표면이 아니라 중계하지 않는다.
+
+#### PR diff 보기 (`gg pr diff`)
+- PR의 변경 내용을 diff로 보기:
+  ```bash
+  gg pr diff 42
+  ```
+  - GitHub: `gh pr diff 42 -R <owner>/<repo>` 호출
+  - GitLab: `glab mr diff 42 --repo <URL>` 호출
+- Gitea (`tea`):
+  - `tea` CLI에 diff 하위 명령이 없으므로 미지원 오류(`pr diff is not supported for tea`)가 반환됩니다.
+- 번호를 생략하면 하위 CLI가 현재 branch의 PR을 찾지만, gg는 다른 pr 단일 대상 명령과 같은 원칙으로 번호를 필수로 받습니다:
+  ```bash
+  gg --repo https://github.com/owner/repo pr diff 42
+  gg pr diff 42 --remote upstream
   ```
 
 #### PR 댓글 입력·조회·수정·삭제 (`gg pr comment`)
@@ -755,6 +830,22 @@ Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없�
   ```
   - GitHub: `gh api -X DELETE repos/<owner>/<repo>/issues/comments/1234` 호출
   - GitLab: `glab api -X DELETE projects/<owner>%2F<repo>/merge_requests/42/notes/1234` 호출
+
+#### Issue 제목·본문 수정 (`gg issue edit`)
+- 이슈 제목과 본문 수정:
+  ```bash
+  gg issue edit 42 --title "새 제목" --body "새 본문"
+  ```
+  - GitHub: `gh issue edit 42 -R <owner>/<repo> --title "새 제목" --body "새 본문"` 호출
+  - GitLab: `glab issue update 42 --repo <URL> --title "새 제목" --description "새 본문"` 호출
+- `--title`과 `--body` 중 최소 하나는 필요합니다.
+- Gitea (`tea`):
+  - `tea` CLI에는 이슈 수정 명령이 없으므로 미지원 오류(`issue edit is not supported for tea`)가 반환됩니다.
+- 저장소 문맥 플래그와 함께 사용:
+  ```bash
+  gg --repo https://github.com/owner/repo issue edit 42 --title "새 제목"
+  gg issue edit 42 --body "새 본문" --remote upstream
+  ```
 
 #### Issue 관계 등록 (`gg issue sub-issue`, `gg issue blocked-by`, `gg issue type`)
 - 이슈를 parent의 sub-issue로 등록:

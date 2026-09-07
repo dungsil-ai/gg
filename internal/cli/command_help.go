@@ -17,6 +17,8 @@ Usage:
   gg pr status --help
   gg pr ready --help
   gg pr merge --help
+  gg pr close --help
+  gg pr reopen --help
 
 Commands:
 `

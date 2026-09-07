@@ -561,7 +561,7 @@ func TestReleaseWorkflowGate(t *testing.T) {
 	} else if publishStepIdx != -1 && buildStepIdx >= publishStepIdx {
 		t.Error("release 잡에서 빌드/패키징 스텝이 배포 스텝보다 먼저 실행되어야 합니다")
 	}
-	if !strings.Contains(releaseBlock, "GG_RELEASE_OUT_DIR: dist") || !strings.Contains(releaseBlock, "GG_RELEASE_VERSION: ${{ steps.release_tag.outputs.tag }}") {
+	if !strings.Contains(releaseBlock, "GG_RELEASE_OUT_DIR: ${{ github.workspace }}/dist") || !strings.Contains(releaseBlock, "GG_RELEASE_VERSION: ${{ steps.release_tag.outputs.tag }}") {
 		t.Errorf("release 잡 빌드 스텝에 환경 변수 설정(GG_RELEASE_OUT_DIR, GG_RELEASE_VERSION)이 누락되었습니다")
 	}
 	if !strings.Contains(releaseBlock, "--verify-tag") {

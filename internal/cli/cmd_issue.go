@@ -7,12 +7,13 @@ import (
 	"strings"
 )
 
-// issueResourceDef는 "issue" 최상위 명령의 정의다: list, view, create, comment,
-// close, reopen과 관계 등록(sub-issue, blocked-by, type).
+// issueResourceDef는 "issue" 최상위 명령의 정의다: list, view, create, edit,
+// comment(하위 list/edit/delete), close, reopen, delete, lock, unlock과 관계
+// 등록(sub-issue, blocked-by, type).
 var issueResourceDef = &resourceDef{
 	name:    "issue",
-	summary: "List, view, create, comment, close, reopen, or link issues",
-	desc:    "List, view, create, comment, close, reopen, or link issues.",
+	summary: "List, view, create, comment on, close, reopen, delete, lock, or link issues",
+	desc:    "List, view, create, comment on, close, reopen, delete, lock, or link issues.",
 	usage:   "gg issue <command> [flags]",
 	actions: []actionDef{
 		{
@@ -37,6 +38,21 @@ var issueResourceDef = &resourceDef{
 			remoteOK: true, explainOK: true,
 		},
 		{
+			name: "edit", summary: "Edit an issue title or body", usage: "gg issue edit <number> [flags]",
+			flags:    []flagDef{titleFlag, bodyFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg issue edit <number>",
+			setPos: func(req *Request, pos []string) error {
+				if strings.TrimSpace(req.Title) == "" && strings.TrimSpace(req.Body) == "" {
+					return usageErr("issue edit needs --title or --body")
+				}
+				req.Number = pos[0]
+				return nil
+			},
+		},
+		{
 			name: "comment", summary: "Comment on an issue", usage: "gg issue comment <number> [flags]",
 			flags:    []flagDef{bodyFlag},
 			showRepo: true, showRemote: true, showExplain: true,
@@ -48,6 +64,42 @@ var issueResourceDef = &resourceDef{
 					return usageErr("usage: gg issue comment <number> --body <text>")
 				}
 				req.Number = pos[0]
+				return nil
+			},
+		},
+		{
+			name: "comment list", summary: "List comments on an issue", usage: "gg issue comment list <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg issue comment list <number>",
+			setPos: setNumber,
+		},
+		{
+			name: "comment edit", summary: "Edit a comment on an issue", usage: "gg issue comment edit <number> <comment-id> [flags]",
+			flags:    []flagDef{bodyFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 2, maxPos: 2,
+			posErr: "usage: gg issue comment edit <number> <comment-id> --body <text>",
+			setPos: func(req *Request, pos []string) error {
+				if strings.TrimSpace(req.Body) == "" {
+					return usageErr("usage: gg issue comment edit <number> <comment-id> --body <text>")
+				}
+				req.Number = pos[0]
+				req.CommentID = pos[1]
+				return nil
+			},
+		},
+		{
+			name: "comment delete", summary: "Delete a comment on an issue", usage: "gg issue comment delete <number> <comment-id> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 2, maxPos: 2,
+			posErr: "usage: gg issue comment delete <number> <comment-id>",
+			setPos: func(req *Request, pos []string) error {
+				req.Number = pos[0]
+				req.CommentID = pos[1]
 				return nil
 			},
 		},
@@ -65,6 +117,40 @@ var issueResourceDef = &resourceDef{
 			remoteOK: true, explainOK: true,
 			minPos: 1, maxPos: 1,
 			posErr: "usage: gg issue reopen <number>",
+			setPos: setNumber,
+		},
+		{
+			name: "delete", summary: "Delete an issue", usage: "gg issue delete <number> [flags]",
+			flags:    []flagDef{yesFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg issue delete <number>",
+			setPos: setNumber,
+		},
+		{
+			name: "lock", summary: "Lock an issue conversation (GitHub only)", usage: "gg issue lock <number> [flags]",
+			flags:    []flagDef{lockReasonFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg issue lock <number>",
+			setPos: func(req *Request, pos []string) error {
+				switch req.Reason {
+				case "", "off_topic", "resolved", "spam", "too_heated":
+				default:
+					return usageErr("--reason must be off_topic, resolved, spam, or too_heated")
+				}
+				req.Number = pos[0]
+				return nil
+			},
+		},
+		{
+			name: "unlock", summary: "Unlock a locked issue conversation (GitHub only)", usage: "gg issue unlock <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg issue unlock <number>",
 			setPos: setNumber,
 		},
 		{
@@ -106,6 +192,8 @@ var ghOnlyIssueActions = map[string]bool{
 	"sub-issue":  true,
 	"blocked-by": true,
 	"type":       true,
+	"lock":       true,
+	"unlock":     true,
 }
 
 // isIssueNumber는 값이 issue 번호 형태(숫자만)인지 본다. 관계 API는 번호를 endpoint
@@ -203,6 +291,38 @@ var issueCloseReopenBuilders = providerBuilders{
 	},
 }
 
+// issueDeleteBuilders는 이슈 삭제를 중계한다. gh는 대화형 확인을 건너뛰는
+// --yes flag가 있지만 glab에는 확인 flag가 없으므로 gg의 --yes는 gh에만 전달한다.
+var issueDeleteBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = []string{"issue", "delete", c.req.Number}
+		if c.req.Yes {
+			args = append(args, "--yes")
+		}
+		return append(args, c.target...), nil
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		return append([]string{"issue", "delete", c.req.Number}, c.target...), nil
+	},
+}
+
+// issueLockBuilders는 이슈 대화 잠금·해제를 중계한다. gh 전용 기능이라
+// gh builder만 등록하고, glab·tea는 ghOnlyIssueActions 사전 가드에서
+// 미지원을 확정한다 (tea login을 묻기 전에 거부된다). --reason은 gh의
+// 잠금 사유 enum이라 gg에서 미리 검증한다.
+var issueLockBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = append([]string{"issue", "lock", c.req.Number}, c.target...)
+		return appendKV(args, "--reason", c.req.Reason), nil
+	},
+}
+
+var issueUnlockBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		return append([]string{"issue", "unlock", c.req.Number}, c.target...), nil
+	},
+}
+
 var issueCreateBuilders = providerBuilders{
 	gh: func(c invocationContext) (args, env []string) {
 		args = append([]string{c.res, "create"}, c.target...)
@@ -218,6 +338,24 @@ var issueCreateBuilders = providerBuilders{
 	},
 	tea: func(c invocationContext) (args, env []string) {
 		args = append([]string{c.res, "create"}, c.target...)
+		args = appendKV(args, "--title", c.req.Title)
+		args = appendKV(args, "--description", c.req.Body)
+		return args, nil
+	},
+}
+
+// issueEditBuilders는 이슈 제목·본문 수정을 gh issue edit와 glab issue update로
+// 중계한다. glab은 본문 flag로 --description을 쓴다. tea에는 이슈 수정 명령이
+// 없어 teaInvocation 사전 가드에서 미지원을 확정한다.
+var issueEditBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "edit", c.req.Number}, c.target...)
+		args = appendKV(args, "--title", c.req.Title)
+		args = appendKV(args, "--body", c.req.Body)
+		return args, nil
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "update", c.req.Number}, c.target...)
 		args = appendKV(args, "--title", c.req.Title)
 		args = appendKV(args, "--description", c.req.Body)
 		return args, nil
@@ -283,6 +421,42 @@ func childErrorDetail(err error) string {
 	return "unknown error"
 }
 
+// issueCommentListBuilders는 이슈 댓글 목록을 조회한다. GitHub의 이슈 댓글은 PR
+// 대화 댓글과 같은 endpoint를 공유하고, GitLab은 issue note API를 쓴다.
+// gh/glab의 api 하위 명령은 --repo flag가 없으므로 호스트는 Env로 전달한다.
+var issueCommentListBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = []string{"api", "repos/" + c.r.Slug() + "/issues/" + c.req.Number + "/comments"}
+		return args, []string{"GH_HOST=" + c.r.Host}
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		args = []string{"api", "projects/" + glabProjectPath(c.r) + "/issues/" + c.req.Number + "/notes"}
+		return args, []string{"GITLAB_HOST=" + c.r.Host}
+	},
+}
+
+var issueCommentEditBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = []string{"api", "-X", "PATCH", "repos/" + c.r.Slug() + "/issues/comments/" + c.req.CommentID, "-f", "body=" + c.req.Body}
+		return args, []string{"GH_HOST=" + c.r.Host}
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		args = []string{"api", "-X", "PUT", "projects/" + glabProjectPath(c.r) + "/issues/" + c.req.Number + "/notes/" + c.req.CommentID, "-f", "body=" + c.req.Body}
+		return args, []string{"GITLAB_HOST=" + c.r.Host}
+	},
+}
+
+var issueCommentDeleteBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = []string{"api", "-X", "DELETE", "repos/" + c.r.Slug() + "/issues/comments/" + c.req.CommentID}
+		return args, []string{"GH_HOST=" + c.r.Host}
+	},
+	glab: func(c invocationContext) (args, env []string) {
+		args = []string{"api", "-X", "DELETE", "projects/" + glabProjectPath(c.r) + "/issues/" + c.req.Number + "/notes/" + c.req.CommentID}
+		return args, []string{"GITLAB_HOST=" + c.r.Host}
+	},
+}
+
 // issueInvocationTable은 "issue <action>" 키로 gh/glab/tea의 arg-builder를 모은다.
 var issueInvocationTable = map[string]providerBuilders{
 	"issue list": issueListBuilders,
@@ -298,10 +472,17 @@ var issueInvocationTable = map[string]providerBuilders{
 			return append([]string{"comment", c.req.Number, c.req.Body}, c.target...), nil
 		},
 	},
-	"issue close":      issueCloseReopenBuilders,
-	"issue reopen":     issueCloseReopenBuilders,
-	"issue create":     issueCreateBuilders,
-	"issue sub-issue":  issueSubIssueBuilders,
-	"issue blocked-by": issueBlockedByBuilders,
-	"issue type":       issueTypeBuilders,
+	"issue comment list":   issueCommentListBuilders,
+	"issue comment edit":   issueCommentEditBuilders,
+	"issue comment delete": issueCommentDeleteBuilders,
+	"issue close":          issueCloseReopenBuilders,
+	"issue reopen":         issueCloseReopenBuilders,
+	"issue delete":         issueDeleteBuilders,
+	"issue lock":           issueLockBuilders,
+	"issue unlock":         issueUnlockBuilders,
+	"issue create":         issueCreateBuilders,
+	"issue edit":           issueEditBuilders,
+	"issue sub-issue":      issueSubIssueBuilders,
+	"issue blocked-by":     issueBlockedByBuilders,
+	"issue type":           issueTypeBuilders,
 }
