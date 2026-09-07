@@ -220,12 +220,12 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gh issue edit` (대응: `gg issue edit`)
   - [x] `gh issue list` (대응: `gg issue list`)
   - [x] `gh issue lock` (대응: `gg issue lock [--reason]`; glab·tea에 이슈 잠금 하위 명령이 없어 미지원)
-  - [ ] `gh issue pin`
+  - [x] `gh issue pin` (대응: `gg issue pin`; glab·tea에 이슈 고정 하위 명령이 없어 미지원)
   - [x] `gh issue reopen` (대응: `gg issue reopen`)
   - [ ] `gh issue status`
   - [ ] `gh issue transfer`
   - [x] `gh issue unlock` (대응: `gg issue unlock`; glab·tea에 이슈 잠금 해제 하위 명령이 없어 미지원)
-  - [ ] `gh issue unpin`
+  - [x] `gh issue unpin` (대응: `gg issue unpin`; glab·tea에 이슈 고정 해제 하위 명령이 없어 미지원)
   - [x] `gh issue view` (대응: `gg issue view`)
 - `label`
   - [ ] `gh label clone`
