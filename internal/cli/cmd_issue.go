@@ -8,12 +8,12 @@ import (
 )
 
 // issueResourceDef는 "issue" 최상위 명령의 정의다: list, view, create, edit,
-// comment(하위 list/edit/delete), close, reopen, delete, lock, unlock과 관계
-// 등록(sub-issue, blocked-by, type).
+// comment(하위 list/edit/delete), close, reopen, delete, pin, unpin, lock,
+// unlock과 관계 등록(sub-issue, blocked-by, type).
 var issueResourceDef = &resourceDef{
 	name:    "issue",
-	summary: "List, view, create, comment on, close, reopen, delete, lock, or link issues",
-	desc:    "List, view, create, comment on, close, reopen, delete, lock, or link issues.",
+	summary: "List, view, create, comment on, close, reopen, delete, pin, lock, or link issues",
+	desc:    "List, view, create, comment on, close, reopen, delete, pin, lock, or link issues.",
 	usage:   "gg issue <command> [flags]",
 	actions: []actionDef{
 		{
@@ -120,6 +120,22 @@ var issueResourceDef = &resourceDef{
 			setPos: setNumber,
 		},
 		{
+			name: "pin", summary: "Pin an issue to the repository (GitHub only)", usage: "gg issue pin <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg issue pin <number>",
+			setPos: setNumber,
+		},
+		{
+			name: "unpin", summary: "Unpin a pinned issue (GitHub only)", usage: "gg issue unpin <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg issue unpin <number>",
+			setPos: setNumber,
+		},
+		{
 			name: "delete", summary: "Delete an issue", usage: "gg issue delete <number> [flags]",
 			flags:    []flagDef{yesFlag},
 			showRepo: true, showRemote: true, showExplain: true,
@@ -194,6 +210,8 @@ var ghOnlyIssueActions = map[string]bool{
 	"type":       true,
 	"lock":       true,
 	"unlock":     true,
+	"pin":        true,
+	"unpin":      true,
 }
 
 // isIssueNumber는 값이 issue 번호 형태(숫자만)인지 본다. 관계 API는 번호를 endpoint
@@ -320,6 +338,22 @@ var issueLockBuilders = providerBuilders{
 var issueUnlockBuilders = providerBuilders{
 	gh: func(c invocationContext) (args, env []string) {
 		return append([]string{"issue", "unlock", c.req.Number}, c.target...), nil
+	},
+}
+
+// issuePinBuilders와 issueUnpinBuilders는 이슈 고정·해제를 중계한다. gh 전용
+// 기능이라 gh builder만 등록하고, glab·tea는 ghOnlyIssueActions 사전 가드와
+// run.go의 tea login 건너뛰기 목록이 미지원을 확정한다 (tea login을 묻기
+// 전에 거부된다).
+var issuePinBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		return append([]string{"issue", "pin", c.req.Number}, c.target...), nil
+	},
+}
+
+var issueUnpinBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		return append([]string{"issue", "unpin", c.req.Number}, c.target...), nil
 	},
 }
 
@@ -480,6 +514,8 @@ var issueInvocationTable = map[string]providerBuilders{
 	"issue delete":         issueDeleteBuilders,
 	"issue lock":           issueLockBuilders,
 	"issue unlock":         issueUnlockBuilders,
+	"issue pin":            issuePinBuilders,
+	"issue unpin":          issueUnpinBuilders,
 	"issue create":         issueCreateBuilders,
 	"issue edit":           issueEditBuilders,
 	"issue sub-issue":      issueSubIssueBuilders,
