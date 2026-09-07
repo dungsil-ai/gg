@@ -1,13 +1,14 @@
 package cli
 
 // ciResourceDef는 "ci" 최상위 명령의 정의다: list, view, watch, retry, cancel,
-// delete, download. alias: actions (command_registry.go의 commandAliases에서
-// 연결). GitHub은 gh run, GitLab은 glab ci로 중계하고, tea는 teaInvocation의
-// 사전 가드에서 미지원으로 걸러진다. download는 gh 전용이다.
+// delete, download, lint, run. alias: actions (command_registry.go의
+// commandAliases에서 연결). GitHub은 gh run, GitLab은 glab ci로 중계하고, tea는
+// teaInvocation의 사전 가드에서 미지원으로 걸러진다. download는 gh 전용,
+// lint와 run은 glab 전용이다.
 var ciResourceDef = &resourceDef{
 	name:    "ci",
-	summary: "List, view, watch, retry, cancel, or delete CI runs and pipelines, and download artifacts (alias: actions)",
-	desc:    "List, view, watch, retry, cancel, or delete CI runs and pipelines, and download artifacts.",
+	summary: "List, view, watch, retry, cancel, or delete CI runs and pipelines, download artifacts, and lint or run pipelines (alias: actions)",
+	desc:    "List, view, watch, retry, cancel, or delete CI runs and pipelines, download artifacts, and lint or run pipelines.",
 	usage:   "gg ci <command> [flags]",
 	actions: []actionDef{
 		{
@@ -64,6 +65,17 @@ var ciResourceDef = &resourceDef{
 			minPos: 1, maxPos: 1,
 			posErr: "usage: gg ci download <id>",
 			setPos: setNumber,
+		},
+		{
+			name: "lint", summary: "Validate a CI configuration file (GitLab only)", usage: "gg ci lint [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+		},
+		{
+			name: "run", summary: "Run a pipeline for the current or given branch (GitLab only)", usage: "gg ci run [--branch <branch>] [flags]",
+			flags:    []flagDef{branchFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
 		},
 	},
 }
@@ -145,6 +157,19 @@ var ciInvocationTable = map[string]providerBuilders{
 			args = appendKV(args, "--pattern", c.req.Pattern)
 			args = appendKV(args, "--dir", c.req.Dir)
 			return args, nil
+		},
+	},
+	// lint와 run은 GitLab CI 전용 기능이라 glab builder만 등록한다 — gh와 tea는
+	// dispatch의 builder 부재 오류로 걸러진다.
+	"ci lint": {
+		glab: func(c invocationContext) (args, env []string) {
+			return append([]string{c.res, "lint"}, c.target...), nil
+		},
+	},
+	"ci run": {
+		glab: func(c invocationContext) (args, env []string) {
+			args = append([]string{c.res, "run"}, c.target...)
+			return appendKV(args, "--branch", c.req.Branch), nil
 		},
 	},
 }
