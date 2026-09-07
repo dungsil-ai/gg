@@ -102,6 +102,12 @@ var (
 	// label clone의 --force는 이미 있는 label을 덮어쓴다.
 	labelCloneForceFlag = flagDef{name: "--force", desc: "Overwrite existing labels in the destination",
 		bin: func(r *Request) *bool { return &r.Force }}
+	// repo search의 --search는 프로젝트 이름에 포함될 문자열이다.
+	repoSearchFlag = flagDef{name: "--search", arg: "<text>", desc: "A string contained in the project name",
+		str: func(r *Request) *string { return &r.Search }}
+	// repo transfer의 --target-namespace는 옮겨 갈 namespace다.
+	repoTransferNamespaceFlag = flagDef{name: "--target-namespace", arg: "<namespace>", desc: "The namespace where the project should be transferred to",
+		str: func(r *Request) *string { return &r.TargetNamespace }}
 	// pr rebase의 --skip-ci는 리베이스 후 CI 파이프라인 실행을 건너뛴다.
 	rebaseSkipCIFlag = flagDef{name: "--skip-ci", desc: "Rebase while skipping the CI/CD pipeline",
 		bin: func(r *Request) *bool { return &r.SkipCI }}

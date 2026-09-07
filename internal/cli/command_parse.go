@@ -43,6 +43,7 @@ type Request struct {
 	Parent, Blocker, IssueType string // issue 관계 등록: 부모·blocker 번호와 issue 종류 이름
 	RelatedID                  string // plan 단계에서 gh로 조회한 관계 issue의 numeric database id
 	Destination                string // issue transfer의 대상 저장소
+	Search, TargetNamespace    string // repo search의 검색어, repo transfer의 대상 namespace
 
 	List, Checkout bool // issue develop: 연결 branch 목록 조회, branch 생성 후 check out
 	SkipCI         bool // pr rebase: 리베이스 후 CI 파이프라인 건너뛰기

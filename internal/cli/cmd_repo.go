@@ -1,5 +1,7 @@
 package cli
 
+import "strings"
+
 // repoResourceDef는 "repo" 최상위 명령의 정의다: list, view, create, clone, fork,
 // delete, edit, rename, sync, set-default, contributors, commit, pull, push와 Git
 // 전달 명령 (cmd_git.go) 전체를 포함한다. archive는 git archive passthrough가
@@ -61,6 +63,30 @@ var repoResourceDef = &resourceDef{
 			name: "contributors", summary: "List repository contributors (GitLab only)", usage: "gg repo contributors [flags]",
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
+		},
+		{
+			name: "search", summary: "Search repositories by name (GitLab only)", usage: "gg repo search --search <text> [flags]",
+			flags:    []flagDef{repoSearchFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			setPos: func(req *Request, pos []string) error {
+				if strings.TrimSpace(req.Search) == "" {
+					return usageErr("repo search needs --search <text>")
+				}
+				return nil
+			},
+		},
+		{
+			name: "transfer", summary: "Transfer the repository to another namespace (GitLab only)", usage: "gg repo transfer --target-namespace <namespace> [flags]",
+			flags:    []flagDef{repoTransferNamespaceFlag, yesFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			setPos: func(req *Request, pos []string) error {
+				if strings.TrimSpace(req.TargetNamespace) == "" {
+					return usageErr("repo transfer needs --target-namespace <namespace>")
+				}
+				return nil
+			},
 		},
 		{
 			name: "delete", summary: "Delete a repository", usage: "gg repo delete [flags]",
@@ -150,9 +176,32 @@ var repoContributorsBuilders = providerBuilders{
 	},
 }
 
+// repoSearchBuilders와 repoTransferBuilders는 저장소 검색과 소유권 이전을
+// 중계한다. glab 전용 기능이라 glab builder만 등록한다 — gh와 tea는 dispatch의
+// builder 부재 오류로 걸러지고, tea는 tea login을 묻기 전에 거부된다.
+var repoSearchBuilders = providerBuilders{
+	glab: func(c invocationContext) (args, env []string) {
+		args = append([]string{"repo", "search"}, c.target...)
+		return appendKV(args, "--search", c.req.Search), nil
+	},
+}
+
+var repoTransferBuilders = providerBuilders{
+	glab: func(c invocationContext) (args, env []string) {
+		args = append([]string{"repo", "transfer"}, c.target...)
+		args = appendKV(args, "--target-namespace", c.req.TargetNamespace)
+		if c.req.Yes {
+			args = append(args, "--yes")
+		}
+		return args, nil
+	},
+}
+
 // repoInvocationTable은 "repo <action>" 키로 gh/glab/tea의 arg-builder를 모은다.
 var repoInvocationTable = map[string]providerBuilders{
 	"repo contributors": repoContributorsBuilders,
+	"repo search":       repoSearchBuilders,
+	"repo transfer":     repoTransferBuilders,
 	"repo list": {
 		gh: func(c invocationContext) (args, env []string) {
 			args = appendKV([]string{"repo", "list"}, "--limit", c.req.Limit)
