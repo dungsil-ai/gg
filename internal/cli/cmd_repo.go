@@ -121,6 +121,16 @@ var repoResourceDef = &resourceDef{
 			name: "push", summary: "Run git push", usage: "gg repo push [git args]",
 			passthrough: true, maxPos: -1,
 		},
+		{
+			// filter-repo는 외부 git-filter-repo 바이너리 없이 gg가 직접
+			// fast-export/fast-import 파이프라인으로 히스토리를 재작성하는
+			// 로컬 명령이다. forge 저장소 문맥을 쓰지 않으므로 --repo,
+			// --remote, --explain을 지원하지 않는다.
+			name: "filter-repo", summary: "Rewrite history without external git-filter-repo", usage: "gg repo filter-repo [flags]",
+			flags:  []flagDef{filterPathFlag, filterInvertPathsFlag, filterPathRenameFlag, filterReplaceTextFlag, filterMailmapFlag, filterForceFlag, filterDryRunFlag},
+			posErr: "usage: gg repo filter-repo [flags]",
+			setPos: setFilterRepo,
+		},
 	}, gitPassthroughActions()...),
 }
 

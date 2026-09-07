@@ -39,6 +39,14 @@ type Request struct {
 	Parent, Blocker, IssueType string // issue 관계 등록: 부모·blocker 번호와 issue 종류 이름
 	RelatedID                  string // plan 단계에서 gh로 조회한 관계 issue의 numeric database id
 
+	FilterPaths    []string // filter-repo: --path 반복
+	FilterRenames  []string // filter-repo: --path-rename <old:new> 반복
+	FilterReplaces []string // filter-repo: --replace-text 반복 (인라인 regex==>replacement 또는 파일 경로)
+	FilterMailmap  string   // filter-repo: --mailmap 파일 경로
+	FilterInvert   bool     // filter-repo: --invert-paths
+	FilterForce    bool     // filter-repo: --force (fresh-clone 확인)
+	FilterDryRun   bool     // filter-repo: --dry-run (미리보기만)
+
 	Help bool // action 단계의 --help 출력 요청 여부
 }
 
@@ -125,7 +133,7 @@ func setContextFlag(req *Request, flag, value string) error {
 }
 
 // flagLoop은 허용된 flag만 소비하고 positional 인자를 돌려준다.
-func flagLoop(req *Request, args []string, strs map[string]*string, bools map[string]*bool) ([]string, error) {
+func flagLoop(req *Request, args []string, strs map[string]*string, bools map[string]*bool, lists map[string]*[]string) ([]string, error) {
 	var pos []string
 	for i := 0; i < len(args); i++ {
 		a := args[i]
@@ -155,6 +163,14 @@ func flagLoop(req *Request, args []string, strs map[string]*string, bools map[st
 			*p = true
 			continue
 		}
+		if p, ok := lists[a]; ok {
+			if i+1 >= len(args) {
+				return nil, usageErr(a + " needs a value")
+			}
+			*p = append(*p, args[i+1])
+			i++
+			continue
+		}
 		if p, ok := strs[a]; ok {
 			if i+1 >= len(args) {
 				return nil, usageErr(a + " needs a value")
@@ -174,8 +190,8 @@ func parseRest(req *Request, ad *actionDef, args []string) error {
 		req.GitArgs = args
 		return nil
 	}
-	strs, bools := actionFlagMaps(ad, req)
-	pos, err := flagLoop(req, args, strs, bools)
+	strs, bools, lists := actionFlagMaps(ad, req)
+	pos, err := flagLoop(req, args, strs, bools, lists)
 	if err != nil {
 		return err
 	}

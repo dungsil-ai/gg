@@ -199,9 +199,10 @@ func renderFlagLines(flags []flagDef) string {
 }
 
 // actionFlagMaps는 action 정의의 flag을 Request 필드와 연결한다.
-func actionFlagMaps(ad *actionDef, req *Request) (map[string]*string, map[string]*bool) {
+func actionFlagMaps(ad *actionDef, req *Request) (map[string]*string, map[string]*bool, map[string]*[]string) {
 	strs := make(map[string]*string)
 	bools := make(map[string]*bool)
+	lists := make(map[string]*[]string)
 	for i := range ad.flags {
 		f := &ad.flags[i]
 		switch {
@@ -209,9 +210,11 @@ func actionFlagMaps(ad *actionDef, req *Request) (map[string]*string, map[string
 			strs[f.name] = f.str(req)
 		case f.bin != nil:
 			bools[f.name] = f.bin(req)
+		case f.list != nil:
+			lists[f.name] = f.list(req)
 		}
 	}
-	return strs, bools
+	return strs, bools, lists
 }
 
 // needsAction은 action이 빠졌을 때 오류 메시지를 만든다.

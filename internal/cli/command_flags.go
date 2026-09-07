@@ -2,11 +2,12 @@ package cli
 
 // flagDef는 action이 받는 flag 하나다.
 type flagDef struct {
-	name string                 // "--limit"
-	arg  string                 // 값 placeholder(예: "<N>"). 빈 문자열이면 boolean flag다.
-	desc string                 // help에 표시할 설명
-	str  func(*Request) *string // 값이 저장될 Request 필드
-	bin  func(*Request) *bool   // 켤 boolean Request 필드
+	name string                   // "--limit"
+	arg  string                   // 값 placeholder(예: "<N>"). 빈 문자열이면 boolean flag다.
+	desc string                   // help에 표시할 설명
+	str  func(*Request) *string   // 값이 저장될 Request 필드
+	bin  func(*Request) *bool     // 켤 boolean Request 필드
+	list func(*Request) *[]string // 반복 지정할 때마다 값을 추가할 Request 슬라이스 필드
 }
 
 var (
@@ -93,6 +94,20 @@ var (
 		str: func(r *Request) *string { return &r.Pattern }}
 	dirFlag = flagDef{name: "--dir", arg: "<dir>", desc: "Directory to download assets into",
 		str: func(r *Request) *string { return &r.Dir }}
+	filterPathFlag = flagDef{name: "--path", arg: "<path>", desc: "Limit history to this path (repeatable)",
+		list: func(r *Request) *[]string { return &r.FilterPaths }}
+	filterInvertPathsFlag = flagDef{name: "--invert-paths", desc: "Remove the listed paths instead of keeping them",
+		bin: func(r *Request) *bool { return &r.FilterInvert }}
+	filterPathRenameFlag = flagDef{name: "--path-rename", arg: "<old:new>", desc: "Rename a path prefix in history (repeatable)",
+		list: func(r *Request) *[]string { return &r.FilterRenames }}
+	filterReplaceTextFlag = flagDef{name: "--replace-text", arg: "<regex==>replacement|file>", desc: "Replace file contents matching regex (repeatable)",
+		list: func(r *Request) *[]string { return &r.FilterReplaces }}
+	filterMailmapFlag = flagDef{name: "--mailmap", arg: "<file>", desc: "Rewrite authors/committers using a mailmap file",
+		str: func(r *Request) *string { return &r.FilterMailmap }}
+	filterForceFlag = flagDef{name: "--force", desc: "Confirm history rewrite on a fresh clone backup",
+		bin: func(r *Request) *bool { return &r.FilterForce }}
+	filterDryRunFlag = flagDef{name: "--dry-run", desc: "Preview the rewrite without changing history",
+		bin: func(r *Request) *bool { return &r.FilterDryRun }}
 )
 
 // 저장소 문맥과 설명 모드 flag. 파싱은 전역/flagLoop의 공통 분기가 하고,
