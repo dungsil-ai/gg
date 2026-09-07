@@ -39,6 +39,10 @@ func run(args []string) int {
 		printAllVersions()
 		return 0
 	}
+	// gg api는 원시 passthrough(ADR 0007)라 action 모델로 파싱하지 않는다.
+	if _, ok := apiCommandIndex(args); ok {
+		return runAPIRelay(args)
+	}
 	req, err := ParseRequest(args)
 	if err != nil {
 		return fail(err)
