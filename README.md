@@ -685,6 +685,10 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gg ci retry` (GitHub: `gh run rerun`, GitLab: `glab ci retry`; GitLab id는 job id)
   - [x] `gg ci cancel` (GitHub: `gh run cancel`, GitLab: `glab ci cancel pipeline`; Gitea 미지원)
   - [x] `gg actions` (`gg ci`의 alias)
+- `히스토리 재작성`
+  - [x] `gg repo filter-repo` (외부 git-filter-repo 없이 `git fast-export`/`fast-import` 파이프라인으로 직접 재작성)
+  - `--path <path>` (반복 가능; 지정한 경로만 남김), `--invert-paths` (지정한 경로를 삭제), `--path-rename <old:new>` (반복 가능), `--replace-text <regex==>replacement|file>` (반복 가능; 파일이면 한 줄에 하나씩 `regex==>replacement`), `--mailmap <file>` (작성자·커미터 재작성), `--dry-run` (미리보기만), `--force` (재작성 확정)
+  - 안전장치: 작업 트리가 깨끗해야 하며 `--force` 없이 재작성하지 않습니다. fresh clone 백업을 먼저 만든 뒤 `--force`로 실행하고, 완료 후 재작성된 ref를 force-push합니다. `--repo`·`--remote`·`--explain`은 지원하지 않습니다.
 - `저장소 문맥`
   - [x] `--repo <URL>` (명시한 URL을 저장소 문맥으로 사용)
   - [x] `--remote <name>` (명시한 Git remote를 저장소 문맥으로 사용)
@@ -897,6 +901,21 @@ Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없�
 - Gitea (`tea`):
   - `gg ci` 전체는 미지원 오류(`ci is not supported for tea`)가 반환됩니다.
 - `gg actions`는 `gg ci`와 완전히 같은 동작을 합니다 (`gg actions list` 등).
+
+#### 히스토리 재작성 (`gg repo filter-repo`)
+- 미리보기 (히스토리를 바꾸지 않음):
+  ```bash
+  gg repo filter-repo --path secret.txt --invert-paths --dry-run
+  ```
+- 파일 삭제와 디렉터리 이름 변경:
+  ```bash
+  gg repo filter-repo --path secret.txt --invert-paths --path-rename docs:manual --force
+  ```
+- 민감 문자열 치환과 작성자 재작성 (mailmap 파일은 저장소 밖에 둡니다):
+  ```bash
+  gg repo filter-repo --replace-text 'password=\S+==>password=***' --mailmap /tmp/mailmap --force
+  ```
+- 재작성 후에는 reflog 만료와 gc로 예전 객체를 정리하고 작업 트리를 새 `HEAD`로 되돌립니다. 완료되면 재작성된 ref를 force-push합니다 (`git push --force --all && git push --force --tags`).
 
 # TOBE
 

@@ -54,6 +54,14 @@ func run(args []string) int {
 		}
 		return 0
 	}
+	// filter-repo는 forge 저장소 문맥 없이 현재 로컬 저장소를 직접 고치는
+	// 명령이라 plan/execChild 경로를 타지 않는다.
+	if req.Resource == "repo" && req.Action == "filter-repo" {
+		if err := runFilterRepo(req); err != nil {
+			return fail(err)
+		}
+		return 0
+	}
 	if req.Resource == "auth" {
 		if err := runAuth(req); err != nil {
 			return fail(err)
