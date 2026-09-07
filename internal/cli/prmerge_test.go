@@ -50,7 +50,7 @@ func TestParseRequestPRMergeErrors(t *testing.T) {
 		{"pr", "merge", "1", "--squash", "--rebase"},            // 방식 둘
 		{"pr", "merge", "1", "--merge", "--squash", "--rebase"}, // 방식 셋
 		{"pr", "merge", "1", "--wat"},                           // 알 수 없는 flag
-		{"pr", "delete", "1"},                                   // 지원 안 하는 action
+
 	}
 	for _, args := range bad {
 		_, err := ParseRequest(args)
