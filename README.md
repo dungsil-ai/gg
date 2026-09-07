@@ -482,7 +482,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [ ] `glab changelog generate`
 - [ ] `glab check-update`
 - `ci`
-  - [ ] `glab ci artifacts`
+  - [ ] `glab ci artifacts` (glab에 artifacts 하위 명령이 없어 중계 대상이 아님 — 문서 기준)
   - [x] `glab ci cancel` (대응: `gg ci cancel`)
   - [x] `glab ci delete` (대응: `gg ci delete`)
   - [x] `glab ci get` (대응: `gg ci view`)
@@ -490,9 +490,9 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `glab ci list` (대응: `gg ci list`)
   - [x] `glab ci retry` (대응: `gg ci retry`)
   - [x] `glab ci run` (대응: `gg ci run [--branch]`; gh·tea에 파이프라인 생성 하위 명령이 없어 미지원)
-  - [ ] `glab ci status`
+  - [x] `glab ci status` (대응: `gg ci status [--branch]`; gh·tea에 같은 역할의 하위 명령이 없어 미지원)
   - [x] `glab ci trace` (대응: `gg ci watch`)
-  - [ ] `glab ci trigger`
+  - [x] `glab ci trigger` (대응: `gg ci trigger <job-id>`; gh·tea에 수동 작업 실행 하위 명령이 없어 미지원)
   - [ ] `glab ci view`
 - `cluster`
   - [ ] `glab cluster agent`
