@@ -9,11 +9,11 @@ import (
 
 // issueResourceDef는 "issue" 최상위 명령의 정의다: list, view, create, edit,
 // comment(하위 list/edit/delete), close, reopen, delete, pin, unpin, lock,
-// unlock과 관계 등록(sub-issue, blocked-by, type).
+// unlock, status와 관계 등록(sub-issue, blocked-by, type).
 var issueResourceDef = &resourceDef{
 	name:    "issue",
-	summary: "List, view, create, comment on, close, reopen, delete, pin, lock, or link issues",
-	desc:    "List, view, create, comment on, close, reopen, delete, pin, lock, or link issues.",
+	summary: "List, view, create, comment on, close, reopen, delete, pin, lock, or link issues, and show issue status",
+	desc:    "List, view, create, comment on, close, reopen, delete, pin, lock, or link issues, and show issue status.",
 	usage:   "gg issue <command> [flags]",
 	actions: []actionDef{
 		{
@@ -22,6 +22,11 @@ var issueResourceDef = &resourceDef{
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
 			setPos: setState,
+		},
+		{
+			name: "status", summary: "Show status of relevant issues (GitHub only)", usage: "gg issue status [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
 		},
 		{
 			name: "view", summary: "View one issue", usage: "gg issue view <number> [flags]",
@@ -212,6 +217,7 @@ var ghOnlyIssueActions = map[string]bool{
 	"unlock":     true,
 	"pin":        true,
 	"unpin":      true,
+	"status":     true,
 }
 
 // isIssueNumber는 값이 issue 번호 형태(숫자만)인지 본다. 관계 API는 번호를 endpoint
@@ -354,6 +360,16 @@ var issuePinBuilders = providerBuilders{
 var issueUnpinBuilders = providerBuilders{
 	gh: func(c invocationContext) (args, env []string) {
 		return append([]string{"issue", "unpin", c.req.Number}, c.target...), nil
+	},
+}
+
+// issueStatusBuilders는 현재 사용자와 관련된 이슈 현황을 집계해 보여준다. gh
+// 전용 기능이라 gh builder만 등록하고, glab·tea는 ghOnlyIssueActions 사전
+// 가드와 run.go의 tea login 건너뛰기 목록이 미지원을 확정한다 (tea login을
+// 묻기 전에 거부된다).
+var issueStatusBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		return append([]string{"issue", "status"}, c.target...), nil
 	},
 }
 
@@ -516,6 +532,7 @@ var issueInvocationTable = map[string]providerBuilders{
 	"issue unlock":         issueUnlockBuilders,
 	"issue pin":            issuePinBuilders,
 	"issue unpin":          issueUnpinBuilders,
+	"issue status":         issueStatusBuilders,
 	"issue create":         issueCreateBuilders,
 	"issue edit":           issueEditBuilders,
 	"issue sub-issue":      issueSubIssueBuilders,
