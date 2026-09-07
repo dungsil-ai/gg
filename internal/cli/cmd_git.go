@@ -3,8 +3,9 @@ package cli
 import "slices"
 
 // 이 파일은 forge 라우팅 없이 Git에 직접 전달할 지원 명령을 정의한다.
-// Main Porcelain 37개, ancillary 14개, plumbing 70개를 하나의 registry에서 관리한다.
-// clone, commit, pull, push는 cmd_repo.go의 별도 동작을 유지한다.
+// Main Porcelain 37개, ancillary 14개, 외부 시스템 연동 10개, plumbing 70개를
+// 하나의 registry에서 관리한다. clone, commit, pull, push는 cmd_repo.go의 별도
+// 동작을 유지한다.
 
 // gitPassthroughActionNames는 forge 라우팅 없이 Git에 직접 전달할 지원 명령이다.
 var gitPassthroughActionNames = []string{
@@ -15,6 +16,8 @@ var gitPassthroughActionNames = []string{
 	"switch", "tag", "worktree",
 	"annotate", "blame", "bugreport", "count-objects", "diagnose", "difftool", "fsck",
 	"instaweb", "maintenance", "merge-tree", "mergetool", "prune-packed", "rerere", "scalar",
+	"archimport", "cvsexportcommit", "cvsimport", "cvsserver", "imap-send", "p4",
+	"quiltimport", "request-pull", "send-email", "svn",
 	"apply", "cat-file", "check-attr", "check-ignore", "check-mailmap", "check-ref-format",
 	"checkout-index", "column", "commit-graph", "commit-tree", "credential", "credential-cache",
 	"credential-store", "daemon", "diff-files", "diff-index", "diff-tree", "fast-export",

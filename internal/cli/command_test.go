@@ -373,6 +373,8 @@ func TestGitPassthroughActionSet(t *testing.T) {
 		"switch", "tag", "worktree",
 		"annotate", "blame", "bugreport", "count-objects", "diagnose", "difftool", "fsck",
 		"instaweb", "maintenance", "merge-tree", "mergetool", "prune-packed", "rerere", "scalar",
+		"archimport", "cvsexportcommit", "cvsimport", "cvsserver", "imap-send", "p4",
+		"quiltimport", "request-pull", "send-email", "svn",
 		"apply", "cat-file", "check-attr", "check-ignore", "check-mailmap", "check-ref-format",
 		"checkout-index", "column", "commit-graph", "commit-tree", "credential", "credential-cache",
 		"credential-store", "daemon", "diff-files", "diff-index", "diff-tree", "fast-export",
