@@ -102,6 +102,9 @@ var (
 	// label clone의 --force는 이미 있는 label을 덮어쓴다.
 	labelCloneForceFlag = flagDef{name: "--force", desc: "Overwrite existing labels in the destination",
 		bin: func(r *Request) *bool { return &r.Force }}
+	// pr rebase의 --skip-ci는 리베이스 후 CI 파이프라인 실행을 건너뛴다.
+	rebaseSkipCIFlag = flagDef{name: "--skip-ci", desc: "Rebase while skipping the CI/CD pipeline",
+		bin: func(r *Request) *bool { return &r.SkipCI }}
 	branchFlag = flagDef{name: "--branch", arg: "<branch>", desc: "Filter by branch",
 		str: func(r *Request) *string { return &r.Branch }}
 	notesFlag = flagDef{name: "--notes", arg: "<text>", desc: "Set the release notes",

@@ -438,7 +438,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `glab mr list` (대응: `gg pr list`)
   - [x] `glab mr merge` (대응: `gg pr merge`)
   - [x] `glab mr note` (대응: `gg pr comment`; `gg pr comment list|edit|delete`는 `glab api` 중계)
-  - [ ] `glab mr rebase`
+  - [x] `glab mr rebase` (대응: `gg pr rebase [--skip-ci]`; gh·tea에 MR 리베이스 하위 명령이 없어 미지원)
   - [x] `glab mr reopen` (대응: `gg pr reopen`)
   - [ ] `glab mr revoke`
   - [ ] `glab mr subscribe`
