@@ -109,16 +109,16 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
 <details>
 <summary>외부 시스템 연동 (Interacting with Others)</summary>
 
-- [ ] `git archimport`
-- [ ] `git cvsexportcommit`
-- [ ] `git cvsimport`
-- [ ] `git cvsserver`
-- [ ] `git imap-send`
-- [ ] `git p4`
-- [ ] `git quiltimport`
-- [ ] `git request-pull`
-- [ ] `git send-email`
-- [ ] `git svn`
+- [x] `git archimport` (대응: `gg repo archimport`, `gg archimport`)
+- [x] `git cvsexportcommit` (대응: `gg repo cvsexportcommit`, `gg cvsexportcommit`)
+- [x] `git cvsimport` (대응: `gg repo cvsimport`, `gg cvsimport`)
+- [x] `git cvsserver` (대응: `gg repo cvsserver`, `gg cvsserver`)
+- [x] `git imap-send` (대응: `gg repo imap-send`, `gg imap-send`)
+- [x] `git p4` (대응: `gg repo p4`, `gg p4`)
+- [x] `git quiltimport` (대응: `gg repo quiltimport`, `gg quiltimport`)
+- [x] `git request-pull` (대응: `gg repo request-pull`, `gg request-pull`)
+- [x] `git send-email` (대응: `gg repo send-email`, `gg send-email`)
+- [x] `git svn` (대응: `gg repo svn`, `gg svn`)
 
 </details>
 
@@ -711,7 +711,7 @@ gg config set --help
 ```
 
 `gg <cmd> --help`와 `gg repo <cmd> --help`는 `list`, `view`, `create`, `clone`, `pull`, `push`에서 같은 gg help를 제공합니다. `gg repo commit --help`도 gg가 처리합니다.
-`gg commit --help`는 `--no-gpg-sign`을 추가해 git에 전달합니다. Git Main Porcelain 37개와 ancillary 14개 registry 명령은 `gg <cmd> --help`와 `gg repo <cmd> --help` 모두 명령 뒤에 둔 `--help`를 포함한 모든 인자를 git에 그대로 전달합니다.
+`gg commit --help`는 `--no-gpg-sign`을 추가해 git에 전달합니다. Git Main Porcelain 37개와 ancillary 14개, 외부 시스템 연동 10개 registry 명령은 `gg <cmd> --help`와 `gg repo <cmd> --help` 모두 명령 뒤에 둔 `--help`를 포함한 모든 인자를 git에 그대로 전달합니다.
 Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없습니다.
 
 ### 사용 예시 (Usage Examples)
