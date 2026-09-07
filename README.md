@@ -242,13 +242,13 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gh pr diff` (대응: `gg pr diff`)
   - [x] `gh pr edit` (대응: `gg pr edit`)
   - [x] `gh pr list` (대응: `gg pr list`)
-  - [ ] `gh pr lock`
+  - [x] `gh pr lock` (대응: `gg pr lock [--reason]`; glab·tea에 PR 잠금 하위 명령이 없어 미지원)
   - [x] `gh pr merge` (대응: `gg pr merge`)
   - [x] `gh pr ready` (대응: `gg pr ready`)
   - [x] `gh pr reopen` (대응: `gg pr reopen`)
   - [ ] `gh pr review`
   - [ ] `gh pr status`
-  - [ ] `gh pr unlock`
+  - [x] `gh pr unlock` (대응: `gg pr unlock`; glab·tea에 PR 잠금 해제 하위 명령이 없어 미지원)
   - [ ] `gh pr update-branch`
   - [x] `gh pr view` (대응: `gg pr view`)
 - `release`

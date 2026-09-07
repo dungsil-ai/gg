@@ -6,12 +6,12 @@ import (
 )
 
 // prResourceDef는 "pr" 최상위 명령의 정의다: list, view, checkout, create,
-// edit, comment(하위 list/edit/delete), status, ready, merge, close, reopen, diff.
-// alias: mr (command_registry.go의 commandAliases에서 연결).
+// edit, comment(하위 list/edit/delete), status, ready, merge, close, reopen,
+// diff, lock, unlock. alias: mr (command_registry.go의 commandAliases에서 연결).
 var prResourceDef = &resourceDef{
 	name:    "pr",
-	summary: "List, view, check out, create, edit, comment on, diff, merge, or close pull requests, and check merge readiness (alias: mr)",
-	desc:    "List, view, check out, create, edit, comment on, diff, merge, or close pull requests, and check merge readiness.",
+	summary: "List, view, check out, create, edit, comment on, diff, merge, lock, or close pull requests, and check merge readiness (alias: mr)",
+	desc:    "List, view, check out, create, edit, comment on, diff, merge, lock, or close pull requests, and check merge readiness.",
 	usage:   "gg pr <command> [flags]",
 	actions: []actionDef{
 		{
@@ -169,6 +169,31 @@ var prResourceDef = &resourceDef{
 			remoteOK: true, explainOK: true,
 			minPos: 1, maxPos: 1,
 			posErr: "usage: gg pr reopen <number>",
+			setPos: setNumber,
+		},
+		{
+			name: "lock", summary: "Lock a pull request conversation (GitHub only)", usage: "gg pr lock <number> [flags]",
+			flags:    []flagDef{lockReasonFlag},
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr lock <number>",
+			setPos: func(req *Request, pos []string) error {
+				switch req.Reason {
+				case "", "off_topic", "resolved", "spam", "too_heated":
+				default:
+					return usageErr("--reason must be off_topic, resolved, spam, or too_heated")
+				}
+				req.Number = pos[0]
+				return nil
+			},
+		},
+		{
+			name: "unlock", summary: "Unlock a locked pull request conversation (GitHub only)", usage: "gg pr unlock <number> [flags]",
+			showRepo: true, showRemote: true, showExplain: true,
+			remoteOK: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg pr unlock <number>",
 			setPos: setNumber,
 		},
 	},
@@ -353,6 +378,23 @@ var prCommentDeleteBuilders = providerBuilders{
 	},
 }
 
+// prLockBuilders는 PR 대화 잠금을 중계한다. gh 전용 기능이라 gh builder만
+// 등록하고, glab·tea는 glabInvocation·teaInvocation 사전 가드와 run.go의
+// tea login 건너뛰기 목록이 미지원을 확정한다 (tea login을 묻기 전에 거부된다).
+// --reason은 gh의 잠금 사유 enum이라 gg에서 미리 검증한다.
+var prLockBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		args = append([]string{c.res, "lock", c.req.Number}, c.target...)
+		return appendKV(args, "--reason", c.req.Reason), nil
+	},
+}
+
+var prUnlockBuilders = providerBuilders{
+	gh: func(c invocationContext) (args, env []string) {
+		return append([]string{c.res, "unlock", c.req.Number}, c.target...), nil
+	},
+}
+
 // prInvocationTable은 "pr <action>" 키로 gh/glab/tea의 arg-builder를 모은다.
 // tea의 pr merge/status/ready와 pr comment list/edit/delete는 teaInvocation의
 // 사전 가드에서 걸러지므로 여기에는 등록하지 않는다 — provider별 예외는 감추지
@@ -449,6 +491,8 @@ var prInvocationTable = map[string]providerBuilders{
 	},
 	"pr create": prCreateBuilders,
 	"pr edit":   prEditBuilders,
+	"pr lock":   prLockBuilders,
+	"pr unlock": prUnlockBuilders,
 
 	"pr comment":        prCommentBuilders,
 	"pr comment list":   prCommentListBuilders,
