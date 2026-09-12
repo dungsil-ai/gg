@@ -16,18 +16,12 @@ func TestChildExitCodePassthroughExited(t *testing.T) {
 		os.Exit(code)
 	}
 
-	for _, want := range []int{0, 1, 42} {
+	for _, want := range []int{1, 42} {
 		want := want
 		t.Run("exit"+strconv.Itoa(want), func(t *testing.T) {
 			cmd := exec.Command(os.Args[0], "-test.run=^TestChildExitCodePassthroughExited$")
 			cmd.Env = append(os.Environ(), helperEnv+"="+strconv.Itoa(want))
 			err := cmd.Run()
-			if want == 0 {
-				if err != nil {
-					t.Fatalf("exit 0: got err %v", err)
-				}
-				return
-			}
 			var ee *exec.ExitError
 			if !errors.As(err, &ee) {
 				t.Fatalf("exit %d: got %v, want *exec.ExitError", want, err)

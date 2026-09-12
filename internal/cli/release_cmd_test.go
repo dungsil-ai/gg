@@ -271,19 +271,19 @@ func TestE2EReleaseInvocations(t *testing.T) {
 		dir  string
 		want string
 	}{
-		{[]string{"release", "list"}, ghRepo, "gh release list -R github.com/o/r"},
-		{[]string{"release", "list", "--limit", "5"}, ghRepo, "gh release list -R github.com/o/r --limit 5"},
-		{[]string{"release", "view", "v1.0.0"}, ghRepo, "gh release view v1.0.0 -R github.com/o/r"},
-		{[]string{"release", "view"}, ghRepo, "gh release view -R github.com/o/r"},
+		{[]string{"release", "list"}, ghRepo, wantCall("gh", "release", "list", "-R", "github.com/o/r")},
+		{[]string{"release", "list", "--limit", "5"}, ghRepo, wantCall("gh", "release", "list", "-R", "github.com/o/r", "--limit", "5")},
+		{[]string{"release", "view", "v1.0.0"}, ghRepo, wantCall("gh", "release", "view", "v1.0.0", "-R", "github.com/o/r")},
+		{[]string{"release", "view"}, ghRepo, wantCall("gh", "release", "view", "-R", "github.com/o/r")},
 		{[]string{"release", "create", "v1.0.0", "--title", "t", "--notes", "n", "--draft"}, ghRepo,
-			"gh release create v1.0.0 --title t --notes n --draft -R github.com/o/r"},
-		{[]string{"release", "delete", "v1.0.0", "--yes"}, ghRepo, "gh release delete v1.0.0 -R github.com/o/r --yes"},
-		{[]string{"release", "upload", "v1.0.0", "a.zip"}, ghRepo, "gh release upload v1.0.0 a.zip -R github.com/o/r"},
-		{[]string{"release", "list"}, glabRepo, "glab release list --repo https://gitlab.com/o/r"},
+			wantCall("gh", "release", "create", "v1.0.0", "--title", "t", "--notes", "n", "--draft", "-R", "github.com/o/r")},
+		{[]string{"release", "delete", "v1.0.0", "--yes"}, ghRepo, wantCall("gh", "release", "delete", "v1.0.0", "-R", "github.com/o/r", "--yes")},
+		{[]string{"release", "upload", "v1.0.0", "a.zip"}, ghRepo, wantCall("gh", "release", "upload", "v1.0.0", "a.zip", "-R", "github.com/o/r")},
+		{[]string{"release", "list"}, glabRepo, wantCall("glab", "release", "list", "--repo", "https://gitlab.com/o/r")},
 		{[]string{"release", "create", "v1.0.0", "a.zip", "--ref", "main"}, glabRepo,
-			"glab release create v1.0.0 a.zip --ref main --repo https://gitlab.com/o/r"},
+			wantCall("glab", "release", "create", "v1.0.0", "a.zip", "--ref", "main", "--repo", "https://gitlab.com/o/r")},
 		{[]string{"release", "download", "--pattern", "*.zip", "--dir", "dist"}, glabRepo,
-			"glab release download --asset-name *.zip --dir dist --repo https://gitlab.com/o/r"},
+			wantCall("glab", "release", "download", "--asset-name", "*.zip", "--dir", "dist", "--repo", "https://gitlab.com/o/r")},
 	}
 	for _, tc := range cases {
 		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
@@ -312,13 +312,13 @@ func TestE2EReleaseGiteaArgv(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"release", "list"}, "tea releases list --login pub --repo o/r"},
-		{[]string{"release", "list", "--limit", "5"}, "tea releases list --login pub --repo o/r --limit 5"},
-		{[]string{"release", "create", "v1.0.0", "--title", "t", "--notes", "n", "--ref", "main"}, "tea releases create --login pub --repo o/r --tag v1.0.0 --title t --note n --target main"},
-		{[]string{"release", "create", "v1.0.0", "a.zip"}, "tea releases create --login pub --repo o/r --tag v1.0.0 --asset a.zip"},
-		{[]string{"release", "delete", "v1.0.0", "--yes", "--cleanup-tag"}, "tea releases delete v1.0.0 --login pub --repo o/r --confirm --delete-tag"},
-		{[]string{"release", "edit", "v1.0.0", "--title", "t2"}, "tea releases edit v1.0.0 --login pub --repo o/r --title t2"},
-		{[]string{"release", "edit", "v1.0.0", "--draft"}, "tea releases edit v1.0.0 --login pub --repo o/r --draft=true"},
+		{[]string{"release", "list"}, wantTeaCall("releases", "list", "--login", "pub", "--repo", "o/r")},
+		{[]string{"release", "list", "--limit", "5"}, wantTeaCall("releases", "list", "--login", "pub", "--repo", "o/r", "--limit", "5")},
+		{[]string{"release", "create", "v1.0.0", "--title", "t", "--notes", "n", "--ref", "main"}, wantTeaCall("releases", "create", "--login", "pub", "--repo", "o/r", "--tag", "v1.0.0", "--title", "t", "--note", "n", "--target", "main")},
+		{[]string{"release", "create", "v1.0.0", "a.zip"}, wantTeaCall("releases", "create", "--login", "pub", "--repo", "o/r", "--tag", "v1.0.0", "--asset", "a.zip")},
+		{[]string{"release", "delete", "v1.0.0", "--yes", "--cleanup-tag"}, wantTeaCall("releases", "delete", "v1.0.0", "--login", "pub", "--repo", "o/r", "--confirm", "--delete-tag")},
+		{[]string{"release", "edit", "v1.0.0", "--title", "t2"}, wantTeaCall("releases", "edit", "v1.0.0", "--login", "pub", "--repo", "o/r", "--title", "t2")},
+		{[]string{"release", "edit", "v1.0.0", "--draft"}, wantTeaCall("releases", "edit", "v1.0.0", "--login", "pub", "--repo", "o/r", "--draft=true")},
 	}
 	for _, tc := range relays {
 		if err := os.WriteFile(logFile, nil, 0o600); err != nil {

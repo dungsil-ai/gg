@@ -22,21 +22,21 @@ func TestE2EPRDeleteArgv(t *testing.T) {
 			remote:   "https://gitlab.com/o/r.git",
 			fakeName: "glab",
 			args:     []string{"pr", "delete", "42"},
-			want:     "glab mr delete 42 --repo https://gitlab.com/o/r",
+			want:     wantCall("glab", "mr", "delete", "42", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:     "glab delete repo flag",
 			remote:   "https://gitlab.com/o/r.git",
 			fakeName: "glab",
 			args:     []string{"--repo", "https://gitlab.com/custom/repo", "pr", "delete", "42"},
-			want:     "glab mr delete 42 --repo https://gitlab.com/custom/repo",
+			want:     wantCall("glab", "mr", "delete", "42", "--repo", "https://gitlab.com/custom/repo"),
 		},
 		{
 			name:     "glab delete remote flag",
 			remote:   "upstream",
 			fakeName: "glab",
 			args:     []string{"pr", "delete", "42", "--remote", "upstream"},
-			want:     "glab mr delete 42 --repo https://gitlab.com/o/upstream",
+			want:     wantCall("glab", "mr", "delete", "42", "--repo", "https://gitlab.com/o/upstream"),
 		},
 	}
 
@@ -94,7 +94,7 @@ func TestE2EPRDeleteUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "gh", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)

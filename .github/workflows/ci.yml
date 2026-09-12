@@ -6,6 +6,8 @@ on:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
+      - '.github/workflows/**'
+      - 'README.md'
   push:
     branches:
       - main
@@ -13,6 +15,8 @@ on:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
+      - '.github/workflows/**'
+      - 'README.md'
 permissions:
   contents: read
 

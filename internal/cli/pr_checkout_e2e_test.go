@@ -21,35 +21,35 @@ func TestE2EPRCheckoutArgv(t *testing.T) {
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"pr", "checkout", "42"},
-			want:     "gh pr checkout 42 -R github.com/o/r",
+			want:     wantCall("gh", "pr", "checkout", "42", "-R", "github.com/o/r"),
 		},
 		{
 			name:     "github checkout repo flag",
 			remote:   "",
 			fakeName: "gh",
 			args:     []string{"--repo", "https://github.com/custom/repo", "pr", "checkout", "42"},
-			want:     "gh pr checkout 42 -R github.com/custom/repo",
+			want:     wantCall("gh", "pr", "checkout", "42", "-R", "github.com/custom/repo"),
 		},
 		{
 			name:     "gitlab checkout",
 			remote:   "https://gitlab.com/o/r.git",
 			fakeName: "glab",
 			args:     []string{"pr", "checkout", "42"},
-			want:     "glab mr checkout 42 --repo https://gitlab.com/o/r",
+			want:     wantCall("glab", "mr", "checkout", "42", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:     "gitlab checkout mr alias",
 			remote:   "https://gitlab.com/o/r.git",
 			fakeName: "glab",
 			args:     []string{"mr", "checkout", "42"},
-			want:     "glab mr checkout 42 --repo https://gitlab.com/o/r",
+			want:     wantCall("glab", "mr", "checkout", "42", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:     "gitea checkout",
 			remote:   "https://gitea.com/o/r.git",
 			fakeName: "tea",
 			args:     []string{"pr", "checkout", "42"},
-			want:     "tea pulls checkout 42 --login pub --repo o/r",
+			want:     wantTeaCall("pulls", "checkout", "42", "--login", "pub", "--repo", "o/r"),
 		},
 	}
 
@@ -128,13 +128,14 @@ func TestE2EPRCheckoutUsageErrors(t *testing.T) {
 
 func TestE2EPRCheckoutExplain(t *testing.T) {
 	for _, tc := range []struct {
-		name     string
-		remote   string
-		fakeName string
+		name      string
+		remote    string
+		fakeName  string
+		wantCalls string
 	}{
 		{name: "gh", remote: "https://github.com/o/r.git", fakeName: "gh"},
 		{name: "glab", remote: "https://gitlab.com/o/r.git", fakeName: "glab"},
-		{name: "tea", remote: "https://gitea.com/o/r.git", fakeName: "tea"},
+		{name: "tea", remote: "https://gitea.com/o/r.git", fakeName: "tea", wantCalls: wantCall("tea", "logins", "list", "--output", "json")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			bin := buildGG(t)
@@ -157,8 +158,9 @@ func TestE2EPRCheckoutExplain(t *testing.T) {
 				if !strings.Contains(out, "Provider: "+tc.fakeName) || !strings.Contains(out, "CLI: "+tc.fakeName) {
 					t.Errorf("gg %v output unexpected:\n%s", args, out)
 				}
-				if got := readLog(t, logFile); got != "" {
-					t.Errorf("gg %v child should not run, got: %q", args, got)
+				// tea는 실행 계획에 사용할 login을 조회하지만 checkout은 실행하지 않는다.
+				if got := readLog(t, logFile); got != tc.wantCalls {
+					t.Errorf("gg %v provider calls = %q, want %q", args, got, tc.wantCalls)
 				}
 			}
 		})

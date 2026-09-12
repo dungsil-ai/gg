@@ -19,13 +19,13 @@ func TestE2ERepoMirrorArgv(t *testing.T) {
 			name:   "glab mirror",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"repo", "mirror", "--url", "https://example.com/o/r.git"},
-			want:   "glab repo mirror --repo https://gitlab.com/o/r --url https://example.com/o/r.git",
+			want:   wantCall("glab", "repo", "mirror", "--repo", "https://gitlab.com/o/r", "--url", "https://example.com/o/r.git"),
 		},
 		{
 			name:   "glab mirror repo flag",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"--repo", "https://gitlab.com/custom/repo", "repo", "mirror", "--url", "https://example.com/o/r.git"},
-			want:   "glab repo mirror --repo https://gitlab.com/custom/repo --url https://example.com/o/r.git",
+			want:   wantCall("glab", "repo", "mirror", "--repo", "https://gitlab.com/custom/repo", "--url", "https://example.com/o/r.git"),
 		},
 	}
 
@@ -77,7 +77,7 @@ func TestE2ERepoMirrorUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "gh", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)

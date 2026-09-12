@@ -21,37 +21,37 @@ func TestE2EAPIRelayArgv(t *testing.T) {
 			name:   "gh api relay",
 			remote: "https://github.com/o/r.git",
 			args:   []string{"api", "repos/o/r/issues/1"},
-			want:   "gh api repos/o/r/issues/1",
+			want:   wantCall("gh", "api", "repos/o/r/issues/1"),
 		},
 		{
 			name:   "gh api relay with flags",
 			remote: "https://github.com/o/r.git",
 			args:   []string{"api", "--method", "POST", "repos/o/r/issues", "-f", "title=t"},
-			want:   "gh api --method POST repos/o/r/issues -f title=t",
+			want:   wantCall("gh", "api", "--method", "POST", "repos/o/r/issues", "-f", "title=t"),
 		},
 		{
 			name:   "glab api relay",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"api", "projects/o%2Fr/issues/1"},
-			want:   "glab api projects/o%2Fr/issues/1",
+			want:   wantCall("glab", "api", "projects/o%2Fr/issues/1"),
 		},
 		{
 			name:   "tea api relay",
 			remote: "https://gitea.com/o/r.git",
 			args:   []string{"api", "repos/o/r/issues/1"},
-			want:   "tea api --login pub --repo o/r repos/o/r/issues/1",
+			want:   wantTeaCall("api", "--login", "pub", "--repo", "o/r", "repos/o/r/issues/1"),
 		},
 		{
 			name:   "gh api with context repo flag",
 			remote: "",
 			args:   []string{"--repo", "https://github.com/custom/repo", "api", "repos/custom/repo/issues/1"},
-			want:   "gh api repos/custom/repo/issues/1",
+			want:   wantCall("gh", "api", "repos/custom/repo/issues/1"),
 		},
 		{
 			name:   "gh api with context remote flag",
 			remote: "",
 			args:   []string{"--remote", "upstream", "api", "repos/o/upstream/issues/1"},
-			want:   "gh api repos/o/upstream/issues/1",
+			want:   wantCall("gh", "api", "repos/o/upstream/issues/1"),
 		},
 	}
 
@@ -94,6 +94,37 @@ func TestE2EAPIRelayNoRepoContext(t *testing.T) {
 	}
 	if got := readLog(t, logFile); got != "" {
 		t.Errorf("gh should not run, got %q", got)
+	}
+}
+
+func TestE2EAPIRelayPreservesArgumentBoundaries(t *testing.T) {
+	bin := buildGG(t)
+	for _, tc := range []struct {
+		provider string
+		remote   string
+		want     string
+	}{
+		{"gh", "https://github.com/o/r.git", wantCall("gh", "api", "repos/o/r/issues", "-f", "title=hello world", "-f", "body=line one\nline two", "--header", "", "--header", "X-Quote: \"quoted\"")},
+		{"glab", "https://gitlab.com/o/r.git", wantCall("glab", "api", "repos/o/r/issues", "-f", "title=hello world", "-f", "body=line one\nline two", "--header", "", "--header", "X-Quote: \"quoted\"")},
+		{"tea", "https://gitea.com/o/r.git", wantTeaCall("api", "--login", "pub", "--repo", "o/r", "repos/o/r/issues", "-f", "title=hello world", "-f", "body=line one\nline two", "--header", "", "--header", "X-Quote: \"quoted\"")},
+	} {
+		t.Run(tc.provider, func(t *testing.T) {
+			fakeDir := t.TempDir()
+			logFile := filepath.Join(t.TempDir(), "calls.log")
+			if tc.provider == "tea" {
+				writeFakeTeaWithLogin(t, fakeDir, logFile)
+			} else {
+				writeFakeBin(t, fakeDir, tc.provider, logFile)
+			}
+			repo := tempRepo(t, tc.remote)
+			out, code := runGG(t, bin, fakeDir, repo, "api", "repos/o/r/issues", "-f", "title=hello world", "-f", "body=line one\nline two", "--header", "", "--header", "X-Quote: \"quoted\"")
+			if code != 0 {
+				t.Fatalf("exit %d: %s", code, out)
+			}
+			if got := readLog(t, logFile); got != tc.want {
+				t.Errorf("provider argv = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 

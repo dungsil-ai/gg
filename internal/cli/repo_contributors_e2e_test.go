@@ -19,19 +19,19 @@ func TestE2ERepoContributorsArgv(t *testing.T) {
 			name:   "glab contributors",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"repo", "contributors"},
-			want:   "glab repo contributors --repo https://gitlab.com/o/r",
+			want:   wantCall("glab", "repo", "contributors", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:   "glab contributors repo flag",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"--repo", "https://gitlab.com/custom/repo", "repo", "contributors"},
-			want:   "glab repo contributors --repo https://gitlab.com/custom/repo",
+			want:   wantCall("glab", "repo", "contributors", "--repo", "https://gitlab.com/custom/repo"),
 		},
 		{
 			name:   "glab contributors shortcut",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"contributors"},
-			want:   "glab repo contributors --repo https://gitlab.com/o/r",
+			want:   wantCall("glab", "repo", "contributors", "--repo", "https://gitlab.com/o/r"),
 		},
 	}
 
@@ -83,7 +83,7 @@ func TestE2ERepoContributorsUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "gh", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)

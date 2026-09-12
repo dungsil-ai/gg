@@ -35,25 +35,19 @@ func TestE2EAuthStatusShowsProviderTable(t *testing.T) {
 	if out != want {
 		t.Fatalf("stdout = %q, want %q", out, want)
 	}
-	// host당 provider CLI 호출이 정확히 한 번이다. Windows cmd echo가
-	// redirection 앞 공백을 남기므로 행별로 정돈해 비교한다.
-	got := normalizeLines(readLog(t, logFile))
-	wantLog := "tea logins list --output json\n" +
-		"tea logins list --output json\n" +
-		"gh auth status --hostname github.com --json hosts\n" +
-		"glab auth status --hostname gitlab.com"
-	if got != wantLog {
-		t.Fatalf("provider argv log = %q, want %q", got, wantLog)
+	// 각 host의 조회 횟수는 검증하지만 서로 독립적인 조회 순서는 고정하지 않는다.
+	got := strings.Split(readLog(t, logFile), "\n")
+	wantCalls := []string{
+		wantCall("tea", "logins", "list", "--output", "json"),
+		wantCall("tea", "logins", "list", "--output", "json"),
+		wantCall("gh", "auth", "status", "--hostname", "github.com", "--json", "hosts"),
+		wantCall("glab", "auth", "status", "--hostname", "gitlab.com"),
 	}
-}
-
-// normalizeLines는 로그 비교를 위해 각 행을 trim하고 \n으로 맞춘다.
-func normalizeLines(s string) string {
-	lines := strings.Split(strings.ReplaceAll(s, "\r\n", "\n"), "\n")
-	for i := range lines {
-		lines[i] = strings.TrimSpace(lines[i])
+	slices.Sort(got)
+	slices.Sort(wantCalls)
+	if !slices.Equal(got, wantCalls) {
+		t.Fatalf("provider calls = %q, want %q", got, wantCalls)
 	}
-	return strings.Join(lines, "\n")
 }
 
 // TestE2EAuthStatusRowFailuresAreValues는 행별 조회 실패와 미로그인이

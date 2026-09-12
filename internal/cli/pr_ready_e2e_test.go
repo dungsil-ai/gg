@@ -2,8 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"fmt"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -13,60 +11,17 @@ import (
 // writeFakeReadyBin은 stdout, stderr, exitCode를 제어하고 호출 argv를 logFile에 남기는 fake provider CLI를 만든다.
 func writeFakeReadyBin(t *testing.T, dir, name, logFile string, stdout, stderr string, exitCode int) {
 	t.Helper()
-	var path, body string
+	nl := "\n"
 	if runtime.GOOS == "windows" {
-		path = filepath.Join(dir, name+".cmd")
-		var b strings.Builder
-		b.WriteString("@echo off\r\n")
-		// chcp 65001로 로그를 UTF-8로 기록한다. 기본 OEM 코드페이지(CP949 등)로
-		// 남으면 한글 argv 단언이 깨진다 (writeFakeBin과 같은 처리).
-		b.WriteString("chcp 65001 >nul\r\n")
-		if logFile != "" {
-			b.WriteString("echo " + name + " %* >> \"" + logFile + "\"\r\n")
-		}
-		if stdout != "" {
-			for _, line := range strings.Split(stdout, "\n") {
-				if line != "" {
-					b.WriteString("(echo " + line + ")\r\n")
-				}
-			}
-		}
-		if stderr != "" {
-			for _, line := range strings.Split(stderr, "\n") {
-				if line != "" {
-					b.WriteString("(echo " + line + ") 1>&2\r\n")
-				}
-			}
-		}
-		b.WriteString(fmt.Sprintf("exit /b %d\r\n", exitCode))
-		body = b.String()
-	} else {
-		path = filepath.Join(dir, name)
-		var b strings.Builder
-		b.WriteString("#!/bin/sh\n")
-		if logFile != "" {
-			b.WriteString("echo \"" + name + " $@\" >> \"" + logFile + "\"\n")
-		}
-		if stdout != "" {
-			for _, line := range strings.Split(stdout, "\n") {
-				if line != "" {
-					b.WriteString("echo \"" + line + "\"\n")
-				}
-			}
-		}
-		if stderr != "" {
-			for _, line := range strings.Split(stderr, "\n") {
-				if line != "" {
-					b.WriteString("echo \"" + line + "\" >&2\n")
-				}
-			}
-		}
-		b.WriteString(fmt.Sprintf("exit %d\n", exitCode))
-		body = b.String()
+		nl = "\r\n"
 	}
-	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
-		t.Fatal(err)
+	if stdout != "" {
+		stdout += nl
 	}
+	if stderr != "" {
+		stderr += nl
+	}
+	writeFakeCLI(t, dir, name, fakeCLIConfig{LogFile: logFile, Stdout: stdout, Stderr: stderr, ExitCode: exitCode})
 }
 
 // runGGStreamsWithFake는 fakeDir를 PATH 앞에 붙여 실행하고 stdout, stderr, exit code를 분리 반환한다.
@@ -96,28 +51,28 @@ func TestE2EPRReadyArgv(t *testing.T) {
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"pr", "ready", "42"},
-			want:     "gh pr ready 42 -R github.com/o/r",
+			want:     wantCall("gh", "pr", "ready", "42", "-R", "github.com/o/r"),
 		},
 		{
 			name:     "github draft",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"pr", "ready", "42", "--undo"},
-			want:     "gh pr ready 42 --undo -R github.com/o/r",
+			want:     wantCall("gh", "pr", "ready", "42", "--undo", "-R", "github.com/o/r"),
 		},
 		{
 			name:     "gitlab ready",
 			remote:   "https://gitlab.com/o/r.git",
 			fakeName: "glab",
 			args:     []string{"pr", "ready", "42"},
-			want:     "glab mr update 42 --ready --repo https://gitlab.com/o/r",
+			want:     wantCall("glab", "mr", "update", "42", "--ready", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:     "gitlab draft",
 			remote:   "https://gitlab.com/o/r.git",
 			fakeName: "glab",
 			args:     []string{"pr", "ready", "42", "--undo"},
-			want:     "glab mr update 42 --draft --repo https://gitlab.com/o/r",
+			want:     wantCall("glab", "mr", "update", "42", "--draft", "--repo", "https://gitlab.com/o/r"),
 		},
 	}
 
@@ -152,8 +107,8 @@ func TestE2EPRReadyRepositoryContext(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit %d: %s", code, out)
 		}
-		if got := readLog(t, logFile); got != "gh pr ready 42 -R github.com/custom/repo" {
-			t.Errorf("argv = %q, want %q", got, "gh pr ready 42 -R github.com/custom/repo")
+		if got := readLog(t, logFile); got != wantCall("gh", "pr", "ready", "42", "-R", "github.com/custom/repo") {
+			t.Errorf("argv = %q, want %q", got, wantCall("gh", "pr", "ready", "42", "-R", "github.com/custom/repo"))
 		}
 	})
 
@@ -167,8 +122,8 @@ func TestE2EPRReadyRepositoryContext(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit %d: %s", code, out)
 		}
-		if got := readLog(t, logFile); got != "glab mr update 42 --draft --repo https://gitlab.com/custom/repo" {
-			t.Errorf("argv = %q, want %q", got, "glab mr update 42 --draft --repo https://gitlab.com/custom/repo")
+		if got := readLog(t, logFile); got != wantCall("glab", "mr", "update", "42", "--draft", "--repo", "https://gitlab.com/custom/repo") {
+			t.Errorf("argv = %q, want %q", got, wantCall("glab", "mr", "update", "42", "--draft", "--repo", "https://gitlab.com/custom/repo"))
 		}
 	})
 
@@ -182,8 +137,8 @@ func TestE2EPRReadyRepositoryContext(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit %d: %s", code, out)
 		}
-		if got := readLog(t, logFile); got != "gh pr ready 42 -R github.com/o/upstream" {
-			t.Errorf("argv = %q, want %q", got, "gh pr ready 42 -R github.com/o/upstream")
+		if got := readLog(t, logFile); got != wantCall("gh", "pr", "ready", "42", "-R", "github.com/o/upstream") {
+			t.Errorf("argv = %q, want %q", got, wantCall("gh", "pr", "ready", "42", "-R", "github.com/o/upstream"))
 		}
 	})
 
@@ -197,8 +152,8 @@ func TestE2EPRReadyRepositoryContext(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit %d: %s", code, out)
 		}
-		if got := readLog(t, logFile); got != "gh pr ready 42 --undo -R github.com/o/upstream" {
-			t.Errorf("argv = %q, want %q", got, "gh pr ready 42 --undo -R github.com/o/upstream")
+		if got := readLog(t, logFile); got != wantCall("gh", "pr", "ready", "42", "--undo", "-R", "github.com/o/upstream") {
+			t.Errorf("argv = %q, want %q", got, wantCall("gh", "pr", "ready", "42", "--undo", "-R", "github.com/o/upstream"))
 		}
 	})
 }

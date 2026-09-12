@@ -3,7 +3,6 @@ package cli
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -19,11 +18,11 @@ func TestE2EGitHubIssueCommentCRUD(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"issue", "comment", "18", "--body", "fixed"}, "gh issue comment 18 --body fixed -R github.com/o/origin"},
-		{[]string{"issue", "comment", "list", "18"}, "gh api repos/o/origin/issues/18/comments"},
-		{[]string{"issue", "comment", "edit", "18", "77", "--body", "edited"}, "gh api -X PATCH repos/o/origin/issues/comments/77 -f body=edited"},
-		{[]string{"issue", "comment", "delete", "18", "77"}, "gh api -X DELETE repos/o/origin/issues/comments/77"},
-		{[]string{"--repo", "https://github.com/custom/repo", "issue", "comment", "list", "18"}, "gh api repos/custom/repo/issues/18/comments"},
+		{[]string{"issue", "comment", "18", "--body", "fixed"}, wantCall("gh", "issue", "comment", "18", "--body", "fixed", "-R", "github.com/o/origin")},
+		{[]string{"issue", "comment", "list", "18"}, wantCall("gh", "api", "repos/o/origin/issues/18/comments")},
+		{[]string{"issue", "comment", "edit", "18", "77", "--body", "edited"}, wantCall("gh", "api", "-X", "PATCH", "repos/o/origin/issues/comments/77", "-f", "body=edited")},
+		{[]string{"issue", "comment", "delete", "18", "77"}, wantCall("gh", "api", "-X", "DELETE", "repos/o/origin/issues/comments/77")},
+		{[]string{"--repo", "https://github.com/custom/repo", "issue", "comment", "list", "18"}, wantCall("gh", "api", "repos/custom/repo/issues/18/comments")},
 	}
 
 	for _, tc := range cases {
@@ -54,11 +53,11 @@ func TestE2EGitLabIssueCommentCRUD(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"issue", "comment", "18", "--body", "fixed"}, "glab issue note 18 --message fixed --repo https://gitlab.com/o/r"},
-		{[]string{"issue", "comment", "list", "18"}, "glab api projects/o%2Fr/issues/18/notes"},
-		{[]string{"issue", "comment", "edit", "18", "77", "--body", "edited"}, "glab api -X PUT projects/o%2Fr/issues/18/notes/77 -f body=edited"},
-		{[]string{"issue", "comment", "delete", "18", "77"}, "glab api -X DELETE projects/o%2Fr/issues/18/notes/77"},
-		{[]string{"issue", "comment", "list", "18", "--repo", "https://gitlab.com/grp/sub/repo"}, "glab api projects/grp%2Fsub%2Frepo/issues/18/notes"},
+		{[]string{"issue", "comment", "18", "--body", "fixed"}, wantCall("glab", "issue", "note", "18", "--message", "fixed", "--repo", "https://gitlab.com/o/r")},
+		{[]string{"issue", "comment", "list", "18"}, wantCall("glab", "api", "projects/o%2Fr/issues/18/notes")},
+		{[]string{"issue", "comment", "edit", "18", "77", "--body", "edited"}, wantCall("glab", "api", "-X", "PUT", "projects/o%2Fr/issues/18/notes/77", "-f", "body=edited")},
+		{[]string{"issue", "comment", "delete", "18", "77"}, wantCall("glab", "api", "-X", "DELETE", "projects/o%2Fr/issues/18/notes/77")},
+		{[]string{"issue", "comment", "list", "18", "--repo", "https://gitlab.com/grp/sub/repo"}, wantCall("glab", "api", "projects/grp%2Fsub%2Frepo/issues/18/notes")},
 	}
 
 	for _, tc := range cases {
@@ -82,17 +81,7 @@ func TestE2EGiteaIssueCommentCreateAndUnsupported(t *testing.T) {
 	bin := buildGG(t)
 	fakeDir := t.TempDir()
 	logFile := filepath.Join(t.TempDir(), "calls.log")
-	var scriptPath, body string
-	if runtime.GOOS == "windows" {
-		scriptPath = filepath.Join(fakeDir, "tea.cmd")
-		body = "@echo off\r\nif \"%1\"==\"logins\" if \"%2\"==\"list\" (\r\n  echo [{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]\r\n  exit /b 0\r\n)\r\necho tea %* >> \"" + logFile + "\"\r\nexit /b 0\r\n"
-	} else {
-		scriptPath = filepath.Join(fakeDir, "tea")
-		body = "#!/bin/sh\nif [ \"$1\" = \"logins\" ] && [ \"$2\" = \"list\" ]; then\n  echo '[{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]'\n  exit 0\nfi\necho \"tea $@\" >> \"" + logFile + "\"\nexit 0\n"
-	}
-	if err := os.WriteFile(scriptPath, []byte(body), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	writeFakeTeaWithLogin(t, fakeDir, logFile)
 	repo := tempRepo(t, "https://gitea.com/o/r.git")
 
 	if err := os.WriteFile(logFile, nil, 0o600); err != nil {
@@ -102,7 +91,7 @@ func TestE2EGiteaIssueCommentCreateAndUnsupported(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("gg issue comment: exit %d: %s", code, out)
 	}
-	if got, want := readLog(t, logFile), "tea comment 18 fixed --login pub --repo o/r"; got != want {
+	if got, want := readLog(t, logFile), wantTeaCall("comment", "18", "fixed", "--login", "pub", "--repo", "o/r"); got != want {
 		t.Errorf("tea argv = %q, want %q", got, want)
 	}
 
@@ -113,10 +102,11 @@ func TestE2EGiteaIssueCommentCreateAndUnsupported(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("gg issue comment list: exit %d: %s", code, out)
 	}
-	if got, want := readLog(t, logFile), "tea comments list 18 --login pub --repo o/r"; got != want {
+	if got, want := readLog(t, logFile), wantTeaCall("comments", "list", "18", "--login", "pub", "--repo", "o/r"); got != want {
 		t.Errorf("tea comments list argv = %q, want %q", got, want)
 	}
 
+	writeFakeBin(t, fakeDir, "tea", logFile)
 	for _, args := range [][]string{
 		{"issue", "comment", "edit", "18", "77", "--body", "text"},
 		{"issue", "comment", "delete", "18", "77"},

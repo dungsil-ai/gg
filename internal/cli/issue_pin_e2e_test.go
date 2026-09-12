@@ -21,28 +21,28 @@ func TestE2EIssuePinUnpinArgv(t *testing.T) {
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"issue", "pin", "42"},
-			want:     "gh issue pin 42 -R github.com/o/r",
+			want:     wantCall("gh", "issue", "pin", "42", "-R", "github.com/o/r"),
 		},
 		{
 			name:     "github unpin",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"issue", "unpin", "42"},
-			want:     "gh issue unpin 42 -R github.com/o/r",
+			want:     wantCall("gh", "issue", "unpin", "42", "-R", "github.com/o/r"),
 		},
 		{
 			name:     "github pin repo flag",
 			remote:   "",
 			fakeName: "gh",
 			args:     []string{"--repo", "https://github.com/custom/repo", "issue", "pin", "42"},
-			want:     "gh issue pin 42 -R github.com/custom/repo",
+			want:     wantCall("gh", "issue", "pin", "42", "-R", "github.com/custom/repo"),
 		},
 		{
 			name:     "github unpin remote flag",
 			remote:   "",
 			fakeName: "gh",
 			args:     []string{"issue", "unpin", "42", "--remote", "upstream"},
-			want:     "gh issue unpin 42 -R github.com/o/upstream",
+			want:     wantCall("gh", "issue", "unpin", "42", "-R", "github.com/o/upstream"),
 		},
 	}
 
@@ -111,7 +111,7 @@ func TestE2EIssuePinUnpinUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "glab", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)

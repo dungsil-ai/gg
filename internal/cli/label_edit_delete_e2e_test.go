@@ -21,63 +21,63 @@ func TestE2ELabelEditDeleteArgv(t *testing.T) {
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"label", "edit", "bug", "--color", "00ff00"},
-			want:     "gh label edit bug -R github.com/o/r --color 00ff00",
+			want:     wantCall("gh", "label", "edit", "bug", "-R", "github.com/o/r", "--color", "00ff00"),
 		},
 		{
 			name:     "gh label edit rename",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"label", "edit", "bug", "--name", "defect"},
-			want:     "gh label edit bug -R github.com/o/r --name defect",
+			want:     wantCall("gh", "label", "edit", "bug", "-R", "github.com/o/r", "--name", "defect"),
 		},
 		{
 			name:     "gh label edit full",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"label", "edit", "bug", "--name", "defect", "--color", "00ff00", "--description", "버그"},
-			want:     "gh label edit bug -R github.com/o/r --name defect --color 00ff00 --description 버그",
+			want:     wantCall("gh", "label", "edit", "bug", "-R", "github.com/o/r", "--name", "defect", "--color", "00ff00", "--description", "버그"),
 		},
 		{
 			name:     "gh label delete",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"label", "delete", "bug"},
-			want:     "gh label delete bug -R github.com/o/r",
+			want:     wantCall("gh", "label", "delete", "bug", "-R", "github.com/o/r"),
 		},
 		{
 			name:     "gh label delete with yes",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"label", "delete", "bug", "--yes"},
-			want:     "gh label delete bug --yes -R github.com/o/r",
+			want:     wantCall("gh", "label", "delete", "bug", "--yes", "-R", "github.com/o/r"),
 		},
 		{
 			name:     "gh label edit repo flag",
 			remote:   "",
 			fakeName: "gh",
 			args:     []string{"--repo", "https://github.com/custom/repo", "label", "edit", "bug", "--color", "00ff00"},
-			want:     "gh label edit bug -R github.com/custom/repo --color 00ff00",
+			want:     wantCall("gh", "label", "edit", "bug", "-R", "github.com/custom/repo", "--color", "00ff00"),
 		},
 		{
 			name:     "gh label delete remote flag",
 			remote:   "",
 			fakeName: "gh",
 			args:     []string{"label", "delete", "bug", "--remote", "upstream", "--yes"},
-			want:     "gh label delete bug --yes -R github.com/o/upstream",
+			want:     wantCall("gh", "label", "delete", "bug", "--yes", "-R", "github.com/o/upstream"),
 		},
 		{
 			name:     "glab label delete",
 			remote:   "https://gitlab.com/o/r.git",
 			fakeName: "glab",
 			args:     []string{"label", "delete", "bug"},
-			want:     "glab label delete bug --repo https://gitlab.com/o/r",
+			want:     wantCall("glab", "label", "delete", "bug", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:     "glab label delete with yes",
 			remote:   "https://gitlab.com/o/r.git",
 			fakeName: "glab",
 			args:     []string{"label", "delete", "bug", "--yes"},
-			want:     "glab label delete bug --repo https://gitlab.com/o/r",
+			want:     wantCall("glab", "label", "delete", "bug", "--repo", "https://gitlab.com/o/r"),
 		},
 	}
 
@@ -140,7 +140,7 @@ func TestE2ELabelEditDeleteUnsupported(t *testing.T) {
 			bin := buildGG(t)
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			writeFakeReadyBin(t, fakeDir, "glab", logFile, "", "", 0)
 			repo := tempRepo(t, tc.remote)
 

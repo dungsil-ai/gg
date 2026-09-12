@@ -19,19 +19,19 @@ func TestE2EPRApproveMgmtArgv(t *testing.T) {
 			name:   "glab approvers",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"pr", "approvers", "42"},
-			want:   "glab mr approvers 42 --repo https://gitlab.com/o/r",
+			want:   wantCall("glab", "mr", "approvers", "42", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:   "glab revoke",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"pr", "revoke", "42"},
-			want:   "glab mr revoke 42 --repo https://gitlab.com/o/r",
+			want:   wantCall("glab", "mr", "revoke", "42", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:   "glab approvers repo flag",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"--repo", "https://gitlab.com/custom/repo", "pr", "approvers", "42"},
-			want:   "glab mr approvers 42 --repo https://gitlab.com/custom/repo",
+			want:   wantCall("glab", "mr", "approvers", "42", "--repo", "https://gitlab.com/custom/repo"),
 		},
 	}
 
@@ -90,7 +90,7 @@ func TestE2EPRApproveMgmtUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "gh", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)

@@ -21,35 +21,35 @@ func TestE2EIssueDevelopArgv(t *testing.T) {
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"issue", "develop", "42"},
-			want:     "gh issue develop 42 -R github.com/o/r",
+			want:     wantCall("gh", "issue", "develop", "42", "-R", "github.com/o/r"),
 		},
 		{
 			name:     "github develop list",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"issue", "develop", "42", "--list"},
-			want:     "gh issue develop 42 -R github.com/o/r --list",
+			want:     wantCall("gh", "issue", "develop", "42", "-R", "github.com/o/r", "--list"),
 		},
 		{
 			name:     "github develop with name and base",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"issue", "develop", "42", "--name", "dev-42", "--base", "main"},
-			want:     "gh issue develop 42 -R github.com/o/r --name dev-42 --base main",
+			want:     wantCall("gh", "issue", "develop", "42", "-R", "github.com/o/r", "--name", "dev-42", "--base", "main"),
 		},
 		{
 			name:     "github develop checkout",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"issue", "develop", "42", "--name", "dev-42", "--checkout"},
-			want:     "gh issue develop 42 -R github.com/o/r --name dev-42 --checkout",
+			want:     wantCall("gh", "issue", "develop", "42", "-R", "github.com/o/r", "--name", "dev-42", "--checkout"),
 		},
 		{
 			name:     "github develop repo flag",
 			remote:   "",
 			fakeName: "gh",
 			args:     []string{"--repo", "https://github.com/custom/repo", "issue", "develop", "42", "--list"},
-			want:     "gh issue develop 42 -R github.com/custom/repo --list",
+			want:     wantCall("gh", "issue", "develop", "42", "-R", "github.com/custom/repo", "--list"),
 		},
 	}
 
@@ -104,7 +104,7 @@ func TestE2EIssueDevelopUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "glab", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)

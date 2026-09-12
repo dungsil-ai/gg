@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -229,13 +228,13 @@ func TestE2ERepoLifecycleInvocations(t *testing.T) {
 		args []string
 		want string
 	}{
-		{"fork", []string{"repo", "fork"}, "gh repo fork https://github.com/o/r"},
-		{"delete", []string{"repo", "delete", "--yes"}, "gh repo delete https://github.com/o/r --yes"},
-		{"edit 설명", []string{"repo", "edit", "--description", "hello"}, "gh repo edit https://github.com/o/r --description hello"},
-		{"edit 가시성", []string{"repo", "edit", "--private"}, "gh repo edit https://github.com/o/r --visibility private --accept-visibility-change-consequences"},
-		{"rename", []string{"repo", "rename", "newname", "--yes"}, "gh repo rename newname -R github.com/o/r --yes"},
-		{"sync", []string{"repo", "sync", "--source", "o/up", "--force"}, "gh repo sync https://github.com/o/r --source o/up --force"},
-		{"set-default", []string{"repo", "set-default"}, "gh repo set-default https://github.com/o/r"},
+		{"fork", []string{"repo", "fork"}, wantCall("gh", "repo", "fork", "https://github.com/o/r")},
+		{"delete", []string{"repo", "delete", "--yes"}, wantCall("gh", "repo", "delete", "https://github.com/o/r", "--yes")},
+		{"edit 설명", []string{"repo", "edit", "--description", "hello"}, wantCall("gh", "repo", "edit", "https://github.com/o/r", "--description", "hello")},
+		{"edit 가시성", []string{"repo", "edit", "--private"}, wantCall("gh", "repo", "edit", "https://github.com/o/r", "--visibility", "private", "--accept-visibility-change-consequences")},
+		{"rename", []string{"repo", "rename", "newname", "--yes"}, wantCall("gh", "repo", "rename", "newname", "-R", "github.com/o/r", "--yes")},
+		{"sync", []string{"repo", "sync", "--source", "o/up", "--force"}, wantCall("gh", "repo", "sync", "https://github.com/o/r", "--source", "o/up", "--force")},
+		{"set-default", []string{"repo", "set-default"}, wantCall("gh", "repo", "set-default", "https://github.com/o/r")},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -276,8 +275,8 @@ func TestE2ERepoLifecycleInvocations(t *testing.T) {
 			args []string
 			want string
 		}{
-			{[]string{"repo", "set-default", "--unset"}, "gh repo set-default --unset"},
-			{[]string{"repo", "set-default", "--view"}, "gh repo set-default --view"},
+			{[]string{"repo", "set-default", "--unset"}, wantCall("gh", "repo", "set-default", "--unset")},
+			{[]string{"repo", "set-default", "--view"}, wantCall("gh", "repo", "set-default", "--view")},
 		} {
 			if err := os.WriteFile(logFile, nil, 0o600); err != nil {
 				t.Fatal(err)
@@ -336,17 +335,7 @@ func TestE2ERepoForkDeleteForGitea(t *testing.T) {
 	bin := buildGG(t)
 	fakeDir := t.TempDir()
 	logFile := filepath.Join(t.TempDir(), "calls.log")
-	var scriptPath, body string
-	if runtime.GOOS == "windows" {
-		scriptPath = filepath.Join(fakeDir, "tea.cmd")
-		body = "@echo off\r\nif \"%1\"==\"logins\" if \"%2\"==\"list\" (\r\n  echo [{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]\r\n  exit /b 0\r\n)\r\necho tea %* >> \"" + logFile + "\"\r\nexit /b 0\r\n"
-	} else {
-		scriptPath = filepath.Join(fakeDir, "tea")
-		body = "#!/bin/sh\nif [ \"$1\" = \"logins\" ] && [ \"$2\" = \"list\" ]; then\n  echo '[{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]'\n  exit 0\nfi\necho \"tea $@\" >> \"" + logFile + "\"\nexit 0\n"
-	}
-	if err := os.WriteFile(scriptPath, []byte(body), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	writeFakeTeaWithLogin(t, fakeDir, logFile)
 	repo := tempRepo(t, "https://gitea.com/o/r.git")
 
 	cases := []struct {
@@ -354,8 +343,8 @@ func TestE2ERepoForkDeleteForGitea(t *testing.T) {
 		args []string
 		want string
 	}{
-		{"fork", []string{"repo", "fork"}, "tea repos fork --login pub --repo o/r"},
-		{"delete", []string{"repo", "delete", "--yes"}, "tea repos delete --login pub --owner o --name r --force"},
+		{"fork", []string{"repo", "fork"}, wantTeaCall("repos", "fork", "--login", "pub", "--repo", "o/r")},
+		{"delete", []string{"repo", "delete", "--yes"}, wantTeaCall("repos", "delete", "--login", "pub", "--owner", "o", "--name", "r", "--force")},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

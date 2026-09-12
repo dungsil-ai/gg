@@ -146,19 +146,46 @@ func TestCompileReplaceRule(t *testing.T) {
 	}
 }
 
-func TestResolveReplaceTextFromFile(t *testing.T) {
-	dir := t.TempDir()
-	f := filepath.Join(dir, "replacements.txt")
+func TestE2EFilterRepoReplaceTextFromFile(t *testing.T) {
+	dir := filterRepoTestRepo(t, map[string]string{
+		"a.txt":    "secret password=hunter2\npreserve me\n",
+		"note.txt": "public secret password=abc123\n",
+	})
+	f := filepath.Join(t.TempDir(), "replacements.txt")
 	content := "# comment\n\nsecret==>***\npassword=\\S+==>password=?\n"
 	if err := os.WriteFile(f, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	rules, err := resolveReplaceTextFilters([]string{f})
-	if err != nil {
+	if err := runFilterRepoIn(t, dir, Request{
+		Resource: "repo", Action: "filter-repo",
+		FilterReplaces: []string{f}, FilterForce: true,
+	}); err != nil {
 		t.Fatal(err)
 	}
-	if len(rules) != 2 {
-		t.Fatalf("rules = %d, want 2", len(rules))
+	for _, c := range []struct {
+		object string
+		want   string
+	}{
+		{"HEAD^:a.txt", "*** password=?\npreserve me"},
+		{"HEAD^:note.txt", "public *** password=?"},
+		{"HEAD:a.txt", "second"},
+		{"HEAD:note.txt", "public *** password=?"},
+	} {
+		if got := gitIn(t, dir, "show", c.object); got != c.want {
+			t.Errorf("%s = %q, want %q", c.object, got, c.want)
+		}
+	}
+	for name, want := range map[string]string{
+		"a.txt":    "second\n",
+		"note.txt": "public *** password=?\n",
+	} {
+		got, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != want {
+			t.Errorf("working tree %s = %q, want %q", name, got, want)
+		}
 	}
 }
 
@@ -273,11 +300,19 @@ func filterRepoTestRepo(t *testing.T, files map[string]string) string {
 
 func runFilterRepoIn(t *testing.T, dir string, req Request) error {
 	t.Helper()
+	_, err := runFilterRepoInOutput(t, dir, req)
+	return err
+}
+
+func runFilterRepoInOutput(t *testing.T, dir string, req Request) (string, error) {
+	t.Helper()
 	origStdout, origStderr := osStdout, osStderr
-	t.Cleanup(func() { osStdout, osStderr = origStdout, origStderr })
-	osStdout, osStderr = &bytes.Buffer{}, &bytes.Buffer{}
+	defer func() { osStdout, osStderr = origStdout, origStderr }()
+	var stdout, stderr bytes.Buffer
+	osStdout, osStderr = &stdout, &stderr
 	t.Chdir(dir)
-	return runFilterRepo(req)
+	err := runFilterRepo(req)
+	return stdout.String(), err
 }
 
 func TestE2EFilterRepoRemovesPath(t *testing.T) {
@@ -328,19 +363,73 @@ func TestE2EFilterRepoKeepRenameReplaceMailmap(t *testing.T) {
 }
 
 func TestE2EFilterRepoDryRunChangesNothing(t *testing.T) {
-	dir := filterRepoTestRepo(t, map[string]string{"a.txt": "keep\n", "secret.txt": "topsecret\n"})
-	before := gitIn(t, dir, "rev-parse", "HEAD")
-	if err := runFilterRepoIn(t, dir, Request{
-		Resource: "repo", Action: "filter-repo",
-		FilterPaths: []string{"secret.txt"}, FilterInvert: true, FilterDryRun: true,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if got := gitIn(t, dir, "rev-parse", "HEAD"); got != before {
-		t.Error("dry-run: HEAD 변경 없음 기대")
-	}
-	if got := gitIn(t, dir, "ls-tree", "-r", "--name-only", "HEAD"); !strings.Contains(got, "secret.txt") {
-		t.Errorf("dry-run: secret.txt 유지 기대, got %q", got)
+	for _, c := range []struct {
+		name        string
+		path        string
+		rename      string
+		replacement string
+		want        string
+	}{
+		{
+			name: "변경 미리보기", path: "secret.txt", rename: "docs:manual", replacement: "hunter2==>***",
+			want: "dry-run: 2 commits, 4 blobs (1 would change), 4 identities (0 would change), 2 paths dropped, 2 renamed\n",
+		},
+		{
+			name: "일치하는 대상 없음", path: "missing.txt", rename: "missing:other", replacement: "absent==>***",
+			want: "dry-run: 2 commits, 4 blobs (0 would change), 4 identities (0 would change), 0 paths dropped, 0 renamed\n",
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := filterRepoTestRepo(t, map[string]string{
+				"a.txt": "keep\n", "secret.txt": "topsecret\n", "docs/note.txt": "password=hunter2\n",
+			})
+			gitIn(t, dir, "branch", "saved", "HEAD^")
+			gitIn(t, dir, "tag", "before-filter", "HEAD^")
+			beforeHead := gitIn(t, dir, "rev-parse", "HEAD")
+			beforeRefs := gitIn(t, dir, "show-ref")
+			beforeTree := gitIn(t, dir, "ls-tree", "-r", "HEAD")
+			beforeFiles := map[string][]byte{}
+			for _, name := range []string{"a.txt", "secret.txt", "docs/note.txt"} {
+				data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(name)))
+				if err != nil {
+					t.Fatal(err)
+				}
+				beforeFiles[name] = data
+			}
+
+			out, err := runFilterRepoInOutput(t, dir, Request{
+				Resource: "repo", Action: "filter-repo",
+				FilterPaths: []string{c.path}, FilterInvert: true, FilterDryRun: true,
+				FilterRenames: []string{c.rename}, FilterReplaces: []string{c.replacement},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if out != c.want {
+				t.Errorf("dry-run preview = %q, want %q", out, c.want)
+			}
+			if got := gitIn(t, dir, "rev-parse", "HEAD"); got != beforeHead {
+				t.Error("dry-run: HEAD 변경 없음 기대")
+			}
+			if got := gitIn(t, dir, "show-ref"); got != beforeRefs {
+				t.Errorf("dry-run: refs 변경 없음 기대, got %q, want %q", got, beforeRefs)
+			}
+			if got := gitIn(t, dir, "ls-tree", "-r", "HEAD"); got != beforeTree {
+				t.Errorf("dry-run: tree 변경 없음 기대, got %q, want %q", got, beforeTree)
+			}
+			for name, want := range beforeFiles {
+				got, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(name)))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !bytes.Equal(got, want) {
+					t.Errorf("dry-run: %s 변경 없음 기대, got %q, want %q", name, got, want)
+				}
+			}
+			if got := gitIn(t, dir, "status", "--porcelain"); got != "" {
+				t.Errorf("dry-run: 작업 트리 clean 기대, got %q", got)
+			}
+		})
 	}
 }
 

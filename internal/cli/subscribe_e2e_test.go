@@ -19,31 +19,31 @@ func TestE2ESubscribeArgv(t *testing.T) {
 			name:   "glab issue subscribe",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"issue", "subscribe", "42"},
-			want:   "glab issue subscribe 42 --repo https://gitlab.com/o/r",
+			want:   wantCall("glab", "issue", "subscribe", "42", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:   "glab issue unsubscribe",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"issue", "unsubscribe", "42"},
-			want:   "glab issue unsubscribe 42 --repo https://gitlab.com/o/r",
+			want:   wantCall("glab", "issue", "unsubscribe", "42", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:   "glab pr subscribe",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"pr", "subscribe", "42"},
-			want:   "glab mr subscribe 42 --repo https://gitlab.com/o/r",
+			want:   wantCall("glab", "mr", "subscribe", "42", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:   "glab pr unsubscribe",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"pr", "unsubscribe", "42"},
-			want:   "glab mr unsubscribe 42 --repo https://gitlab.com/o/r",
+			want:   wantCall("glab", "mr", "unsubscribe", "42", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:   "glab pr subscribe repo flag",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"--repo", "https://gitlab.com/custom/repo", "pr", "subscribe", "42"},
-			want:   "glab mr subscribe 42 --repo https://gitlab.com/custom/repo",
+			want:   wantCall("glab", "mr", "subscribe", "42", "--repo", "https://gitlab.com/custom/repo"),
 		},
 	}
 
@@ -109,7 +109,7 @@ func TestE2ESubscribeUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "gh", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)

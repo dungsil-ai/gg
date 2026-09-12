@@ -3,7 +3,6 @@ package cli
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -13,34 +12,14 @@ import (
 // 뒤이은 관계 API 호출도 기록한다.
 func writeFakeGHWithID(t *testing.T, dir, logFile, id string) {
 	t.Helper()
-	var path, body string
-	if runtime.GOOS == "windows" {
-		path = filepath.Join(dir, "gh.cmd")
-		body = "@echo off\r\necho gh %* >> \"" + logFile + "\"\r\necho " + id + "\r\nexit /b 0\r\n"
-	} else {
-		path = filepath.Join(dir, "gh")
-		body = "#!/bin/sh\necho \"gh $@\" >> \"" + logFile + "\"\necho " + id + "\nexit 0\n"
-	}
-	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	writeFakeCLI(t, dir, "gh", fakeCLIConfig{LogFile: logFile, Stdout: id + "\n"})
 }
 
 // writeFakeGHFailing은 호출을 LOG에 기록하고 정해진 stderr와 종료 코드로
 // 실패하는 fake gh를 만든다.
 func writeFakeGHFailing(t *testing.T, dir, logFile, stderr string) {
 	t.Helper()
-	var path, body string
-	if runtime.GOOS == "windows" {
-		path = filepath.Join(dir, "gh.cmd")
-		body = "@echo off\r\necho gh %* >> \"" + logFile + "\"\r\necho " + stderr + " 1>&2\r\nexit /b 1\r\n"
-	} else {
-		path = filepath.Join(dir, "gh")
-		body = "#!/bin/sh\necho \"gh $@\" >> \"" + logFile + "\"\necho " + stderr + " >&2\nexit 1\n"
-	}
-	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	writeFakeCLI(t, dir, "gh", fakeCLIConfig{LogFile: logFile, Stderr: stderr + "\n", ExitCode: 1})
 }
 
 func TestE2EIssueSubIssue(t *testing.T) {
@@ -56,8 +35,8 @@ func TestE2EIssueSubIssue(t *testing.T) {
 	}
 	calls := readLogLines(t, logFile)
 	want := []string{
-		"gh api --hostname github.com repos/o/r/issues/42 --jq .id",
-		"gh api --method POST repos/o/r/issues/7/sub_issues --hostname github.com -F sub_issue_id=5277108047",
+		wantCall("gh", "api", "--hostname", "github.com", "repos/o/r/issues/42", "--jq", ".id"),
+		wantCall("gh", "api", "--method", "POST", "repos/o/r/issues/7/sub_issues", "--hostname", "github.com", "-F", "sub_issue_id=5277108047"),
 	}
 	if len(calls) != len(want) {
 		t.Fatalf("gh calls = %v, want %v", calls, want)
@@ -97,7 +76,7 @@ func TestE2EIssueBlockedBy(t *testing.T) {
 		t.Fatalf("exit %d: %s", code, out)
 	}
 	got := readLog(t, logFile)
-	want := "gh api --method POST repos/o/r/issues/42/dependencies/blocked_by --hostname github.com -F issue_id=5277108047"
+	want := wantCall("gh", "api", "--method", "POST", "repos/o/r/issues/42/dependencies/blocked_by", "--hostname", "github.com", "-F", "issue_id=5277108047")
 	if !strings.Contains(got, want) {
 		t.Errorf("gh argv = %q, want substring %q", got, want)
 	}
@@ -115,7 +94,7 @@ func TestE2EIssueType(t *testing.T) {
 		t.Fatalf("exit %d: %s", code, out)
 	}
 	got := readLog(t, logFile)
-	want := "gh api --method PATCH repos/o/r/issues/42 --hostname github.com -F type=Bug"
+	want := wantCall("gh", "api", "--method", "PATCH", "repos/o/r/issues/42", "--hostname", "github.com", "-F", "type=Bug")
 	if got != want {
 		t.Errorf("gh argv = %q, want %q", got, want)
 	}

@@ -21,28 +21,28 @@ func TestE2ELabelCloneArgv(t *testing.T) {
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"label", "clone", "o/source"},
-			want:     "gh label clone o/source -R github.com/o/r",
+			want:     wantCall("gh", "label", "clone", "o/source", "-R", "github.com/o/r"),
 		},
 		{
 			name:     "github label clone with force",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"label", "clone", "o/source", "--force"},
-			want:     "gh label clone o/source -R github.com/o/r --force",
+			want:     wantCall("gh", "label", "clone", "o/source", "-R", "github.com/o/r", "--force"),
 		},
 		{
 			name:     "github label clone repo flag",
 			remote:   "",
 			fakeName: "gh",
 			args:     []string{"--repo", "https://github.com/custom/repo", "label", "clone", "o/source"},
-			want:     "gh label clone o/source -R github.com/custom/repo",
+			want:     wantCall("gh", "label", "clone", "o/source", "-R", "github.com/custom/repo"),
 		},
 		{
 			name:     "github label clone remote flag",
 			remote:   "",
 			fakeName: "gh",
 			args:     []string{"label", "clone", "o/source", "--remote", "upstream"},
-			want:     "gh label clone o/source -R github.com/o/upstream",
+			want:     wantCall("gh", "label", "clone", "o/source", "-R", "github.com/o/upstream"),
 		},
 	}
 
@@ -97,7 +97,7 @@ func TestE2ELabelCloneUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "glab", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)

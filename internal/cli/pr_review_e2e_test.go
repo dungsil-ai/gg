@@ -22,35 +22,35 @@ func TestE2EPRReviewArgv(t *testing.T) {
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"pr", "review", "42", "--approve"},
-			want:     "gh pr review 42 -R github.com/o/r --approve",
+			want:     wantCall("gh", "pr", "review", "42", "-R", "github.com/o/r", "--approve"),
 		},
 		{
 			name:     "github request changes",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"pr", "review", "42", "--request-changes", "--body", "고쳐주세요"},
-			want:     "gh pr review 42 -R github.com/o/r --request-changes --body 고쳐주세요",
+			want:     wantCall("gh", "pr", "review", "42", "-R", "github.com/o/r", "--request-changes", "--body", "고쳐주세요"),
 		},
 		{
 			name:     "github comment",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"pr", "review", "42", "--comment", "--body", "검토중"},
-			want:     "gh pr review 42 -R github.com/o/r --comment --body 검토중",
+			want:     wantCall("gh", "pr", "review", "42", "-R", "github.com/o/r", "--comment", "--body", "검토중"),
 		},
 		{
 			name:     "github approve repo flag",
 			remote:   "",
 			fakeName: "gh",
 			args:     []string{"--repo", "https://github.com/custom/repo", "pr", "review", "42", "--approve"},
-			want:     "gh pr review 42 -R github.com/custom/repo --approve",
+			want:     wantCall("gh", "pr", "review", "42", "-R", "github.com/custom/repo", "--approve"),
 		},
 		{
 			name:     "glab approve",
 			remote:   "https://gitlab.com/o/r.git",
 			fakeName: "glab",
 			args:     []string{"pr", "review", "42", "--approve"},
-			want:     "glab mr approve 42 --repo https://gitlab.com/o/r",
+			want:     wantCall("glab", "mr", "approve", "42", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:     "tea approve",
@@ -58,7 +58,7 @@ func TestE2EPRReviewArgv(t *testing.T) {
 			fakeName: "tea",
 			teaLogin: true,
 			args:     []string{"pr", "review", "42", "--approve"},
-			want:     "tea pulls approve 42 --login pub --repo o/r",
+			want:     wantTeaCall("pulls", "approve", "42", "--login", "pub", "--repo", "o/r"),
 		},
 		{
 			name:     "tea request changes",
@@ -66,7 +66,7 @@ func TestE2EPRReviewArgv(t *testing.T) {
 			fakeName: "tea",
 			teaLogin: true,
 			args:     []string{"pr", "review", "42", "--request-changes", "--body", "고쳐주세요"},
-			want:     "tea pulls reject 42 고쳐주세요 --login pub --repo o/r",
+			want:     wantTeaCall("pulls", "reject", "42", "고쳐주세요", "--login", "pub", "--repo", "o/r"),
 		},
 	}
 
@@ -131,7 +131,7 @@ func TestE2EPRReviewUnsupported(t *testing.T) {
 			bin := buildGG(t)
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			writeFakeReadyBin(t, fakeDir, "glab", logFile, "", "", 0)
 			repo := tempRepo(t, tc.remote)
 
