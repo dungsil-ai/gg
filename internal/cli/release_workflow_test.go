@@ -297,6 +297,8 @@ func (f *releaseFixture) run(t *testing.T, bash string, job workflowJob) (string
 func TestReleaseWorkflowPublishing(t *testing.T) {
 	bash := releaseWorkflowBash(t)
 	job := readReleaseWorkflow(t, "release.yml").Jobs["release"]
+	// Keep Git and Bash process fan-out bounded on CI runners.
+	slots := make(chan struct{}, 2)
 	for _, tc := range []struct {
 		name   string
 		mutate func(*testing.T, *releaseFixture)
@@ -349,6 +351,9 @@ func TestReleaseWorkflowPublishing(t *testing.T) {
 		{name: "build fails", mutate: func(t *testing.T, f *releaseFixture) { f.buildFailed = true }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			slots <- struct{}{}
+			t.Cleanup(func() { <-slots })
 			f := newReleaseFixture(t)
 			f.remote(t)
 			f.git(t, "-c", "tag.gpgsign=false", "tag", "-a", "v0.1.0", "-m", "Release v0.1.0")

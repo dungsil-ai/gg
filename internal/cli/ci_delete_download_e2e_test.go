@@ -58,9 +58,11 @@ func TestE2ECIDeleteDownloadArgv(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, tc.fakeName, logFile, "", "", 0)
-			workDir := tempRepo(t, tc.remote)
+			var workDir string
 			if tc.remote == "" {
 				workDir = tempRepoWithUpstream(t)
+			} else {
+				workDir = tempRepo(t, tc.remote)
 			}
 
 			out, code := runGG(t, bin, fakeDir, workDir, tc.args...)

@@ -79,9 +79,11 @@ func TestE2EPRReviewArgv(t *testing.T) {
 			} else {
 				writeFakeReadyBin(t, fakeDir, tc.fakeName, logFile, "", "", 0)
 			}
-			workDir := tempRepo(t, tc.remote)
+			var workDir string
 			if tc.remote == "" {
 				workDir = tempRepoWithUpstream(t)
+			} else {
+				workDir = tempRepo(t, tc.remote)
 			}
 
 			out, code := runGG(t, bin, fakeDir, workDir, tc.args...)
