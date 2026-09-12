@@ -51,9 +51,11 @@ func TestE2ELabelCloneArgv(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "gh", logFile, "", "", 0)
-			workDir := tempRepo(t, tc.remote)
+			var workDir string
 			if tc.remote == "" {
 				workDir = tempRepoWithUpstream(t)
+			} else {
+				workDir = tempRepo(t, tc.remote)
 			}
 
 			out, code := runGG(t, bin, fakeDir, workDir, tc.args...)

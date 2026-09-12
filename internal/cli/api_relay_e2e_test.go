@@ -62,9 +62,11 @@ func TestE2EAPIRelayArgv(t *testing.T) {
 			writeFakeReadyBin(t, fakeDir, "gh", logFile, "", "", 0)
 			writeFakeReadyBin(t, fakeDir, "glab", logFile, "", "", 0)
 			writeFakeTeaWithLogin(t, fakeDir, logFile)
-			workDir := tempRepo(t, tc.remote)
+			var workDir string
 			if tc.remote == "" {
 				workDir = tempRepoWithUpstream(t)
+			} else {
+				workDir = tempRepo(t, tc.remote)
 			}
 
 			out, code := runGG(t, bin, fakeDir, workDir, tc.args...)
