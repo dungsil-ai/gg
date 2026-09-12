@@ -278,6 +278,8 @@ func filterRepoTestRepo(t *testing.T, files map[string]string) string {
 	gitIn(t, dir, "config", "user.email", "old@example.com")
 	// 테스트 환경의 전역 커밋 서명(gpg/ssh)이 끼지 않도록 끈다.
 	gitIn(t, dir, "config", "commit.gpgsign", "false")
+	// 작업 파일의 바이트 비교가 전역 줄바꿈 변환 설정에 영향을 받지 않게 한다.
+	gitIn(t, dir, "config", "core.autocrlf", "false")
 	for name, body := range files {
 		p := filepath.Join(dir, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
