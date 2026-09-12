@@ -21,21 +21,21 @@ func TestE2EPRRebaseArgv(t *testing.T) {
 			remote:   "https://gitlab.com/o/r.git",
 			fakeName: "glab",
 			args:     []string{"pr", "rebase", "42"},
-			want:     "glab mr rebase 42 --repo https://gitlab.com/o/r",
+			want:     wantCall("glab", "mr", "rebase", "42", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:     "glab rebase skip ci",
 			remote:   "https://gitlab.com/o/r.git",
 			fakeName: "glab",
 			args:     []string{"pr", "rebase", "42", "--skip-ci"},
-			want:     "glab mr rebase 42 --repo https://gitlab.com/o/r --skip-ci",
+			want:     wantCall("glab", "mr", "rebase", "42", "--repo", "https://gitlab.com/o/r", "--skip-ci"),
 		},
 		{
 			name:     "glab rebase repo flag",
 			remote:   "https://gitlab.com/o/r.git",
 			fakeName: "glab",
 			args:     []string{"--repo", "https://gitlab.com/custom/repo", "pr", "rebase", "42"},
-			want:     "glab mr rebase 42 --repo https://gitlab.com/custom/repo",
+			want:     wantCall("glab", "mr", "rebase", "42", "--repo", "https://gitlab.com/custom/repo"),
 		},
 	}
 
@@ -87,7 +87,7 @@ func TestE2EPRRebaseUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "gh", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)

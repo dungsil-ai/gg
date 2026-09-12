@@ -21,21 +21,21 @@ func TestE2EPRUpdateBranchArgv(t *testing.T) {
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"pr", "update-branch", "42"},
-			want:     "gh pr update-branch 42 -R github.com/o/r",
+			want:     wantCall("gh", "pr", "update-branch", "42", "-R", "github.com/o/r"),
 		},
 		{
 			name:     "github update-branch repo flag",
 			remote:   "",
 			fakeName: "gh",
 			args:     []string{"--repo", "https://github.com/custom/repo", "pr", "update-branch", "42"},
-			want:     "gh pr update-branch 42 -R github.com/custom/repo",
+			want:     wantCall("gh", "pr", "update-branch", "42", "-R", "github.com/custom/repo"),
 		},
 		{
 			name:     "github update-branch remote flag",
 			remote:   "",
 			fakeName: "gh",
 			args:     []string{"pr", "update-branch", "42", "--remote", "upstream"},
-			want:     "gh pr update-branch 42 -R github.com/o/upstream",
+			want:     wantCall("gh", "pr", "update-branch", "42", "-R", "github.com/o/upstream"),
 		},
 	}
 
@@ -90,7 +90,7 @@ func TestE2EPRUpdateBranchUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "glab", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)

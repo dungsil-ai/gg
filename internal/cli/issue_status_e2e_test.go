@@ -17,19 +17,19 @@ func TestE2EIssueStatusArgv(t *testing.T) {
 			name:   "github issue status",
 			remote: "https://github.com/o/r.git",
 			args:   []string{"issue", "status"},
-			want:   "gh issue status -R github.com/o/r",
+			want:   wantCall("gh", "issue", "status", "-R", "github.com/o/r"),
 		},
 		{
 			name:   "github issue status repo flag",
 			remote: "",
 			args:   []string{"--repo", "https://github.com/custom/repo", "issue", "status"},
-			want:   "gh issue status -R github.com/custom/repo",
+			want:   wantCall("gh", "issue", "status", "-R", "github.com/custom/repo"),
 		},
 		{
 			name:   "github issue status remote flag",
 			remote: "",
 			args:   []string{"issue", "status", "--remote", "upstream"},
-			want:   "gh issue status -R github.com/o/upstream",
+			want:   wantCall("gh", "issue", "status", "-R", "github.com/o/upstream"),
 		},
 	}
 
@@ -85,7 +85,7 @@ func TestE2EIssueStatusUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "glab", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)

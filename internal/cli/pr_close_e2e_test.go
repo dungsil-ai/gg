@@ -8,23 +8,10 @@ import (
 	"testing"
 )
 
-// writeFakeTeaWithLogin은 tea logins list를 응답하고 나머지 호출을 logFile에
-// 남기는 fake tea CLI를 만든다.
+// writeFakeTeaWithLogin은 로그인 목록을 응답하고 모든 호출을 기록한다.
 func writeFakeTeaWithLogin(t *testing.T, dir, logFile string) {
 	t.Helper()
-	var path, body string
-	if runtime.GOOS == "windows" {
-		path = filepath.Join(dir, "tea.cmd")
-		// chcp 65001로 로그를 UTF-8로 기록한다. 기본 OEM 코드페이지(CP949 등)로
-		// 남으면 한글 argv 단언이 깨진다 (writeFakeBin과 같은 처리).
-		body = "@echo off\r\nchcp 65001 >nul\r\nif \"%1\"==\"logins\" if \"%2\"==\"list\" (\r\n  echo [{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]\r\n  exit /b 0\r\n)\r\necho tea %* >> \"" + logFile + "\"\r\nexit /b 0\r\n"
-	} else {
-		path = filepath.Join(dir, "tea")
-		body = "#!/bin/sh\nif [ \"$1\" = \"logins\" ] && [ \"$2\" = \"list\" ]; then\n  echo '[{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]'\n  exit 0\nfi\necho \"tea $@\" >> \"" + logFile + "\"\nexit 0\n"
-	}
-	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	writeFakeCLI(t, dir, "tea", fakeCLIConfig{LogFile: logFile, TeaLogin: true})
 }
 
 func TestE2EPRCloseReopenArgv(t *testing.T) {
@@ -42,28 +29,28 @@ func TestE2EPRCloseReopenArgv(t *testing.T) {
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"pr", "close", "42"},
-			want:     "gh pr close 42 -R github.com/o/r",
+			want:     wantCall("gh", "pr", "close", "42", "-R", "github.com/o/r"),
 		},
 		{
 			name:     "github reopen",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"pr", "reopen", "42"},
-			want:     "gh pr reopen 42 -R github.com/o/r",
+			want:     wantCall("gh", "pr", "reopen", "42", "-R", "github.com/o/r"),
 		},
 		{
 			name:     "gitlab close",
 			remote:   "https://gitlab.com/o/r.git",
 			fakeName: "glab",
 			args:     []string{"pr", "close", "42"},
-			want:     "glab mr close 42 --repo https://gitlab.com/o/r",
+			want:     wantCall("glab", "mr", "close", "42", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:     "gitlab reopen",
 			remote:   "https://gitlab.com/o/r.git",
 			fakeName: "glab",
 			args:     []string{"pr", "reopen", "42"},
-			want:     "glab mr reopen 42 --repo https://gitlab.com/o/r",
+			want:     wantCall("glab", "mr", "reopen", "42", "--repo", "https://gitlab.com/o/r"),
 		},
 	}
 
@@ -96,8 +83,8 @@ func TestE2EPRCloseReopenTeaArgv(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"pr", "close", "42"}, "tea pulls close 42 --login pub --repo o/r"},
-		{[]string{"pr", "reopen", "42"}, "tea pulls reopen 42 --login pub --repo o/r"},
+		{[]string{"pr", "close", "42"}, wantTeaCall("pulls", "close", "42", "--login", "pub", "--repo", "o/r")},
+		{[]string{"pr", "reopen", "42"}, wantTeaCall("pulls", "reopen", "42", "--login", "pub", "--repo", "o/r")},
 	}
 
 	for _, tc := range cases {
@@ -127,8 +114,8 @@ func TestE2EPRCloseReopenRepositoryContext(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit %d: %s", code, out)
 		}
-		if got := readLog(t, logFile); got != "gh pr close 42 -R github.com/custom/repo" {
-			t.Errorf("argv = %q, want %q", got, "gh pr close 42 -R github.com/custom/repo")
+		if got := readLog(t, logFile); got != wantCall("gh", "pr", "close", "42", "-R", "github.com/custom/repo") {
+			t.Errorf("argv = %q, want %q", got, wantCall("gh", "pr", "close", "42", "-R", "github.com/custom/repo"))
 		}
 	})
 
@@ -142,8 +129,8 @@ func TestE2EPRCloseReopenRepositoryContext(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit %d: %s", code, out)
 		}
-		if got := readLog(t, logFile); got != "glab mr reopen 42 --repo https://gitlab.com/custom/repo" {
-			t.Errorf("argv = %q, want %q", got, "glab mr reopen 42 --repo https://gitlab.com/custom/repo")
+		if got := readLog(t, logFile); got != wantCall("glab", "mr", "reopen", "42", "--repo", "https://gitlab.com/custom/repo") {
+			t.Errorf("argv = %q, want %q", got, wantCall("glab", "mr", "reopen", "42", "--repo", "https://gitlab.com/custom/repo"))
 		}
 	})
 
@@ -157,8 +144,8 @@ func TestE2EPRCloseReopenRepositoryContext(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit %d: %s", code, out)
 		}
-		if got := readLog(t, logFile); got != "gh pr close 42 -R github.com/o/upstream" {
-			t.Errorf("argv = %q, want %q", got, "gh pr close 42 -R github.com/o/upstream")
+		if got := readLog(t, logFile); got != wantCall("gh", "pr", "close", "42", "-R", "github.com/o/upstream") {
+			t.Errorf("argv = %q, want %q", got, wantCall("gh", "pr", "close", "42", "-R", "github.com/o/upstream"))
 		}
 	})
 }

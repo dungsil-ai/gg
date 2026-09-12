@@ -20,19 +20,19 @@ func TestE2EPRTodoArgv(t *testing.T) {
 			name:   "glab todo",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"pr", "todo", "42"},
-			want:   "glab mr todo 42 --repo https://gitlab.com/o/r",
+			want:   wantCall("glab", "mr", "todo", "42", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:   "glab todo repo flag",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"--repo", "https://gitlab.com/custom/repo", "pr", "todo", "42"},
-			want:   "glab mr todo 42 --repo https://gitlab.com/custom/repo",
+			want:   wantCall("glab", "mr", "todo", "42", "--repo", "https://gitlab.com/custom/repo"),
 		},
 		{
 			name:   "glab todo remote flag",
 			remote: "upstream",
 			args:   []string{"pr", "todo", "42", "--remote", "upstream"},
-			want:   "glab mr todo 42 --repo https://gitlab.com/o/upstream",
+			want:   wantCall("glab", "mr", "todo", "42", "--repo", "https://gitlab.com/o/upstream"),
 		},
 	}
 
@@ -91,7 +91,7 @@ func TestE2EPRTodoUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "gh", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)

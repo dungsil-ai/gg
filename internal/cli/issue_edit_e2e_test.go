@@ -18,16 +18,16 @@ func TestE2EIssueEditRelaysTitleAndBody(t *testing.T) {
 	}{
 		{"github both", "gh", "https://github.com/o/r.git",
 			[]string{"issue", "edit", "18", "--title", "T", "--body", "B"},
-			"gh issue edit 18 -R github.com/o/r --title T --body B"},
+			wantCall("gh", "issue", "edit", "18", "-R", "github.com/o/r", "--title", "T", "--body", "B")},
 		{"github title only", "gh", "https://github.com/o/r.git",
 			[]string{"issue", "edit", "18", "--title", "T"},
-			"gh issue edit 18 -R github.com/o/r --title T"},
+			wantCall("gh", "issue", "edit", "18", "-R", "github.com/o/r", "--title", "T")},
 		{"gitlab both", "glab", "https://gitlab.com/o/r.git",
 			[]string{"issue", "edit", "18", "--title", "T", "--body", "B"},
-			"glab issue update 18 --repo https://gitlab.com/o/r --title T --description B"},
+			wantCall("glab", "issue", "update", "18", "--repo", "https://gitlab.com/o/r", "--title", "T", "--description", "B")},
 		{"gitlab repo flag", "glab", "https://gitlab.com/o/r.git",
 			[]string{"--repo", "https://gitlab.com/custom/repo", "issue", "edit", "18", "--body", "B"},
-			"glab issue update 18 --repo https://gitlab.com/custom/repo --description B"},
+			wantCall("glab", "issue", "update", "18", "--repo", "https://gitlab.com/custom/repo", "--description", "B")},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

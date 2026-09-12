@@ -18,7 +18,7 @@ import (
 	"github.com/gofrs/flock"
 )
 
-// sharedGGPath와 sharedProbePath는 각각 공유 빌드된 gg와 git 전달
+// sharedGGPath와 sharedProbePath는 각각 공유 빌드된 gg와 자식 CLI 전달
 // probe 바이너리의 경로다. 빌드에 성공했을 때만 채워진다.
 var (
 	sharedGGPath    string
@@ -80,22 +80,55 @@ func buildGG(t *testing.T) string {
 // writeFakeBin은 argv를 LOG 파일에 기록하는 fake 실행 파일을 만든다.
 func writeFakeBin(t *testing.T, dir, name, logFile string) {
 	t.Helper()
-	var path, body string
+	writeFakeCLI(t, dir, name, fakeCLIConfig{LogFile: logFile})
+}
+
+type fakeCLIConfig struct {
+	Name     string
+	LogFile  string
+	Stdout   string
+	Stderr   string
+	ExitCode int
+	TeaLogin bool
+}
+
+// writeFakeCLI는 실제 argv 경계를 보존하는 네이티브 probe를 설치한다.
+// 호출마다 이름과 인자를 JSON 배열 한 행으로 기록하며 로그인 조회도 기록한다.
+func writeFakeCLI(t *testing.T, dir, name string, config fakeCLIConfig) {
+	t.Helper()
+	buildSharedProbe()
+	path := filepath.Join(dir, name)
 	if runtime.GOOS == "windows" {
-		path = filepath.Join(dir, name+".cmd")
-		// chcp 65001로 로그를 UTF-8로 기록한다. 기본 OEM 코드페이지(CP949 등)로
-		// 남으면 한글 argv 단언이 깨진다.
-		body = "@echo off\r\nchcp 65001 >nul\r\necho " + name + " %* >> \"" + logFile + "\"\r\nexit /b 0\r\n"
-	} else {
-		path = filepath.Join(dir, name)
-		body = "#!/bin/sh\necho \"" + name + " $@\" >> \"" + logFile + "\"\nexit 0\n"
+		path += ".exe"
 	}
-	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
+	data, err := os.ReadFile(sharedProbePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	config.Name = name
+	data, err = json.Marshal(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path+".json", data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 }
 
-// buildSharedProbe는 git 전달 검증용 probe를 공유 임시 폴더에 딱 한 번
+func wantCall(args ...string) string {
+	data, _ := json.Marshal(args)
+	return string(data)
+}
+
+// wantTeaCall은 로그인 조회 한 번과 이어지는 명령 호출을 함께 검증한다.
+func wantTeaCall(args ...string) string {
+	return wantCall("tea", "logins", "list", "--output", "json") + "\n" + wantCall(append([]string{"tea"}, args...)...)
+}
+
+// buildSharedProbe는 자식 CLI 전달 검증용 probe를 공유 임시 폴더에 딱 한 번
 // 빌드한다. 빌드에 실패하면 panic하며, 이후 모든 호출에서 같은 panic 값이
 // 다시 발생한다.
 var buildSharedProbe = sync.OnceFunc(func() {
@@ -114,6 +147,48 @@ import (
 )
 
 func main() {
+	path, err := os.Executable()
+	if err != nil {
+		fmt.Fprint(os.Stderr, err)
+		os.Exit(99)
+	}
+	if data, err := os.ReadFile(path + ".json"); err == nil {
+		var config struct {
+			Name, LogFile, Stdout, Stderr string
+			ExitCode                      int
+			TeaLogin                      bool
+		}
+		if err := json.Unmarshal(data, &config); err != nil {
+			fmt.Fprint(os.Stderr, err)
+			os.Exit(99)
+		}
+		if config.LogFile != "" {
+			file, err := os.OpenFile(config.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+			if err != nil {
+				fmt.Fprint(os.Stderr, err)
+				os.Exit(99)
+			}
+			if err := json.NewEncoder(file).Encode(append([]string{config.Name}, os.Args[1:]...)); err != nil {
+				file.Close()
+				fmt.Fprint(os.Stderr, err)
+				os.Exit(99)
+			}
+			if err := file.Close(); err != nil {
+				fmt.Fprint(os.Stderr, err)
+				os.Exit(99)
+			}
+		}
+		if config.TeaLogin && len(os.Args) == 5 && os.Args[1] == "logins" && os.Args[2] == "list" && os.Args[3] == "--output" && os.Args[4] == "json" {
+			fmt.Println("[{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]")
+			return
+		}
+		fmt.Fprint(os.Stdout, config.Stdout)
+		fmt.Fprint(os.Stderr, config.Stderr)
+		os.Exit(config.ExitCode)
+	} else if !os.IsNotExist(err) {
+		fmt.Fprint(os.Stderr, err)
+		os.Exit(99)
+	}
 	if logPath := os.Getenv("GG_GIT_LOG"); logPath != "" {
 		file, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 		if err != nil {
@@ -148,7 +223,7 @@ func main() {
 	out, err := exec.Command("go", "build", "-o", bin, sourcePath).CombinedOutput()
 	if err != nil {
 		os.RemoveAll(dir)
-		panic(fmt.Sprintf("fake git build 실패: %v\n%s", err, out))
+		panic(fmt.Sprintf("CLI probe build 실패: %v\n%s", err, out))
 	}
 	sharedProbePath = bin
 })
@@ -599,7 +674,10 @@ func TestE2EProviderSettingIPv6RoundTrip(t *testing.T) {
 
 func readLog(t *testing.T, logFile string) string {
 	t.Helper()
-	data, _ := os.ReadFile(logFile)
+	data, err := os.ReadFile(logFile)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
 	return strings.TrimSpace(string(data))
 }
 
@@ -640,7 +718,7 @@ func assertGGHelp(t *testing.T, bin string, args, wants []string) {
 func TestE2ETopLevelHelp(t *testing.T) {
 	bin := buildGG(t)
 	for _, args := range [][]string{nil, {"help"}, {"--help"}, {"-h"}} {
-		assertGGHelp(t, bin, args, []string{"Usage:", "gg [flags] <command>", "gg <supported-git-command> [git args]", "gg repo --help", "Commands:", "commit", "issue", "pr", "alias: mr", "config", "--repo", "--remote", "--version         gg 버전만 표시", "-v, -verison      단독 사용 시 gg와 설치된 git, gh, glab, tea 버전을 표시"})
+		assertGGHelp(t, bin, args, []string{"Usage:", "gg [flags] <command>", "gg <supported-git-command> [git args]", "gg repo --help", "Commands:", "commit", "issue", "pr", "alias: mr", "config", "--repo", "--remote", "--version", "-v, -verison"})
 	}
 }
 
@@ -721,53 +799,27 @@ func TestE2ENestedHelp(t *testing.T) {
 }
 
 // TestE2EAllActionHelp는 gg가 소유한 resource와 action의 --help가 stdout으로
-// 나오고 usage와 정의된 flag를 모두 표시하는지 본다.
+// 나오고 명령 경로와 flag 계약을 표시하는지 본다.
 func TestE2EAllActionHelp(t *testing.T) {
 	bin := buildGG(t)
-	for _, name := range commandOrder {
-		rd := commandDefs[name]
-
-		stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), name, "--help")
-		if code != 0 || stderr != "" {
-			t.Errorf("gg %s --help = stderr %q, exit %d", name, stderr, code)
-		}
-		for _, want := range []string{rd.desc, rd.usage, "Commands:", "Flags:"} {
-			if !strings.Contains(stdout, want) {
-				t.Errorf("gg %s --help stdout에 %q 없음:\n%s", name, want, stdout)
-			}
-		}
-
-		for i := range rd.actions {
-			ad := &rd.actions[i]
-			if name == "repo" && isGitPassthroughAction(ad.name) {
-				continue
-			}
-			if name == "auth" && isAuthRelayAction(ad.name) {
-				// auth 릴레이는 --help를 포함한 모든 인자를 gh에 전달하므로
-				// gg help 검사에서 제외한다(auth_relay_e2e_test.go가 검증).
-				continue
-			}
-			// 2단어 action(pr comment list 등)은 토큰으로 분리해 호출한다.
-			actionArgs := append(append([]string{name}, strings.Fields(ad.name)...), "--help")
-			stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), actionArgs...)
+	for resource, contract := range resourceHelpContracts {
+		t.Run(resource, func(t *testing.T) {
+			stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), resource, "--help")
 			if code != 0 || stderr != "" {
-				t.Errorf("gg %s %s --help = stderr %q, exit %d", name, ad.name, stderr, code)
-				continue
+				t.Fatalf("gg %s --help = stderr %q, exit %d", resource, stderr, code)
 			}
-			wants := []string{ad.summary + ".", ad.usage, "Flags:", "--help"}
-			for _, f := range actionFlags(ad) {
-				if f.arg != "" {
-					wants = append(wants, f.name+" "+f.arg)
-				} else {
-					wants = append(wants, f.name)
-				}
+			assertResourceHelpContract(t, stdout, resource, contract)
+		})
+	}
+	for path, contract := range actionHelpContracts {
+		t.Run(path, func(t *testing.T) {
+			args := append(strings.Fields(path), "--help")
+			stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), args...)
+			if code != 0 || stderr != "" {
+				t.Fatalf("gg %s --help = stderr %q, exit %d", path, stderr, code)
 			}
-			for _, want := range wants {
-				if !strings.Contains(stdout, want) {
-					t.Errorf("gg %s %s --help stdout에 %q 없음:\n%s", name, ad.name, want, stdout)
-				}
-			}
-		}
+			assertHelpContract(t, stdout, path, contract)
+		})
 	}
 }
 
@@ -799,7 +851,7 @@ func TestE2ECommitAliasPassesHelpToGit(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, out)
 	}
-	if got := readLog(t, logFile); !strings.Contains(got, "git commit --no-gpg-sign --help") {
+	if got := readLog(t, logFile); !strings.Contains(got, wantCall("git", "commit", "--no-gpg-sign", "--help")) {
 		t.Errorf("git argv = %q, want git commit --no-gpg-sign --help", got)
 	}
 	if strings.Contains(out, "Usage:") {
@@ -816,7 +868,7 @@ func TestE2EPullPushHelpDoesNotRunGit(t *testing.T) {
 	writeFakeBin(t, fakeDir, "git", logFile)
 
 	for _, args := range [][]string{{"pull", "--help"}, {"repo", "pull", "--help"}, {"push", "--help"}} {
-		stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), args...)
+		stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, t.TempDir(), args...)
 		if code != 0 || stderr != "" {
 			t.Fatalf("gg %v = stderr %q, exit %d", args, stderr, code)
 		}
@@ -991,8 +1043,8 @@ func TestE2EVersion(t *testing.T) {
 	if code != 0 || out != "" {
 		t.Errorf("gg commit -v = output %q, exit %d; want empty output, exit 0", out, code)
 	}
-	if got := readLog(t, logFile); got != "git commit --no-gpg-sign -v" {
-		t.Errorf("git argv = %q, want %q", got, "git commit --no-gpg-sign -v")
+	if got := readLog(t, logFile); got != wantCall("git", "commit", "--no-gpg-sign", "-v") {
+		t.Errorf("git argv = %q, want %q", got, wantCall("git", "commit", "--no-gpg-sign", "-v"))
 	}
 }
 
@@ -1026,7 +1078,7 @@ func TestE2EGitHubIssueList(t *testing.T) {
 		t.Fatalf("exit %d: %s", code, out)
 	}
 	got := readLog(t, logFile)
-	if !strings.Contains(got, "gh issue list -R github.com/o/r --limit 3") {
+	if !strings.Contains(got, wantCall("gh", "issue", "list", "-R", "github.com/o/r", "--limit", "3")) {
 		t.Errorf("gh argv = %q", got)
 	}
 }
@@ -1127,7 +1179,7 @@ func TestE2ERepositoryContextRemoteBeforeAndAfterCommand(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("gg %v: exit %d: %s", args, code, out)
 		}
-		if got := readLog(t, logFile); got != "gh issue list -R github.com/o/upstream" {
+		if got := readLog(t, logFile); got != wantCall("gh", "issue", "list", "-R", "github.com/o/upstream") {
 			t.Errorf("gg %v argv = %q", args, got)
 		}
 	}
@@ -1151,7 +1203,7 @@ func TestE2EAutomaticRepositoryContextSelectionOrder(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit %d: %s", code, out)
 		}
-		if got := readLog(t, logFile); got != "gh issue list -R github.com/o/upstream" {
+		if got := readLog(t, logFile); got != wantCall("gh", "issue", "list", "-R", "github.com/o/upstream") {
 			t.Errorf("argv = %q", got)
 		}
 	})
@@ -1167,7 +1219,7 @@ func TestE2EAutomaticRepositoryContextSelectionOrder(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit %d: %s", code, out)
 		}
-		if got := readLog(t, logFile); got != "gh issue list -R github.com/o/origin" {
+		if got := readLog(t, logFile); got != wantCall("gh", "issue", "list", "-R", "github.com/o/origin") {
 			t.Errorf("argv = %q", got)
 		}
 	})
@@ -1184,7 +1236,7 @@ func TestE2EAutomaticRepositoryContextSelectionOrder(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit %d: %s", code, out)
 		}
-		if got := readLog(t, logFile); got != "gh issue list -R github.com/o/solo" {
+		if got := readLog(t, logFile); got != wantCall("gh", "issue", "list", "-R", "github.com/o/solo") {
 			t.Errorf("argv = %q", got)
 		}
 	})
@@ -1260,8 +1312,8 @@ func TestE2EPullPushPassThroughToGit(t *testing.T) {
 		args []string
 		want string
 	}{
-		{args: []string{"pull", "--rebase", "origin", "main"}, want: "git pull --rebase origin main"},
-		{args: []string{"push", "--force-with-lease", "origin", "main"}, want: "git push --force-with-lease origin main"},
+		{args: []string{"pull", "--rebase", "origin", "main"}, want: wantCall("git", "pull", "--rebase", "origin", "main")},
+		{args: []string{"push", "--force-with-lease", "origin", "main"}, want: wantCall("git", "push", "--force-with-lease", "origin", "main")},
 	} {
 		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
 			t.Fatal(err)
@@ -1453,8 +1505,8 @@ func TestE2ECommitPassesThroughToGitWithNoGpgSign(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"-m", "msg"}, "git commit --no-gpg-sign -m msg"},
-		{[]string{"-v"}, "git commit --no-gpg-sign -v"},
+		{[]string{"-m", "msg"}, wantCall("git", "commit", "--no-gpg-sign", "-m", "msg")},
+		{[]string{"-v"}, wantCall("git", "commit", "--no-gpg-sign", "-v")},
 	} {
 		out, code := runGG(t, bin, fakeDir, t.TempDir(), append([]string{"commit"}, tt.args...)...)
 		if code != 0 {
@@ -1512,7 +1564,7 @@ func TestE2ECloneHTTPAllowedWithWarning(t *testing.T) {
 		t.Fatalf("warning expected, got: %s", out)
 	}
 	got := readLog(t, logFile)
-	if !strings.Contains(got, "gh repo clone http://github.com/o/r.git") {
+	if !strings.Contains(got, wantCall("gh", "repo", "clone", "http://github.com/o/r.git")) {
 		t.Fatalf("gh argv = %q", got)
 	}
 }
@@ -1525,7 +1577,7 @@ func TestE2ECloneKeepsSSHNonStandardPort(t *testing.T) {
 		t.Fatalf("exit %d: %s", code, out)
 	}
 	got := readLog(t, logFile)
-	if !strings.Contains(got, "gh repo clone ssh://git@github.com:2222/o/r.git") {
+	if !strings.Contains(got, wantCall("gh", "repo", "clone", "ssh://git@github.com:2222/o/r.git")) {
 		t.Fatalf("gh argv = %q", got)
 	}
 }
@@ -1553,7 +1605,7 @@ func TestE2ESavedConfigRoutesWithoutPrompt(t *testing.T) {
 		t.Fatalf("exit: %v\n%s", err, out)
 	}
 	got := readLog(t, logFile)
-	if !strings.Contains(got, "glab issue list --repo https://git.example.com/g/p") {
+	if !strings.Contains(got, wantCall("glab", "issue", "list", "--repo", "https://git.example.com/g/p")) {
 		t.Errorf("glab argv = %q", got)
 	}
 }
@@ -1822,15 +1874,15 @@ func TestE2EGitHubIssueCommentCloseReopen(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"issue", "comment", "18", "--body", "fixed"}, "gh issue comment 18 --body fixed -R github.com/o/origin"},
-		{[]string{"issue", "close", "18"}, "gh issue close 18 -R github.com/o/origin"},
-		{[]string{"issue", "reopen", "18"}, "gh issue reopen 18 -R github.com/o/origin"},
-		{[]string{"issue", "comment", "18", "--body", "upstream-note", "--remote", "upstream"}, "gh issue comment 18 --body upstream-note -R github.com/o/upstream"},
-		{[]string{"issue", "close", "18", "--remote", "upstream"}, "gh issue close 18 -R github.com/o/upstream"},
-		{[]string{"issue", "reopen", "18", "--remote", "upstream"}, "gh issue reopen 18 -R github.com/o/upstream"},
-		{[]string{"--repo", "https://github.com/custom/repo", "issue", "comment", "18", "--body", "repo-flag"}, "gh issue comment 18 --body repo-flag -R github.com/custom/repo"},
-		{[]string{"--repo", "https://github.com/custom/repo", "issue", "close", "18"}, "gh issue close 18 -R github.com/custom/repo"},
-		{[]string{"--repo", "https://github.com/custom/repo", "issue", "reopen", "18"}, "gh issue reopen 18 -R github.com/custom/repo"},
+		{[]string{"issue", "comment", "18", "--body", "fixed"}, wantCall("gh", "issue", "comment", "18", "--body", "fixed", "-R", "github.com/o/origin")},
+		{[]string{"issue", "close", "18"}, wantCall("gh", "issue", "close", "18", "-R", "github.com/o/origin")},
+		{[]string{"issue", "reopen", "18"}, wantCall("gh", "issue", "reopen", "18", "-R", "github.com/o/origin")},
+		{[]string{"issue", "comment", "18", "--body", "upstream-note", "--remote", "upstream"}, wantCall("gh", "issue", "comment", "18", "--body", "upstream-note", "-R", "github.com/o/upstream")},
+		{[]string{"issue", "close", "18", "--remote", "upstream"}, wantCall("gh", "issue", "close", "18", "-R", "github.com/o/upstream")},
+		{[]string{"issue", "reopen", "18", "--remote", "upstream"}, wantCall("gh", "issue", "reopen", "18", "-R", "github.com/o/upstream")},
+		{[]string{"--repo", "https://github.com/custom/repo", "issue", "comment", "18", "--body", "repo-flag"}, wantCall("gh", "issue", "comment", "18", "--body", "repo-flag", "-R", "github.com/custom/repo")},
+		{[]string{"--repo", "https://github.com/custom/repo", "issue", "close", "18"}, wantCall("gh", "issue", "close", "18", "-R", "github.com/custom/repo")},
+		{[]string{"--repo", "https://github.com/custom/repo", "issue", "reopen", "18"}, wantCall("gh", "issue", "reopen", "18", "-R", "github.com/custom/repo")},
 	}
 
 	for _, tc := range cases {
@@ -1859,9 +1911,9 @@ func TestE2EGitLabIssueCommentCloseReopen(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"issue", "comment", "18", "--body", "fixed"}, "glab issue note 18 --message fixed --repo https://gitlab.com/o/r"},
-		{[]string{"issue", "close", "18"}, "glab issue close 18 --repo https://gitlab.com/o/r"},
-		{[]string{"issue", "reopen", "18"}, "glab issue reopen 18 --repo https://gitlab.com/o/r"},
+		{[]string{"issue", "comment", "18", "--body", "fixed"}, wantCall("glab", "issue", "note", "18", "--message", "fixed", "--repo", "https://gitlab.com/o/r")},
+		{[]string{"issue", "close", "18"}, wantCall("glab", "issue", "close", "18", "--repo", "https://gitlab.com/o/r")},
+		{[]string{"issue", "reopen", "18"}, wantCall("glab", "issue", "reopen", "18", "--repo", "https://gitlab.com/o/r")},
 	}
 
 	for _, tc := range cases {
@@ -1902,26 +1954,16 @@ func TestE2EGiteaIssueCommentCloseReopen(t *testing.T) {
 	bin := buildGG(t)
 	fakeDir := t.TempDir()
 	logFile := filepath.Join(t.TempDir(), "calls.log")
-	var scriptPath, body string
-	if runtime.GOOS == "windows" {
-		scriptPath = filepath.Join(fakeDir, "tea.cmd")
-		body = "@echo off\r\nif \"%1\"==\"logins\" if \"%2\"==\"list\" (\r\n  echo [{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]\r\n  exit /b 0\r\n)\r\necho tea %* >> \"" + logFile + "\"\r\nexit /b 0\r\n"
-	} else {
-		scriptPath = filepath.Join(fakeDir, "tea")
-		body = "#!/bin/sh\nif [ \"$1\" = \"logins\" ] && [ \"$2\" = \"list\" ]; then\n  echo '[{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]'\n  exit 0\nfi\necho \"tea $@\" >> \"" + logFile + "\"\nexit 0\n"
-	}
-	if err := os.WriteFile(scriptPath, []byte(body), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	writeFakeTeaWithLogin(t, fakeDir, logFile)
 
 	repo := tempRepo(t, "https://gitea.com/o/r.git")
 	cases := []struct {
 		args []string
 		want string
 	}{
-		{[]string{"issue", "comment", "18", "--body", "fixed"}, "tea comment 18 fixed --login pub --repo o/r"},
-		{[]string{"issue", "close", "18"}, "tea issues close 18 --login pub --repo o/r"},
-		{[]string{"issue", "reopen", "18"}, "tea issues reopen 18 --login pub --repo o/r"},
+		{[]string{"issue", "comment", "18", "--body", "fixed"}, wantTeaCall("comment", "18", "fixed", "--login", "pub", "--repo", "o/r")},
+		{[]string{"issue", "close", "18"}, wantTeaCall("issues", "close", "18", "--login", "pub", "--repo", "o/r")},
+		{[]string{"issue", "reopen", "18"}, wantTeaCall("issues", "reopen", "18", "--login", "pub", "--repo", "o/r")},
 	}
 
 	for _, tc := range cases {

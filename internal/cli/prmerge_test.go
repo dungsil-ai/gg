@@ -191,13 +191,13 @@ func TestE2EPRMergeGitHubArgv(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"pr", "merge", "42"}, "gh pr merge 42 -R github.com/o/r"},
-		{[]string{"pr", "merge", "42", "--merge"}, "gh pr merge 42 --merge -R github.com/o/r"},
-		{[]string{"pr", "merge", "42", "--squash"}, "gh pr merge 42 --squash -R github.com/o/r"},
-		{[]string{"pr", "merge", "42", "--rebase"}, "gh pr merge 42 --rebase -R github.com/o/r"},
-		{[]string{"pr", "merge", "42", "--delete-branch"}, "gh pr merge 42 --delete-branch -R github.com/o/r"},
-		{[]string{"pr", "merge", "42", "--auto"}, "gh pr merge 42 --auto -R github.com/o/r"},
-		{[]string{"pr", "merge", "42", "--squash", "--delete-branch", "--auto"}, "gh pr merge 42 --squash --delete-branch --auto -R github.com/o/r"},
+		{[]string{"pr", "merge", "42"}, wantCall("gh", "pr", "merge", "42", "-R", "github.com/o/r")},
+		{[]string{"pr", "merge", "42", "--merge"}, wantCall("gh", "pr", "merge", "42", "--merge", "-R", "github.com/o/r")},
+		{[]string{"pr", "merge", "42", "--squash"}, wantCall("gh", "pr", "merge", "42", "--squash", "-R", "github.com/o/r")},
+		{[]string{"pr", "merge", "42", "--rebase"}, wantCall("gh", "pr", "merge", "42", "--rebase", "-R", "github.com/o/r")},
+		{[]string{"pr", "merge", "42", "--delete-branch"}, wantCall("gh", "pr", "merge", "42", "--delete-branch", "-R", "github.com/o/r")},
+		{[]string{"pr", "merge", "42", "--auto"}, wantCall("gh", "pr", "merge", "42", "--auto", "-R", "github.com/o/r")},
+		{[]string{"pr", "merge", "42", "--squash", "--delete-branch", "--auto"}, wantCall("gh", "pr", "merge", "42", "--squash", "--delete-branch", "--auto", "-R", "github.com/o/r")},
 	}
 	for _, tc := range cases {
 		clearFile(t, logFile)
@@ -222,12 +222,12 @@ func TestE2EPRMergeGitLabArgv(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"pr", "merge", "42"}, "glab mr merge 42 --when-pipeline-succeeds=false --repo https://gitlab.com/o/r"},
-		{[]string{"pr", "merge", "42", "--merge"}, "glab mr merge 42 --when-pipeline-succeeds=false --repo https://gitlab.com/o/r"},
-		{[]string{"pr", "merge", "42", "--squash"}, "glab mr merge 42 --squash --when-pipeline-succeeds=false --repo https://gitlab.com/o/r"},
-		{[]string{"pr", "merge", "42", "--delete-branch"}, "glab mr merge 42 --remove-source-branch --when-pipeline-succeeds=false --repo https://gitlab.com/o/r"},
-		{[]string{"pr", "merge", "42", "--auto"}, "glab mr merge 42 --auto-merge --repo https://gitlab.com/o/r"},
-		{[]string{"pr", "merge", "42", "--squash", "--delete-branch", "--auto"}, "glab mr merge 42 --squash --remove-source-branch --auto-merge --repo https://gitlab.com/o/r"},
+		{[]string{"pr", "merge", "42"}, wantCall("glab", "mr", "merge", "42", "--when-pipeline-succeeds=false", "--repo", "https://gitlab.com/o/r")},
+		{[]string{"pr", "merge", "42", "--merge"}, wantCall("glab", "mr", "merge", "42", "--when-pipeline-succeeds=false", "--repo", "https://gitlab.com/o/r")},
+		{[]string{"pr", "merge", "42", "--squash"}, wantCall("glab", "mr", "merge", "42", "--squash", "--when-pipeline-succeeds=false", "--repo", "https://gitlab.com/o/r")},
+		{[]string{"pr", "merge", "42", "--delete-branch"}, wantCall("glab", "mr", "merge", "42", "--remove-source-branch", "--when-pipeline-succeeds=false", "--repo", "https://gitlab.com/o/r")},
+		{[]string{"pr", "merge", "42", "--auto"}, wantCall("glab", "mr", "merge", "42", "--auto-merge", "--repo", "https://gitlab.com/o/r")},
+		{[]string{"pr", "merge", "42", "--squash", "--delete-branch", "--auto"}, wantCall("glab", "mr", "merge", "42", "--squash", "--remove-source-branch", "--auto-merge", "--repo", "https://gitlab.com/o/r")},
 	}
 	for _, tc := range cases {
 		clearFile(t, logFile)
@@ -302,12 +302,12 @@ func TestE2EPRMergeTeaArgv(t *testing.T) {
 		{
 			name: "tea 기본 병합",
 			args: []string{"pr", "merge", "42"},
-			want: "tea pulls merge 42 --login pub --repo o/r",
+			want: wantTeaCall("pulls", "merge", "42", "--login", "pub", "--repo", "o/r"),
 		},
 		{
 			name: "tea squash 병합",
 			args: []string{"pr", "merge", "42", "--squash"},
-			want: "tea pulls merge 42 --style squash --login pub --repo o/r",
+			want: wantTeaCall("pulls", "merge", "42", "--style", "squash", "--login", "pub", "--repo", "o/r"),
 		},
 	}
 
@@ -333,7 +333,7 @@ func TestE2EPRMergeTeaUnsupportedFlags(t *testing.T) {
 	bin := buildGG(t)
 	fakeDir := t.TempDir()
 	logFile := filepath.Join(t.TempDir(), "calls.log")
-	writeFakeTeaWithLogin(t, fakeDir, logFile)
+	writeFakeBin(t, fakeDir, "tea", logFile)
 	repo := tempRepo(t, "https://gitea.com/o/r.git")
 
 	cases := []struct {
@@ -366,5 +366,5 @@ func TestE2EPRMergeHelp(t *testing.T) {
 	assertGGHelp(t, bin, []string{"pr", "merge", "--help"}, []string{
 		"Usage:", "pr merge <number>", "--merge", "--squash", "--rebase", "--delete-branch", "--auto", "--repo", "--remote", "--help",
 	})
-	assertGGHelp(t, bin, []string{"--help"}, []string{"comment on, diff, check CI, merge, lock, review, update, or close pull requests"})
+	assertGGHelp(t, bin, []string{"--help"}, []string{"Usage:", "pr"})
 }

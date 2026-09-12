@@ -21,35 +21,35 @@ func TestE2EPRLockUnlockArgv(t *testing.T) {
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"pr", "lock", "42"},
-			want:     "gh pr lock 42 -R github.com/o/r",
+			want:     wantCall("gh", "pr", "lock", "42", "-R", "github.com/o/r"),
 		},
 		{
 			name:     "github lock with reason",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"pr", "lock", "42", "--reason", "resolved"},
-			want:     "gh pr lock 42 -R github.com/o/r --reason resolved",
+			want:     wantCall("gh", "pr", "lock", "42", "-R", "github.com/o/r", "--reason", "resolved"),
 		},
 		{
 			name:     "github unlock",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"pr", "unlock", "42"},
-			want:     "gh pr unlock 42 -R github.com/o/r",
+			want:     wantCall("gh", "pr", "unlock", "42", "-R", "github.com/o/r"),
 		},
 		{
 			name:     "github lock repo flag",
 			remote:   "",
 			fakeName: "gh",
 			args:     []string{"--repo", "https://github.com/custom/repo", "pr", "lock", "42"},
-			want:     "gh pr lock 42 -R github.com/custom/repo",
+			want:     wantCall("gh", "pr", "lock", "42", "-R", "github.com/custom/repo"),
 		},
 		{
 			name:     "github unlock remote flag",
 			remote:   "",
 			fakeName: "gh",
 			args:     []string{"pr", "unlock", "42", "--remote", "upstream"},
-			want:     "gh pr unlock 42 -R github.com/o/upstream",
+			want:     wantCall("gh", "pr", "unlock", "42", "-R", "github.com/o/upstream"),
 		},
 	}
 
@@ -118,7 +118,7 @@ func TestE2EPRLockUnlockUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "glab", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)

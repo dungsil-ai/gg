@@ -19,13 +19,13 @@ func TestE2EGitHubPRCommentCRUD(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"pr", "comment", "18", "--body", "fixed"}, "gh pr comment 18 --body fixed -R github.com/o/origin"},
-		{[]string{"pr", "comment", "list", "18"}, "gh api repos/o/origin/issues/18/comments"},
-		{[]string{"pr", "comment", "edit", "18", "77", "--body", "edited"}, "gh api -X PATCH repos/o/origin/issues/comments/77 -f body=edited"},
-		{[]string{"pr", "comment", "delete", "18", "77"}, "gh api -X DELETE repos/o/origin/issues/comments/77"},
-		{[]string{"mr", "comment", "list", "18"}, "gh api repos/o/origin/issues/18/comments"},
-		{[]string{"pr", "comment", "18", "--body", "upstream-note", "--remote", "upstream"}, "gh pr comment 18 --body upstream-note -R github.com/o/upstream"},
-		{[]string{"--repo", "https://github.com/custom/repo", "pr", "comment", "list", "18"}, "gh api repos/custom/repo/issues/18/comments"},
+		{[]string{"pr", "comment", "18", "--body", "fixed"}, wantCall("gh", "pr", "comment", "18", "--body", "fixed", "-R", "github.com/o/origin")},
+		{[]string{"pr", "comment", "list", "18"}, wantCall("gh", "api", "repos/o/origin/issues/18/comments")},
+		{[]string{"pr", "comment", "edit", "18", "77", "--body", "edited"}, wantCall("gh", "api", "-X", "PATCH", "repos/o/origin/issues/comments/77", "-f", "body=edited")},
+		{[]string{"pr", "comment", "delete", "18", "77"}, wantCall("gh", "api", "-X", "DELETE", "repos/o/origin/issues/comments/77")},
+		{[]string{"mr", "comment", "list", "18"}, wantCall("gh", "api", "repos/o/origin/issues/18/comments")},
+		{[]string{"pr", "comment", "18", "--body", "upstream-note", "--remote", "upstream"}, wantCall("gh", "pr", "comment", "18", "--body", "upstream-note", "-R", "github.com/o/upstream")},
+		{[]string{"--repo", "https://github.com/custom/repo", "pr", "comment", "list", "18"}, wantCall("gh", "api", "repos/custom/repo/issues/18/comments")},
 	}
 
 	for _, tc := range cases {
@@ -98,12 +98,12 @@ func TestE2EGitLabPRCommentCRUD(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"pr", "comment", "18", "--body", "fixed"}, "glab mr note 18 --message fixed --repo https://gitlab.com/o/r"},
-		{[]string{"mr", "comment", "18", "--body", "fixed"}, "glab mr note 18 --message fixed --repo https://gitlab.com/o/r"},
-		{[]string{"pr", "comment", "list", "18"}, "glab api projects/o%2Fr/merge_requests/18/notes"},
-		{[]string{"pr", "comment", "edit", "18", "77", "--body", "edited"}, "glab api -X PUT projects/o%2Fr/merge_requests/18/notes/77 -f body=edited"},
-		{[]string{"pr", "comment", "delete", "18", "77"}, "glab api -X DELETE projects/o%2Fr/merge_requests/18/notes/77"},
-		{[]string{"pr", "comment", "list", "18", "--repo", "https://gitlab.com/grp/sub/repo"}, "glab api projects/grp%2Fsub%2Frepo/merge_requests/18/notes"},
+		{[]string{"pr", "comment", "18", "--body", "fixed"}, wantCall("glab", "mr", "note", "18", "--message", "fixed", "--repo", "https://gitlab.com/o/r")},
+		{[]string{"mr", "comment", "18", "--body", "fixed"}, wantCall("glab", "mr", "note", "18", "--message", "fixed", "--repo", "https://gitlab.com/o/r")},
+		{[]string{"pr", "comment", "list", "18"}, wantCall("glab", "api", "projects/o%2Fr/merge_requests/18/notes")},
+		{[]string{"pr", "comment", "edit", "18", "77", "--body", "edited"}, wantCall("glab", "api", "-X", "PUT", "projects/o%2Fr/merge_requests/18/notes/77", "-f", "body=edited")},
+		{[]string{"pr", "comment", "delete", "18", "77"}, wantCall("glab", "api", "-X", "DELETE", "projects/o%2Fr/merge_requests/18/notes/77")},
+		{[]string{"pr", "comment", "list", "18", "--repo", "https://gitlab.com/grp/sub/repo"}, wantCall("glab", "api", "projects/grp%2Fsub%2Frepo/merge_requests/18/notes")},
 	}
 
 	for _, tc := range cases {
@@ -126,17 +126,7 @@ func TestE2EGiteaPRCommentCreateAndUnsupported(t *testing.T) {
 	bin := buildGG(t)
 	fakeDir := t.TempDir()
 	logFile := filepath.Join(t.TempDir(), "calls.log")
-	var scriptPath, body string
-	if runtime.GOOS == "windows" {
-		scriptPath = filepath.Join(fakeDir, "tea.cmd")
-		body = "@echo off\r\nif \"%1\"==\"logins\" if \"%2\"==\"list\" (\r\n  echo [{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]\r\n  exit /b 0\r\n)\r\necho tea %* >> \"" + logFile + "\"\r\nexit /b 0\r\n"
-	} else {
-		scriptPath = filepath.Join(fakeDir, "tea")
-		body = "#!/bin/sh\nif [ \"$1\" = \"logins\" ] && [ \"$2\" = \"list\" ]; then\n  echo '[{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]'\n  exit 0\nfi\necho \"tea $@\" >> \"" + logFile + "\"\nexit 0\n"
-	}
-	if err := os.WriteFile(scriptPath, []byte(body), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	writeFakeTeaWithLogin(t, fakeDir, logFile)
 	repo := tempRepo(t, "https://gitea.com/o/r.git")
 
 	if err := os.WriteFile(logFile, nil, 0o600); err != nil {
@@ -146,7 +136,7 @@ func TestE2EGiteaPRCommentCreateAndUnsupported(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("gg pr comment: exit %d: %s", code, out)
 	}
-	if got, want := readLog(t, logFile), "tea comment 18 fixed --login pub --repo o/r"; got != want {
+	if got, want := readLog(t, logFile), wantTeaCall("comment", "18", "fixed", "--login", "pub", "--repo", "o/r"); got != want {
 		t.Errorf("tea argv = %q, want %q", got, want)
 	}
 
@@ -157,10 +147,11 @@ func TestE2EGiteaPRCommentCreateAndUnsupported(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("gg pr comment list: exit %d: %s", code, out)
 	}
-	if got, want := readLog(t, logFile), "tea comments list 18 --login pub --repo o/r"; got != want {
+	if got, want := readLog(t, logFile), wantTeaCall("comments", "list", "18", "--login", "pub", "--repo", "o/r"); got != want {
 		t.Errorf("tea comments list argv = %q, want %q", got, want)
 	}
 
+	writeFakeBin(t, fakeDir, "tea", logFile)
 	for _, args := range [][]string{
 		{"pr", "comment", "edit", "18", "77", "--body", "text"},
 		{"pr", "comment", "delete", "18", "77"},

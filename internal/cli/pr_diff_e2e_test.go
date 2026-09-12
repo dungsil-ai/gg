@@ -22,28 +22,28 @@ func TestE2EPRDiffArgv(t *testing.T) {
 			originURL: "https://github.com/o/r.git",
 			fakeName:  "gh",
 			args:      []string{"pr", "diff", "42"},
-			want:      "gh pr diff 42 -R github.com/o/r",
+			want:      wantCall("gh", "pr", "diff", "42", "-R", "github.com/o/r"),
 		},
 		{
 			name:      "github diff repo flag",
 			originURL: "https://github.com/o/unused.git",
 			fakeName:  "gh",
 			args:      []string{"--repo", "https://github.com/custom/repo", "pr", "diff", "42"},
-			want:      "gh pr diff 42 -R github.com/custom/repo",
+			want:      wantCall("gh", "pr", "diff", "42", "-R", "github.com/custom/repo"),
 		},
 		{
 			name:      "gitlab diff",
 			originURL: "https://gitlab.com/o/r.git",
 			fakeName:  "glab",
 			args:      []string{"pr", "diff", "42"},
-			want:      "glab mr diff 42 --repo https://gitlab.com/o/r",
+			want:      wantCall("glab", "mr", "diff", "42", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:      "gitlab diff mr alias",
 			originURL: "https://gitlab.com/o/r.git",
 			fakeName:  "glab",
 			args:      []string{"mr", "diff", "42"},
-			want:      "glab mr diff 42 --repo https://gitlab.com/o/r",
+			want:      wantCall("glab", "mr", "diff", "42", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:        "gitlab diff remote flag",
@@ -51,7 +51,7 @@ func TestE2EPRDiffArgv(t *testing.T) {
 			upstreamURL: "https://gitlab.com/o/upstream.git",
 			fakeName:    "glab",
 			args:        []string{"pr", "diff", "42", "--remote", "upstream"},
-			want:        "glab mr diff 42 --repo https://gitlab.com/o/upstream",
+			want:        wantCall("glab", "mr", "diff", "42", "--repo", "https://gitlab.com/o/upstream"),
 		},
 	}
 

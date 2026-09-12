@@ -19,37 +19,37 @@ func TestE2EWorkflowArgv(t *testing.T) {
 			name:   "workflow list",
 			remote: "https://github.com/o/r.git",
 			args:   []string{"workflow", "list"},
-			want:   "gh workflow list -R github.com/o/r",
+			want:   wantCall("gh", "workflow", "list", "-R", "github.com/o/r"),
 		},
 		{
 			name:   "workflow view",
 			remote: "https://github.com/o/r.git",
 			args:   []string{"workflow", "view", "ci.yml"},
-			want:   "gh workflow view ci.yml -R github.com/o/r",
+			want:   wantCall("gh", "workflow", "view", "ci.yml", "-R", "github.com/o/r"),
 		},
 		{
 			name:   "workflow view with ref",
 			remote: "https://github.com/o/r.git",
 			args:   []string{"workflow", "view", "ci.yml", "--ref", "dev"},
-			want:   "gh workflow view ci.yml -R github.com/o/r --ref dev",
+			want:   wantCall("gh", "workflow", "view", "ci.yml", "-R", "github.com/o/r", "--ref", "dev"),
 		},
 		{
 			name:   "workflow run",
 			remote: "https://github.com/o/r.git",
 			args:   []string{"workflow", "run", "release.yml", "--ref", "main"},
-			want:   "gh workflow run release.yml -R github.com/o/r --ref main",
+			want:   wantCall("gh", "workflow", "run", "release.yml", "-R", "github.com/o/r", "--ref", "main"),
 		},
 		{
 			name:   "workflow enable",
 			remote: "https://github.com/o/r.git",
 			args:   []string{"workflow", "enable", "ci.yml"},
-			want:   "gh workflow enable ci.yml -R github.com/o/r",
+			want:   wantCall("gh", "workflow", "enable", "ci.yml", "-R", "github.com/o/r"),
 		},
 		{
 			name:   "workflow disable repo flag",
 			remote: "",
 			args:   []string{"--repo", "https://github.com/custom/repo", "workflow", "disable", "ci.yml"},
-			want:   "gh workflow disable ci.yml -R github.com/custom/repo",
+			want:   wantCall("gh", "workflow", "disable", "ci.yml", "-R", "github.com/custom/repo"),
 		},
 	}
 
@@ -104,7 +104,7 @@ func TestE2EWorkflowUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "glab", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)

@@ -19,43 +19,43 @@ func TestE2EAuthRelayArgv(t *testing.T) {
 			name:   "auth token",
 			remote: "https://github.com/o/r.git",
 			args:   []string{"auth", "token"},
-			want:   "gh auth token",
+			want:   wantCall("gh", "auth", "token"),
 		},
 		{
 			name:   "auth setup-git",
 			remote: "https://github.com/o/r.git",
 			args:   []string{"auth", "setup-git"},
-			want:   "gh auth setup-git",
+			want:   wantCall("gh", "auth", "setup-git"),
 		},
 		{
 			name:   "auth login with args",
 			remote: "https://github.com/o/r.git",
 			args:   []string{"auth", "login", "--hostname", "git.example.com", "--with-token"},
-			want:   "gh auth login --hostname git.example.com --with-token",
+			want:   wantCall("gh", "auth", "login", "--hostname", "git.example.com", "--with-token"),
 		},
 		{
 			name:   "auth logout with hostname",
 			remote: "https://github.com/o/r.git",
 			args:   []string{"auth", "logout", "--hostname", "git.example.com"},
-			want:   "gh auth logout --hostname git.example.com",
+			want:   wantCall("gh", "auth", "logout", "--hostname", "git.example.com"),
 		},
 		{
 			name:   "auth refresh",
 			remote: "https://github.com/o/r.git",
 			args:   []string{"auth", "refresh"},
-			want:   "gh auth refresh",
+			want:   wantCall("gh", "auth", "refresh"),
 		},
 		{
 			name:   "auth switch with user",
 			remote: "https://github.com/o/r.git",
 			args:   []string{"auth", "switch", "--user", "dungsil"},
-			want:   "gh auth switch --user dungsil",
+			want:   wantCall("gh", "auth", "switch", "--user", "dungsil"),
 		},
 		{
 			name:   "auth token outside repo",
 			remote: "",
 			args:   []string{"auth", "token"},
-			want:   "gh auth token",
+			want:   wantCall("gh", "auth", "token"),
 		},
 	}
 
@@ -97,8 +97,8 @@ func TestE2EAuthRelayHelpPassesThrough(t *testing.T) {
 	if !strings.Contains(out, "gh auth login help") {
 		t.Errorf("--help가 gh로 전달되지 않음: %s", out)
 	}
-	if got := readLog(t, logFile); got != "gh auth login --help" {
-		t.Errorf("argv = %q, want %q", got, "gh auth login --help")
+	if got := readLog(t, logFile); got != wantCall("gh", "auth", "login", "--help") {
+		t.Errorf("argv = %q, want %q", got, wantCall("gh", "auth", "login", "--help"))
 	}
 }
 
@@ -158,7 +158,7 @@ func TestE2EAuthStatusStillWorks(t *testing.T) {
 		t.Errorf("auth status 표 없음: %s", out)
 	}
 	// auth status는 내부적으로 로그인 조회를 위해 gh를 실행한다(릴레이와 무관).
-	if got := readLog(t, logFile); got != "" && !strings.Contains(got, "gh auth status") {
+	if got := readLog(t, logFile); got != wantCall("gh", "auth", "status", "--hostname", "github.com", "--json", "hosts") {
 		t.Errorf("auth status 외 실행이 있으면 안 된다, got %q", got)
 	}
 }

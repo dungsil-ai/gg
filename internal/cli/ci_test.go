@@ -240,22 +240,22 @@ func TestE2ECIInvocations(t *testing.T) {
 		dir  string
 		want string
 	}{
-		{[]string{"ci", "list"}, ghRepo, "gh run list -R github.com/o/r"},
-		{[]string{"ci", "list", "--limit", "5"}, ghRepo, "gh run list -R github.com/o/r --limit 5"},
-		{[]string{"ci", "list", "--branch", "main"}, ghRepo, "gh run list -R github.com/o/r --branch main"},
-		{[]string{"ci", "view", "123"}, ghRepo, "gh run view 123 -R github.com/o/r"},
-		{[]string{"ci", "watch", "123"}, ghRepo, "gh run watch 123 -R github.com/o/r"},
-		{[]string{"ci", "retry", "123"}, ghRepo, "gh run rerun 123 -R github.com/o/r"},
-		{[]string{"ci", "cancel", "123"}, ghRepo, "gh run cancel 123 -R github.com/o/r"},
-		{[]string{"ci", "list"}, glabRepo, "glab ci list --repo https://gitlab.com/o/r"},
-		{[]string{"ci", "list", "--branch", "main", "--limit", "5"}, glabRepo, "glab ci list --repo https://gitlab.com/o/r --ref main --per-page 5"},
-		{[]string{"ci", "view", "123"}, glabRepo, "glab ci get --pipeline-id 123 --repo https://gitlab.com/o/r"},
-		{[]string{"ci", "watch", "123"}, glabRepo, "glab ci trace 123 --repo https://gitlab.com/o/r"},
-		{[]string{"ci", "retry", "123"}, glabRepo, "glab ci retry 123 --repo https://gitlab.com/o/r"},
-		{[]string{"ci", "cancel", "123"}, glabRepo, "glab ci cancel pipeline 123 --repo https://gitlab.com/o/r"},
+		{[]string{"ci", "list"}, ghRepo, wantCall("gh", "run", "list", "-R", "github.com/o/r")},
+		{[]string{"ci", "list", "--limit", "5"}, ghRepo, wantCall("gh", "run", "list", "-R", "github.com/o/r", "--limit", "5")},
+		{[]string{"ci", "list", "--branch", "main"}, ghRepo, wantCall("gh", "run", "list", "-R", "github.com/o/r", "--branch", "main")},
+		{[]string{"ci", "view", "123"}, ghRepo, wantCall("gh", "run", "view", "123", "-R", "github.com/o/r")},
+		{[]string{"ci", "watch", "123"}, ghRepo, wantCall("gh", "run", "watch", "123", "-R", "github.com/o/r")},
+		{[]string{"ci", "retry", "123"}, ghRepo, wantCall("gh", "run", "rerun", "123", "-R", "github.com/o/r")},
+		{[]string{"ci", "cancel", "123"}, ghRepo, wantCall("gh", "run", "cancel", "123", "-R", "github.com/o/r")},
+		{[]string{"ci", "list"}, glabRepo, wantCall("glab", "ci", "list", "--repo", "https://gitlab.com/o/r")},
+		{[]string{"ci", "list", "--branch", "main", "--limit", "5"}, glabRepo, wantCall("glab", "ci", "list", "--repo", "https://gitlab.com/o/r", "--ref", "main", "--per-page", "5")},
+		{[]string{"ci", "view", "123"}, glabRepo, wantCall("glab", "ci", "get", "--pipeline-id", "123", "--repo", "https://gitlab.com/o/r")},
+		{[]string{"ci", "watch", "123"}, glabRepo, wantCall("glab", "ci", "trace", "123", "--repo", "https://gitlab.com/o/r")},
+		{[]string{"ci", "retry", "123"}, glabRepo, wantCall("glab", "ci", "retry", "123", "--repo", "https://gitlab.com/o/r")},
+		{[]string{"ci", "cancel", "123"}, glabRepo, wantCall("glab", "ci", "cancel", "pipeline", "123", "--repo", "https://gitlab.com/o/r")},
 		// alias: actions는 ci와 같은 invocation을 낸다
-		{[]string{"actions", "list", "--limit", "3"}, ghRepo, "gh run list -R github.com/o/r --limit 3"},
-		{[]string{"actions", "cancel", "123"}, glabRepo, "glab ci cancel pipeline 123 --repo https://gitlab.com/o/r"},
+		{[]string{"actions", "list", "--limit", "3"}, ghRepo, wantCall("gh", "run", "list", "-R", "github.com/o/r", "--limit", "3")},
+		{[]string{"actions", "cancel", "123"}, glabRepo, wantCall("glab", "ci", "cancel", "pipeline", "123", "--repo", "https://gitlab.com/o/r")},
 	}
 	for _, tc := range cases {
 		if err := os.WriteFile(logFile, nil, 0o600); err != nil {

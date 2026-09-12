@@ -19,25 +19,25 @@ func TestE2ECIStatusTriggerArgv(t *testing.T) {
 			name:   "glab status",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"ci", "status"},
-			want:   "glab ci status --repo https://gitlab.com/o/r",
+			want:   wantCall("glab", "ci", "status", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:   "glab status with branch",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"ci", "status", "--branch", "dev"},
-			want:   "glab ci status --repo https://gitlab.com/o/r --branch dev",
+			want:   wantCall("glab", "ci", "status", "--repo", "https://gitlab.com/o/r", "--branch", "dev"),
 		},
 		{
 			name:   "glab trigger",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"ci", "trigger", "987"},
-			want:   "glab ci trigger 987 --repo https://gitlab.com/o/r",
+			want:   wantCall("glab", "ci", "trigger", "987", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:   "glab status repo flag",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"--repo", "https://gitlab.com/custom/repo", "ci", "status"},
-			want:   "glab ci status --repo https://gitlab.com/custom/repo",
+			want:   wantCall("glab", "ci", "status", "--repo", "https://gitlab.com/custom/repo"),
 		},
 	}
 
@@ -96,7 +96,7 @@ func TestE2ECIStatusTriggerUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "gh", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)

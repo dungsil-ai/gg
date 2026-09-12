@@ -11,17 +11,7 @@ import (
 // writeFakeStatusBin은 argv를 LOG에 기록하고 고정 JSON을 stdout으로 내는 fake provider CLI다.
 func writeFakeStatusBin(t *testing.T, dir, name, logFile, jsonOut string) {
 	t.Helper()
-	var path, body string
-	if runtime.GOOS == "windows" {
-		path = filepath.Join(dir, name+".cmd")
-		body = "@echo off\r\necho " + name + " %* >> \"" + logFile + "\"\r\necho " + jsonOut + "\r\nexit /b 0\r\n"
-	} else {
-		path = filepath.Join(dir, name)
-		body = "#!/bin/sh\necho \"" + name + " $@\" >> \"" + logFile + "\"\nprintf '%s\\n' '" + jsonOut + "'\nexit 0\n"
-	}
-	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	writeFakeCLI(t, dir, name, fakeCLIConfig{LogFile: logFile, Stdout: jsonOut + "\n"})
 }
 
 func TestE2EPRStatusGitHubShowsCommonFieldsInOrder(t *testing.T) {
@@ -40,7 +30,7 @@ func TestE2EPRStatusGitHubShowsCommonFieldsInOrder(t *testing.T) {
 	if out != want {
 		t.Fatalf("stdout = %q, want %q", out, want)
 	}
-	if got := readLog(t, logFile); got != "gh pr view 42 -R github.com/o/r --json isDraft,reviewDecision,mergeable,mergeStateStatus,statusCheckRollup" {
+	if got := readLog(t, logFile); got != wantCall("gh", "pr", "view", "42", "-R", "github.com/o/r", "--json", "isDraft,reviewDecision,mergeable,mergeStateStatus,statusCheckRollup") {
 		t.Errorf("gh argv = %q", got)
 	}
 }
@@ -102,7 +92,7 @@ func TestE2EPRStatusGitLabShowsCommonFields(t *testing.T) {
 			if out != tc.want {
 				t.Fatalf("stdout = %q, want %q", out, tc.want)
 			}
-			if got := readLog(t, logFile); got != "glab mr view 7 --output json --repo https://gitlab.com/o/r" {
+			if got := readLog(t, logFile); got != wantCall("glab", "mr", "view", "7", "--output", "json", "--repo", "https://gitlab.com/o/r") {
 				t.Errorf("glab argv = %q", got)
 			}
 		})
@@ -122,7 +112,7 @@ func TestE2EPRStatusRepositoryContextFlags(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit %d: %s", code, out)
 		}
-		if got := readLog(t, logFile); !strings.Contains(got, "-R github.com/custom/repo") {
+		if got := readLog(t, logFile); got != wantCall("gh", "pr", "view", "5", "-R", "github.com/custom/repo", "--json", "isDraft,reviewDecision,mergeable,mergeStateStatus,statusCheckRollup") {
 			t.Errorf("gh argv = %q", got)
 		}
 	})
@@ -136,7 +126,7 @@ func TestE2EPRStatusRepositoryContextFlags(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit %d: %s", code, out)
 		}
-		if got := readLog(t, logFile); !strings.Contains(got, "-R github.com/o/upstream") {
+		if got := readLog(t, logFile); got != wantCall("gh", "pr", "view", "5", "-R", "github.com/o/upstream", "--json", "isDraft,reviewDecision,mergeable,mergeStateStatus,statusCheckRollup") {
 			t.Errorf("gh argv = %q", got)
 		}
 	})

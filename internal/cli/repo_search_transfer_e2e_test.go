@@ -19,25 +19,25 @@ func TestE2ERepoSearchTransferArgv(t *testing.T) {
 			name:   "glab search",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"repo", "search", "--search", "gg"},
-			want:   "glab repo search --repo https://gitlab.com/o/r --search gg",
+			want:   wantCall("glab", "repo", "search", "--repo", "https://gitlab.com/o/r", "--search", "gg"),
 		},
 		{
 			name:   "glab transfer",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"repo", "transfer", "--target-namespace", "newgrp"},
-			want:   "glab repo transfer --repo https://gitlab.com/o/r --target-namespace newgrp",
+			want:   wantCall("glab", "repo", "transfer", "--repo", "https://gitlab.com/o/r", "--target-namespace", "newgrp"),
 		},
 		{
 			name:   "glab transfer with yes",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"repo", "transfer", "--target-namespace", "newgrp", "--yes"},
-			want:   "glab repo transfer --repo https://gitlab.com/o/r --target-namespace newgrp --yes",
+			want:   wantCall("glab", "repo", "transfer", "--repo", "https://gitlab.com/o/r", "--target-namespace", "newgrp", "--yes"),
 		},
 		{
 			name:   "glab search repo flag",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"--repo", "https://gitlab.com/custom/repo", "repo", "search", "--search", "gg"},
-			want:   "glab repo search --repo https://gitlab.com/custom/repo --search gg",
+			want:   wantCall("glab", "repo", "search", "--repo", "https://gitlab.com/custom/repo", "--search", "gg"),
 		},
 	}
 
@@ -89,7 +89,7 @@ func TestE2ERepoSearchTransferUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "gh", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)
@@ -171,7 +171,7 @@ func TestE2ETeaRepoSearchArgv(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("gg repo search: exit %d: %s", code, out)
 	}
-	if got, want := readLog(t, logFile), "tea repos search gg --login pub --repo o/r"; got != want {
+	if got, want := readLog(t, logFile), wantTeaCall("repos", "search", "gg", "--login", "pub", "--repo", "o/r"); got != want {
 		t.Errorf("tea repos search argv = %q, want %q", got, want)
 	}
 }

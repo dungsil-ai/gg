@@ -19,25 +19,25 @@ func TestE2ECILintRunArgv(t *testing.T) {
 			name:   "glab lint",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"ci", "lint"},
-			want:   "glab ci lint --repo https://gitlab.com/o/r",
+			want:   wantCall("glab", "ci", "lint", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:   "glab run",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"ci", "run"},
-			want:   "glab ci run --repo https://gitlab.com/o/r",
+			want:   wantCall("glab", "ci", "run", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:   "glab run with branch",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"ci", "run", "--branch", "dev"},
-			want:   "glab ci run --repo https://gitlab.com/o/r --branch dev",
+			want:   wantCall("glab", "ci", "run", "--repo", "https://gitlab.com/o/r", "--branch", "dev"),
 		},
 		{
 			name:   "glab lint repo flag",
 			remote: "https://gitlab.com/o/r.git",
 			args:   []string{"--repo", "https://gitlab.com/custom/repo", "ci", "lint"},
-			want:   "glab ci lint --repo https://gitlab.com/custom/repo",
+			want:   wantCall("glab", "ci", "lint", "--repo", "https://gitlab.com/custom/repo"),
 		},
 	}
 
@@ -96,7 +96,7 @@ func TestE2ECILintRunUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "gh", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)

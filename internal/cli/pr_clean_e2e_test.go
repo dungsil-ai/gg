@@ -19,13 +19,13 @@ func TestE2EPRCleanArgv(t *testing.T) {
 			name:   "tea clean",
 			remote: "https://gitea.com/o/r.git",
 			args:   []string{"pr", "clean", "42"},
-			want:   "tea pulls clean 42 --login pub --repo o/r",
+			want:   wantTeaCall("pulls", "clean", "42", "--login", "pub", "--repo", "o/r"),
 		},
 		{
 			name:   "tea clean repo flag",
 			remote: "https://gitea.com/o/r.git",
 			args:   []string{"--repo", "https://gitea.com/custom/repo", "pr", "clean", "42"},
-			want:   "tea pulls clean 42 --login pub --repo custom/repo",
+			want:   wantTeaCall("pulls", "clean", "42", "--login", "pub", "--repo", "custom/repo"),
 		},
 	}
 
@@ -162,8 +162,9 @@ func TestE2EPRCleanExplain(t *testing.T) {
 		if !strings.Contains(out, "Provider: tea") || !strings.Contains(out, "CLI: tea") {
 			t.Errorf("gg %v output unexpected:\n%s", args, out)
 		}
-		if got := readLog(t, logFile); got != "" {
-			t.Errorf("gg %v child should not run, got: %q", args, got)
+		// 실행 계획에 사용할 login만 조회하고 clean 명령은 실행하지 않는다.
+		if got, want := readLog(t, logFile), wantCall("tea", "logins", "list", "--output", "json"); got != want {
+			t.Errorf("gg %v provider calls = %q, want %q", args, got, want)
 		}
 	}
 }

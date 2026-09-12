@@ -21,35 +21,35 @@ func TestE2ECIDeleteDownloadArgv(t *testing.T) {
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"ci", "delete", "123"},
-			want:     "gh run delete 123 -R github.com/o/r",
+			want:     wantCall("gh", "run", "delete", "123", "-R", "github.com/o/r"),
 		},
 		{
 			name:     "github delete repo flag",
 			remote:   "",
 			fakeName: "gh",
 			args:     []string{"--repo", "https://github.com/custom/repo", "ci", "delete", "123"},
-			want:     "gh run delete 123 -R github.com/custom/repo",
+			want:     wantCall("gh", "run", "delete", "123", "-R", "github.com/custom/repo"),
 		},
 		{
 			name:     "glab delete",
 			remote:   "https://gitlab.com/o/r.git",
 			fakeName: "glab",
 			args:     []string{"ci", "delete", "123"},
-			want:     "glab ci delete 123 --repo https://gitlab.com/o/r",
+			want:     wantCall("glab", "ci", "delete", "123", "--repo", "https://gitlab.com/o/r"),
 		},
 		{
 			name:     "github download",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"ci", "download", "123"},
-			want:     "gh run download 123 -R github.com/o/r",
+			want:     wantCall("gh", "run", "download", "123", "-R", "github.com/o/r"),
 		},
 		{
 			name:     "github download with pattern and dir",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
 			args:     []string{"ci", "download", "123", "--pattern", "*.zip", "--dir", "dist"},
-			want:     "gh run download 123 -R github.com/o/r --pattern *.zip --dir dist",
+			want:     wantCall("gh", "run", "download", "123", "-R", "github.com/o/r", "--pattern", "*.zip", "--dir", "dist"),
 		},
 	}
 
@@ -104,7 +104,7 @@ func TestE2ECIDeleteDownloadUnsupported(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
 			writeFakeReadyBin(t, fakeDir, "glab", logFile, "", "", 0)
-			writeFakeTeaWithLogin(t, fakeDir, logFile)
+			writeFakeBin(t, fakeDir, "tea", logFile)
 			repo := tempRepo(t, tc.remote)
 
 			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)
