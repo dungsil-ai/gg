@@ -735,3 +735,25 @@ func TestRewriteIdentityLineNegativeTimestamp(t *testing.T) {
 		t.Errorf("rewrite = %q, want %q", got, want)
 	}
 }
+
+func TestQuoteFastExportPath(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"plain.txt", "plain.txt"},
+		{"a b.txt", `"a b.txt"`},
+		{"tab\there.txt", `"tab\there.txt"`},
+		{"ctrl\x01.txt", `"ctrl\001.txt"`},
+		{"q\"uote.txt", `"q\"uote.txt"`},
+		{"back\\slash.txt", `"back\\slash.txt"`},
+		// 0x80 이상 바이트(UTF-8·비UTF-8 모두)는 그대로 둔다.
+		{"café.txt", "café.txt"},
+		{string([]byte("caf\xe9.txt")), string([]byte("caf\xe9.txt"))},
+	}
+	for _, c := range cases {
+		if got := quoteFastExportPath(c.in); got != c.want {
+			t.Errorf("quote(%q) = %q, want %q", c.in, got, c.want)
+		}
+		if got := parseFastExportPath(quoteFastExportPath(c.in)); got != c.in {
+			t.Errorf("roundtrip(%q) = %q", c.in, got)
+		}
+	}
+}
