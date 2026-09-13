@@ -694,7 +694,7 @@ ADR 0007: Gitea CLI 고유 기능(admin, times, milestones 등)은 개별 수요
 - `히스토리 재작성`
   - [x] `gg repo filter-repo` (외부 git-filter-repo 없이 `git fast-export`/`fast-import` 파이프라인으로 직접 재작성)
   - `--path <path>` (반복 가능; 지정한 경로만 남김), `--invert-paths` (지정한 경로를 삭제), `--path-rename <old:new>` (반복 가능), `--replace-text <regex==>replacement|file>` (반복 가능; 파일이면 한 줄에 하나씩 `regex==>replacement`), `--mailmap <file>` (작성자·커미터 재작성), `--dry-run` (미리보기만), `--force` (재작성 확정)
-  - 안전장치: 작업 트리가 깨끗해야 하며 `--force` 없이 재작성하지 않습니다. fresh clone 백업을 먼저 만든 뒤 `--force`로 실행하고, 완료 후 재작성된 ref를 force-push합니다. `--repo`·`--remote`·`--explain`은 지원하지 않습니다.
+  - 안전장치: 작업 트리가 깨끗해야 하며 `--force` 없이 재작성하지 않습니다. 재작성 전 `<git dir>/filter-repo-backup`에 mirror 백업을 만들고(이미 백업이 있으면 사용자가 확인한 뒤 직접 치워야 함), 완료 후 재작성된 ref를 force-push합니다. `--repo`·`--remote`·`--explain`은 지원하지 않습니다.
 - `저장소 문맥`
   - [x] `--repo <URL>` (명시한 URL을 저장소 문맥으로 사용)
   - [x] `--remote <name>` (명시한 Git remote를 저장소 문맥으로 사용)

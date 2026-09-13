@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -120,7 +121,7 @@ func runFilterRepo(req Request) error {
 		return fmt.Errorf("working tree is dirty (commit, stash, or discard changes first)")
 	}
 	if !req.FilterDryRun && !req.FilterForce {
-		return fmt.Errorf("refusing to rewrite history without --force (use a fresh clone backup first, then re-run with --force)")
+		return fmt.Errorf("refusing to rewrite history without --force (a mirror backup is created before rewriting)")
 	}
 	filters, err := resolveFilterRepoFilters(req)
 	if err != nil {
@@ -138,6 +139,12 @@ func runFilterRepo(req Request) error {
 	if remotes, err := runOut("git", "remote"); err == nil && strings.TrimSpace(remotes) != "" {
 		fmt.Fprintln(osStderr, "gg: warning: rewriting published history; force-push every rewritten ref after this")
 	}
+	// README가 보장하는 fresh clone 백업이다. reflog expire과 gc --prune=now가
+	// 뒤따르므로 이 백업이 재작성 실수의 유일한 복구 수단이다.
+	backupPath, err := backupFilterRepo()
+	if err != nil {
+		return err
+	}
 	if err := rewriteFilterRepo(filters, stats); err != nil {
 		return err
 	}
@@ -152,9 +159,27 @@ func runFilterRepo(req Request) error {
 			return fmt.Errorf("history rewritten but working tree reset failed: %w", err)
 		}
 	}
-	fmt.Fprintf(osStdout, "rewrote %d commits, %d blobs changed; force-push rewritten refs (e.g. git push --force --all && git push --force --tags)\n",
-		stats.commits, stats.blobsChanged)
+	fmt.Fprintf(osStdout, "rewrote %d commits, %d blobs changed (backup: %s); force-push rewritten refs (e.g. git push --force --all && git push --force --tags)\n",
+		stats.commits, stats.blobsChanged, backupPath)
 	return nil
+}
+
+// backupFilterRepo는 재작성 전 현재 저장소의 mirror 백업을 만든다. 백업은
+// git dir 안의 filter-repo-backup에 두고, 이미 있으면 덮쓰지 않는다 — 실수로
+// 이전 백업을 지우지 않도록 사용자가 직접 확인한 뒤 치우게 한다.
+func backupFilterRepo() (string, error) {
+	gitDir, err := runOut("git", "rev-parse", "--absolute-git-dir")
+	if err != nil || gitDir == "" {
+		return "", fmt.Errorf("cannot locate git dir for backup: %w", err)
+	}
+	backup := filepath.Join(gitDir, "filter-repo-backup")
+	if _, err := os.Stat(backup); err == nil {
+		return "", fmt.Errorf("backup already exists at %s (remove or move it, then re-run)", backup)
+	}
+	if _, err := runOut("git", "clone", "--mirror", "--no-local", ".", backup); err != nil {
+		return "", fmt.Errorf("cannot create backup clone at %s: %w", backup, err)
+	}
+	return backup, nil
 }
 
 func resolveFilterRepoFilters(req Request) (*resolvedFilters, error) {
