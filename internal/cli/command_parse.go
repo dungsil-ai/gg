@@ -139,6 +139,12 @@ globalFlags:
 			return req, usageErr("--explain is not supported for " + req.Resource + " " + req.Action)
 		}
 	}
+	// config도 forge 명령이 아니므로 저장소 문맥 flag를 받지 않는다. --remote와
+	// --explain은 actionDef 기본값(remoteOK·explainOK=false)으로 이미 거부되지만
+	// --repo는 여기서 따로 걸러야 조용히 무시되지 않는다.
+	if req.Resource == "config" && req.RepoFlag != "" {
+		return req, usageErr("--repo is not supported for " + req.Resource + " " + req.Action)
+	}
 	return req, nil
 }
 
