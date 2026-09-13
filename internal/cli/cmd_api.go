@@ -31,6 +31,11 @@ func runAPIRelay(args []string) int {
 			return fail(usageErr("unknown flag " + contextArgs[i]))
 		}
 	}
+	// 다른 명령과 같은 문맥 flag 계약을 유지한다. 하나를 고르지 않고 둘 다
+	// 주면 조용히 --repo만 쓰는 대신 사용법 오류로 막는다.
+	if repoFlag != "" && remoteFlag != "" {
+		return fail(usageErr("--repo and --remote cannot be used together"))
+	}
 
 	rawURL, err := apiRelayRawURL(repoFlag, remoteFlag)
 	if err != nil {
