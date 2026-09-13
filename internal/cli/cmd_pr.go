@@ -691,10 +691,18 @@ var prInvocationTable = map[string]providerBuilders{
 			}
 			return append(args, c.target...), nil
 		},
+		// glab mr merge에도 gh와 같은 --merge/--squash/--rebase flag가 있으므로
+		// 방식을 조용히 버리지 않고 그대로 옮긴다.
 		glab: func(c invocationContext) (args, env []string) {
 			args = []string{"mr", "merge", c.req.Number}
+			if c.req.Merge {
+				args = append(args, "--merge")
+			}
 			if c.req.Squash {
 				args = append(args, "--squash")
+			}
+			if c.req.Rebase {
+				args = append(args, "--rebase")
 			}
 			if c.req.DeleteBranch {
 				args = append(args, "--remove-source-branch")
