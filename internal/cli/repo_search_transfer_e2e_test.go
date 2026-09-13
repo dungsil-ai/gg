@@ -171,7 +171,7 @@ func TestE2ETeaRepoSearchArgv(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("gg repo search: exit %d: %s", code, out)
 	}
-	if got, want := readLog(t, logFile), wantTeaCall("repos", "search", "gg", "--login", "pub", "--repo", "o/r"); got != want {
+	if got, want := readLog(t, logFile), wantTeaCall("repos", "search", "gg", "--login", "pub"); got != want {
 		t.Errorf("tea repos search argv = %q, want %q", got, want)
 	}
 }

@@ -210,8 +210,10 @@ var repoSearchBuilders = providerBuilders{
 		args = append([]string{"repo", "search"}, c.target...)
 		return appendKV(args, "--search", c.req.Search), nil
 	},
+	// tea repos search에는 --repo flag가 없다(login·output만 받는다). 검색어는
+	// positional이므로 login 인자만 붙인다.
 	tea: func(c invocationContext) (args, env []string) {
-		return append([]string{"repos", "search", c.req.Search}, c.target...), nil
+		return append([]string{"repos", "search", c.req.Search}, c.auth...), nil
 	},
 }
 
