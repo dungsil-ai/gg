@@ -337,6 +337,14 @@ func compileReplaceRule(s string) (replaceRule, error) {
 	return replaceRule{re: re, replacement: repl, raw: s}, nil
 }
 
+// apply는 블롭 내용에 규칙을 적용한다. 치환값은 문자 그대로 넣는다 —
+// ReplaceAllString은 치환값의 $1·${name}을 캡처 확장으로 읽으므로, $가 든
+// 치환값(가격, 셸 변수 등)이 조용히 깨진다. git-filter-repo도 문자 그대로
+// 넣는다.
+func (r replaceRule) apply(s string) string {
+	return r.re.ReplaceAllStringFunc(s, func(string) string { return r.replacement })
+}
+
 var mailmapEmailRe = regexp.MustCompile(`<([^<>]*)>`)
 
 // parseMailmapFile은 자주 쓰는 mailmap 줄 형식을 읽는다:
@@ -656,7 +664,7 @@ func filterBlob(br *bufio.Reader, bw *bufio.Writer, f *resolvedFilters, stats *f
 	if len(f.replaces) > 0 {
 		s := string(data)
 		for _, r := range f.replaces {
-			ns := r.re.ReplaceAllString(s, r.replacement)
+			ns := r.apply(s)
 			if ns != s {
 				changed = true
 				s = ns

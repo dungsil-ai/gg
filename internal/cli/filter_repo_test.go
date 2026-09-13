@@ -133,7 +133,7 @@ func TestCompileReplaceRule(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := r.re.ReplaceAllString("a password=hunter2 b", r.replacement); got != "a password=*** b" {
+	if got := r.apply("a password=hunter2 b"); got != "a password=*** b" {
 		t.Errorf("replace = %q", got)
 	}
 	for _, bad := range []string{"nodelim", "==>x", ""} {
@@ -143,6 +143,25 @@ func TestCompileReplaceRule(t *testing.T) {
 	}
 	if _, err := compileReplaceRule("([==>x"); err == nil {
 		t.Error("bad regex: 오류 기대")
+	}
+}
+
+// 치환값은 문자 그대로 적용된다. ReplaceAllString이었다면 $99를 캡처
+// 확장으로 읽어 값이 사라진다.
+func TestReplaceRuleAppliesLiteralReplacement(t *testing.T) {
+	r, err := compileReplaceRule(`PRICE=[0-9]+==>US$99`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := r.apply("PRICE=10 PRICE=99"); got != "US$99 US$99" {
+		t.Errorf("literal replacement = %q, want %q", got, "US$99 US$99")
+	}
+	r2, err := compileReplaceRule(`name=\w+==>name=${x}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := r2.apply("name=abc"); got != "name=${x}" {
+		t.Errorf("literal replacement = %q, want %q", got, "name=${x}")
 	}
 }
 
