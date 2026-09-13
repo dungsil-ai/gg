@@ -714,3 +714,24 @@ func TestRunDryFilterPipelineAbortsOnError(t *testing.T) {
 		t.Errorf("성공 스트림: err=%v killed=%v", err, killed)
 	}
 }
+
+func TestRewriteIdentityLineNegativeTimestamp(t *testing.T) {
+	f := &resolvedFilters{mail: &mailmap{
+		byEmail:     map[string]mailmapEntry{"old@example.com": {name: "New", email: "new@example.com"}},
+		byNameEmail: map[string]mailmapEntry{},
+	}}
+	line := "author Old <old@example.com> -86400 +0000"
+	stats := &filterStats{}
+	got := rewriteIdentityLine(f, line, stats)
+	if want := "author New <new@example.com> -86400 +0000"; got != want {
+		t.Errorf("rewrite = %q, want %q", got, want)
+	}
+	if stats.identitiesDone != 1 {
+		t.Errorf("identitiesDone = %d, want 1", stats.identitiesDone)
+	}
+	// 양수 타임스탬프는 기존과 같다.
+	got = rewriteIdentityLine(f, "committer Old <old@example.com> 1700000000 +0900", stats)
+	if want := "committer New <new@example.com> 1700000000 +0900"; got != want {
+		t.Errorf("rewrite = %q, want %q", got, want)
+	}
+}
