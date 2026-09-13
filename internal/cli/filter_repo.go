@@ -125,6 +125,13 @@ func runFilterRepo(req Request) error {
 		} else if strings.TrimSpace(out) != "" {
 			return fmt.Errorf("working tree is dirty (commit, stash, or discard changes first)")
 		}
+		// detached HEAD는 재작성 후에도 예전 커밋을 가리킨다. fast-import는
+		// HEAD(raw SHA)를 갱신하지 않고, 뒤따르는 reset --hard가 재작성 전
+		// 커밋의 내용을 작업 트리에 되살린다 — 제거하려던 파일이 디스크에
+		// 다시 나타나므로 미리 거부한다.
+		if _, err := runOut("git", "symbolic-ref", "-q", "HEAD"); err != nil {
+			return fmt.Errorf("detached HEAD (check out a branch first); rewriting would leave the pre-rewrite commit checked out")
+		}
 	}
 	if !req.FilterDryRun && !req.FilterForce {
 		return fmt.Errorf("refusing to rewrite history without --force (a mirror backup is created before rewriting)")

@@ -580,3 +580,23 @@ func TestE2EFilterRepoBareRepository(t *testing.T) {
 		t.Errorf("bare 저장소 HEAD에 secret.txt 제거 기대, got %q", got)
 	}
 }
+
+func TestE2EFilterRepoDetachedHeadRefused(t *testing.T) {
+	dir := filterRepoTestRepo(t, map[string]string{"a.txt": "keep\n", "secret.txt": "topsecret\n"})
+	gitIn(t, dir, "checkout", "-q", "--detach")
+	before := gitIn(t, dir, "rev-parse", "HEAD")
+
+	err := runFilterRepoIn(t, dir, Request{
+		Resource: "repo", Action: "filter-repo",
+		FilterPaths: []string{"secret.txt"}, FilterInvert: true, FilterForce: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "detached HEAD") {
+		t.Fatalf("detached HEAD 거부 기대, got %v", err)
+	}
+	if got := gitIn(t, dir, "rev-parse", "HEAD"); got != before {
+		t.Errorf("거부 시 HEAD 변경 없음 기대: %s -> %s", before, got)
+	}
+	if got := gitIn(t, dir, "log", "--all", "--oneline", "--", "secret.txt"); strings.TrimSpace(got) == "" {
+		t.Error("거부 시 히스토리 변경 없음 기대")
+	}
+}
