@@ -222,6 +222,16 @@ func resolvePlan(req Request) (executionPlan, error) {
 			req.RelatedID = relatedID
 		}
 	}
+	// gh run view는 id가 없으면 비대화형 환경에서 오류를 낸다. "id 생략 시
+	// 현재 branch의 최신 실행" 계약대로 gg가 미리 찾아 넣는다. explain은 실행
+	// 예고일 뿐이라 조회하지 않는다.
+	if p == GH && req.Resource == "ci" && req.Action == "view" && req.Number == "" && !req.Explain {
+		id, err := ghLatestRunID(repo)
+		if err != nil {
+			return executionPlan{}, err
+		}
+		req.Number = id
+	}
 	teaLogin := ""
 	// ci 전체와 release의 view·download·upload·delete-asset, pr status/ready/
 	// diff/checks/lock/unlock/update-branch/rebase, pr comment edit/delete,
