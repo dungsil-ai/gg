@@ -561,3 +561,22 @@ func TestE2EFilterRepoBackupNotOverwritten(t *testing.T) {
 		t.Errorf("거부 시 HEAD 변경 없음 기대: %s -> %s", before, got)
 	}
 }
+
+func TestE2EFilterRepoBareRepository(t *testing.T) {
+	src := filterRepoTestRepo(t, map[string]string{"a.txt": "keep\n", "secret.txt": "topsecret\n"})
+	bare := filepath.Join(t.TempDir(), "srv.git")
+	gitIn(t, filepath.Dir(src), "clone", "--bare", "-q", src, bare)
+
+	if err := runFilterRepoIn(t, bare, Request{
+		Resource: "repo", Action: "filter-repo",
+		FilterPaths: []string{"secret.txt"}, FilterInvert: true, FilterForce: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := gitIn(t, bare, "log", "--all", "--oneline", "--", "secret.txt"); strings.TrimSpace(got) != "" {
+		t.Errorf("bare 저장소 히스토리에서 secret.txt 제거 기대, got %q", got)
+	}
+	if got := gitIn(t, bare, "ls-tree", "-r", "--name-only", "HEAD"); strings.Contains(got, "secret.txt") {
+		t.Errorf("bare 저장소 HEAD에 secret.txt 제거 기대, got %q", got)
+	}
+}

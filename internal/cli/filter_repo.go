@@ -115,10 +115,16 @@ func runFilterRepo(req Request) error {
 	if out, err := runOut("git", "rev-parse", "--is-bare-repository"); err == nil {
 		bare = strings.TrimSpace(out) == "true"
 	}
-	if out, err := runOut("git", "status", "--porcelain"); err != nil {
-		return fmt.Errorf("cannot check working tree: %w", err)
-	} else if strings.TrimSpace(out) != "" {
-		return fmt.Errorf("working tree is dirty (commit, stash, or discard changes first)")
+	// bare 저장소에는 작업 트리가 없어 git status가 항상 실패한다. 작업 트리
+	// 검사는 worktree가 있을 때만 한다 — 그렇지 않으면 bare 저장소는 항상
+	// "cannot check working tree"로 거부돼 bare 감지와 복구 생략이 죽은
+	// 코드가 된다.
+	if !bare {
+		if out, err := runOut("git", "status", "--porcelain"); err != nil {
+			return fmt.Errorf("cannot check working tree: %w", err)
+		} else if strings.TrimSpace(out) != "" {
+			return fmt.Errorf("working tree is dirty (commit, stash, or discard changes first)")
+		}
 	}
 	if !req.FilterDryRun && !req.FilterForce {
 		return fmt.Errorf("refusing to rewrite history without --force (a mirror backup is created before rewriting)")
