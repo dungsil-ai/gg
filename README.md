@@ -694,7 +694,7 @@ ADR 0007: Gitea CLI 고유 기능(admin, times, milestones 등)은 개별 수요
 - `히스토리 재작성`
   - [x] `gg repo filter-repo` (외부 git-filter-repo 없이 `git fast-export`/`fast-import` 파이프라인으로 직접 재작성)
   - `--path <path>` (반복 가능; 지정한 경로만 남김), `--invert-paths` (지정한 경로를 삭제), `--path-rename <old:new>` (반복 가능), `--replace-text <regex==>replacement|file>` (반복 가능; 파일이면 한 줄에 하나씩 `regex==>replacement`), `--mailmap <file>` (작성자·커미터 재작성), `--dry-run` (미리보기만), `--force` (재작성 확정)
-  - 안전장치: 작업 트리가 깨끗해야 하며 `--force` 없이 재작성하지 않습니다. 재작성 전 `<git dir>/filter-repo-backup`에 mirror 백업을 만들고(이미 백업이 있으면 사용자가 확인한 뒤 직접 치워야 함), 완료 후 재작성된 ref를 force-push합니다. `--repo`·`--remote`·`--explain`은 지원하지 않습니다.
+  - 안전장치: 작업 트리가 깨끗해야 하고 stash가 비어 있어야 하며 detached HEAD가 아니어야 합니다. `--force` 없이 재작성하지 않습니다. 재작성 전 `<git dir>/filter-repo-backup`에 mirror 백업을 만들고(이미 백업이 있으면 사용자가 확인한 뒤 직접 치워야 함), 완료 후 재작성된 ref를 force-push합니다. `--repo`·`--remote`·`--explain`은 지원하지 않습니다.
 - `저장소 문맥`
   - [x] `--repo <URL>` (명시한 URL을 저장소 문맥으로 사용)
   - [x] `--remote <name>` (명시한 Git remote를 저장소 문맥으로 사용)
@@ -947,7 +947,8 @@ Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없�
   ```bash
   gg repo filter-repo --replace-text 'password=\S+==>password=***' --mailmap /tmp/mailmap --force
   ```
-- 재작성 후에는 reflog 만료와 gc로 예전 객체를 정리하고 작업 트리를 새 `HEAD`로 되돌립니다. 완료되면 재작성된 ref를 force-push합니다 (`git push --force --all && git push --force --tags`).
+- 재작성은 branch와 tag만 대상으로 하며, stash 항목이 있으면 실행 전에 비우도록 거부합니다. 원격 추적 ref(`refs/remotes/*`)는 재작성하지 않으므로 예전 객체가 남아 있을 수 있고, 다음 `git fetch`에서 갱신됩니다.
+- 재작성 후에는 재작성 대상 ref의 reflog 만료와 gc로 예전 객체를 정리하고 작업 트리를 새 `HEAD`로 되돌립니다. 완료되면 재작성된 ref를 force-push합니다 (`git push --force --all && git push --force --tags`).
 
 # TOBE
 

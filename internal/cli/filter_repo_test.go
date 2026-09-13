@@ -619,3 +619,47 @@ func TestE2EFilterRepoDetachedHeadRefused(t *testing.T) {
 		t.Error("거부 시 히스토리 변경 없음 기대")
 	}
 }
+
+func TestE2EFilterRepoRefusesStash(t *testing.T) {
+	dir := filterRepoTestRepo(t, map[string]string{"a.txt": "keep\n", "secret.txt": "topsecret\n"})
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("dirty\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	gitIn(t, dir, "stash", "-q")
+	before := gitIn(t, dir, "rev-parse", "HEAD")
+
+	err := runFilterRepoIn(t, dir, Request{
+		Resource: "repo", Action: "filter-repo",
+		FilterPaths: []string{"secret.txt"}, FilterInvert: true, FilterForce: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "stash is not empty") {
+		t.Fatalf("stash 거부 기대, got %v", err)
+	}
+	if got := gitIn(t, dir, "stash", "list"); strings.TrimSpace(got) == "" {
+		t.Error("stash 항목 유지 기대")
+	}
+	if got := gitIn(t, dir, "rev-parse", "HEAD"); got != before {
+		t.Errorf("거부 시 HEAD 변경 없음 기대: %s -> %s", before, got)
+	}
+}
+
+func TestE2EFilterRepoRewritesBranchesAndTagsOnly(t *testing.T) {
+	dir := filterRepoTestRepo(t, map[string]string{"a.txt": "keep\n", "secret.txt": "topsecret\n"})
+	gitIn(t, dir, "tag", "-a", "v1", "-m", "tag one")
+	remoteSha := strings.TrimSpace(gitIn(t, dir, "rev-parse", "HEAD"))
+	gitIn(t, dir, "update-ref", "refs/remotes/origin/main", remoteSha)
+
+	if err := runFilterRepoIn(t, dir, Request{
+		Resource: "repo", Action: "filter-repo",
+		FilterPaths: []string{"secret.txt"}, FilterInvert: true, FilterForce: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := gitIn(t, dir, "log", "--branches", "--oneline", "--", "secret.txt"); strings.TrimSpace(got) != "" {
+		t.Errorf("branch 히스토리에서 secret.txt 제거 기대, got %q", got)
+	}
+	// 원격 추적 ref는 재작성하지 않는다(다음 fetch에서 갱신된다).
+	if got := strings.TrimSpace(gitIn(t, dir, "rev-parse", "refs/remotes/origin/main")); got != remoteSha {
+		t.Errorf("원격 추적 ref 불변 기대: %s -> %s", remoteSha, got)
+	}
+}

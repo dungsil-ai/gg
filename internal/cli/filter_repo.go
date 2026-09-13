@@ -132,6 +132,12 @@ func runFilterRepo(req Request) error {
 		if _, err := runOut("git", "symbolic-ref", "-q", "HEAD"); err != nil {
 			return fmt.Errorf("detached HEAD (check out a branch first); rewriting would leave the pre-rewrite commit checked out")
 		}
+		// stash 항목은 재작성 전 커밋·블롭을 참조한다. filter-repo는 branch와
+		// tag만 다시 쓰므로 stash를 남겨 두면 예전 객체가 gc 뒤에도 유지되고,
+		// 재작성 결과와 뒤섞여 의미를 알 수 없게 된다. 먼저 비우도록 요구한다.
+		if out, err := runOut("git", "stash", "list"); err == nil && strings.TrimSpace(out) != "" {
+			return fmt.Errorf("stash is not empty (drop or pop it first); filter-repo rewrites branches and tags only")
+		}
 	}
 	if !req.FilterDryRun && !req.FilterForce {
 		return fmt.Errorf("refusing to rewrite history without --force (a mirror backup is created before rewriting)")
@@ -161,8 +167,21 @@ func runFilterRepo(req Request) error {
 	if err := rewriteFilterRepo(filters, stats); err != nil {
 		return err
 	}
-	if _, err := runOut("git", "reflog", "expire", "--expire=now", "--all"); err != nil {
+	// reflog expire은 재작성 대상인 branches·tags로 한정한다. --all은 stash 등
+	// 재작성하지 않은 ref의 reflog까지 지워 접근 불가능하게 만든다. reflog가
+	// 없는 ref(대표적으로 tag)에 expire를 실행하면 오류가 나므로 존재할 때만
+	// 만료한다.
+	rewrittenRefs, err := runOut("git", "for-each-ref", "--format=%(refname)", "refs/heads", "refs/tags")
+	if err != nil {
 		return fmt.Errorf("history rewritten but reflog expire failed: %w", err)
+	}
+	for _, ref := range strings.Fields(rewrittenRefs) {
+		if _, err := runOut("git", "reflog", "exists", ref); err != nil {
+			continue
+		}
+		if _, err := runOut("git", "reflog", "expire", "--expire=now", ref); err != nil {
+			return fmt.Errorf("history rewritten but reflog expire failed: %w", err)
+		}
 	}
 	if _, err := runOut("git", "gc", "--prune=now", "--quiet"); err != nil {
 		return fmt.Errorf("history rewritten but gc failed: %w", err)
@@ -461,13 +480,18 @@ func quoteFastExportPath(s string) string {
 	return s
 }
 
+// filterRepoExportArgs는 재작성 대상 ref 범위다. --all은 refs/stash와
+// refs/remotes까지 재작성해 stash 접근을 깨고 원격 추적 ref를 재작성된 SHA로
+// 어긋나게 만든다. filter-repo의 대상은 branch와 tag뿐이다.
+var filterRepoExportArgs = []string{"fast-export", "--branches", "--tags", "--full-tree"}
+
 // dryRunFilterRepo는 fast-export를 읽어 필터 통계만 낸다.
 func dryRunFilterRepo(f *resolvedFilters, stats *filterStats) error {
 	gitPath, err := lookPath("git")
 	if err != nil {
 		return fmt.Errorf("git is not installed or not on PATH")
 	}
-	cmd := exec.Command(gitPath, "fast-export", "--all", "--full-tree")
+	cmd := exec.Command(gitPath, filterRepoExportArgs...)
 	cmd.Stderr = os.Stderr
 	out, err := cmd.StdoutPipe()
 	if err != nil {
@@ -493,7 +517,7 @@ func rewriteFilterRepo(f *resolvedFilters, stats *filterStats) error {
 	if err != nil {
 		return fmt.Errorf("git is not installed or not on PATH")
 	}
-	exportCmd := exec.Command(gitPath, "fast-export", "--all", "--full-tree")
+	exportCmd := exec.Command(gitPath, filterRepoExportArgs...)
 	exportCmd.Stderr = os.Stderr
 	exportOut, err := exportCmd.StdoutPipe()
 	if err != nil {
