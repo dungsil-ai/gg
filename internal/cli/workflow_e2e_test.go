@@ -28,10 +28,10 @@ func TestE2EWorkflowArgv(t *testing.T) {
 			want:   wantCall("gh", "workflow", "view", "ci.yml", "-R", "github.com/o/r"),
 		},
 		{
-			name:   "workflow view with ref",
+			name:   "workflow view with ref and yaml",
 			remote: "https://github.com/o/r.git",
-			args:   []string{"workflow", "view", "ci.yml", "--ref", "dev"},
-			want:   wantCall("gh", "workflow", "view", "ci.yml", "-R", "github.com/o/r", "--ref", "dev"),
+			args:   []string{"workflow", "view", "ci.yml", "--ref", "dev", "--yaml"},
+			want:   wantCall("gh", "workflow", "view", "ci.yml", "-R", "github.com/o/r", "--yaml", "--ref", "dev"),
 		},
 		{
 			name:   "workflow run",
@@ -141,6 +141,11 @@ func TestE2EWorkflowUsageErrors(t *testing.T) {
 			want: "usage: gg workflow view <name-or-id>",
 		},
 		{
+			name: "view ref without yaml",
+			args: []string{"workflow", "view", "ci.yml", "--ref", "dev"},
+			want: "workflow view --ref needs --yaml",
+		},
+		{
 			name: "run missing workflow",
 			args: []string{"workflow", "run"},
 			want: "usage: gg workflow run <name-or-id>",
@@ -220,5 +225,19 @@ func TestE2EWorkflowHelp(t *testing.T) {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("workflow run help missing %q:\n%s", want, stdout)
 		}
+	}
+
+	stdout, stderr, code = runGGStreams(t, bin, t.TempDir(), "workflow", "view", "--help")
+	if code != 0 || stderr != "" {
+		t.Fatalf("gg workflow view --help = stderr %q, exit %d", stderr, code)
+	}
+	for _, want := range []string{"gg workflow view <name-or-id> [flags]", "--ref <ref>", "--yaml", "--repo", "--remote", "--explain"} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("workflow view help missing %q:\n%s", want, stdout)
+		}
+	}
+	// workflow의 --ref 설명은 release의 tag 안내 문구가 아니어야 한다.
+	if strings.Contains(stdout, "to tag when the tag does not exist") {
+		t.Errorf("workflow view help shows release --ref description:\n%s", stdout)
 	}
 }
