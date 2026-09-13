@@ -117,7 +117,7 @@ var actionHelpContracts = map[string]helpContract{
 	"ci trigger":  {"<job-id> [flags]", forgeHelpFlags},
 
 	"workflow list":    {"[flags]", forgeHelpFlags},
-	"workflow view":    {"<name-or-id> [flags]", "--ref <ref> " + forgeHelpFlags},
+	"workflow view":    {"<name-or-id> [flags]", "--ref <ref> --yaml " + forgeHelpFlags},
 	"workflow run":     {"<name-or-id> [flags]", "--ref <ref> " + forgeHelpFlags},
 	"workflow enable":  {"<name-or-id> [flags]", forgeHelpFlags},
 	"workflow disable": {"<name-or-id> [flags]", forgeHelpFlags},

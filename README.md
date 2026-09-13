@@ -354,7 +354,7 @@ ADR 0007: GitHub 고유 자원(codespace, project, secret, gist 등)은 세 prov
   - [x] `gh workflow enable` (대응: `gg workflow enable`; glab·tea에 workflow 하위 명령이 없어 미지원)
   - [x] `gh workflow list` (대응: `gg workflow list`; glab·tea에 workflow 하위 명령이 없어 미지원)
   - [x] `gh workflow run` (대응: `gg workflow run [--ref]`; glab·tea에 workflow 하위 명령이 없어 미지원)
-  - [x] `gh workflow view` (대응: `gg workflow view [--ref]`; glab·tea에 workflow 하위 명령이 없어 미지원)
+  - [x] `gh workflow view` (대응: `gg workflow view [--ref] [--yaml]`; `--ref`는 `--yaml`과 함께 써야 한다 — glab·tea에 workflow 하위 명령이 없어 미지원)
 - `alias`
   - [ ] `gh alias delete`
   - [ ] `gh alias import`

@@ -33,6 +33,7 @@ type Request struct {
 	Files                                                    []string
 	Draft, Undo, Public, Private, AllowInsecureHTTP, Explain bool
 	Yes, Prerelease, CleanupTag                              bool
+	Yaml                                                     bool // workflow view: YAML 내용 조회
 	Force, Unset, View                                       bool // repo sync 강제 동기화, repo set-default 해제·조회
 
 	Merge, Squash, Rebase bool
