@@ -438,7 +438,9 @@ func applyMailmap(mm *mailmap, name, email string) (string, string, bool) {
 	return name, email, false
 }
 
-var identityRe = regexp.MustCompile(`^(author|committer|tagger) (.*) <([^>]*)> (\d+) ([+-]\d{4})$`)
+// epoch는 음수일 수 있다(1970년 이전 타임스탬프, 예: GIT_COMMITTER_DATE="@-86400").
+// 양수만 받으면 그런 identity 줄이 mailmap 대상에서 조용히 빠진다.
+var identityRe = regexp.MustCompile(`^(author|committer|tagger) (.*) <([^>]*)> (-?\d+) ([+-]\d{4})$`)
 
 // rewriteIdentityLine은 fast-export의 author/committer/tagger 줄을 mailmap
 // 기준으로 고친다.
