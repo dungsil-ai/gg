@@ -474,12 +474,56 @@ func parseFastExportPath(s string) string {
 	return s
 }
 
-// quoteFastExportPath는 공백·따옴표·제어문자가 든 경로만 C 인용한다.
+// quoteFastExportPath는 공백·따옴표·제어문자가 든 경로만 인용한다. git의
+// unquote_c_style은 \xNN·\uNNNN 같은 Go 확장 이스케이프를 모르므로(모르는
+// 시퀀스는 문자 그대로 남는다) strconv.Quote 대신 git이 인식하는 C 인용
+// (\a \b \f \n \r \t \v \" \\와 8진수)으로 쓴다.
 func quoteFastExportPath(s string) string {
-	if strings.ContainsAny(s, " \t\n\r\"\\") {
-		return strconv.Quote(s)
+	need := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c <= ' ' || c == '"' || c == '\\' || c == 0x7f {
+			need = true
+			break
+		}
 	}
-	return s
+	if !need {
+		return s
+	}
+	var b strings.Builder
+	b.WriteByte('"')
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch c {
+		case '"':
+			b.WriteString(`\"`)
+		case '\\':
+			b.WriteString(`\\`)
+		case '\a':
+			b.WriteString(`\a`)
+		case '\b':
+			b.WriteString(`\b`)
+		case '\f':
+			b.WriteString(`\f`)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\r':
+			b.WriteString(`\r`)
+		case '\t':
+			b.WriteString(`\t`)
+		case '\v':
+			b.WriteString(`\v`)
+		default:
+			if c < ' ' || c == 0x7f {
+				fmt.Fprintf(&b, "\\%03o", c)
+			} else {
+				// 0x80 이상 바이트(UTF-8 포함, 비UTF-8 포함)는 그대로 둔다.
+				b.WriteByte(c)
+			}
+		}
+	}
+	b.WriteByte('"')
+	return b.String()
 }
 
 // filterRepoExportArgs는 재작성 대상 ref 범위다. --all은 refs/stash와
