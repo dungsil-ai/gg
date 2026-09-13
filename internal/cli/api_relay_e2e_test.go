@@ -154,3 +154,22 @@ func TestE2EAPIRelayHostEnvInjection(t *testing.T) {
 		t.Errorf("GITLAB_HOST 주입 없음: %q", got)
 	}
 }
+
+func TestE2EAPIRelayRepoAndRemoteTogether(t *testing.T) {
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	writeFakeReadyBin(t, fakeDir, "gh", logFile, "", "", 0)
+
+	stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, t.TempDir(),
+		"--repo", "https://github.com/custom/repo", "--remote", "upstream", "api", "repos/o/r/issues/1")
+	if code != 2 {
+		t.Errorf("exit = %d, want 2 (stdout: %s)", code, stdout)
+	}
+	if !strings.Contains(stderr, "--repo and --remote cannot be used together") {
+		t.Errorf("stderr = %q", stderr)
+	}
+	if got := readLog(t, logFile); got != "" {
+		t.Errorf("gh should not run, got %q", got)
+	}
+}
