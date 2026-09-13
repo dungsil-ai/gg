@@ -1,5 +1,10 @@
 package cli
 
+import (
+	"errors"
+	"fmt"
+)
+
 // ciResourceDef는 "ci" 최상위 명령의 정의다: list, view, watch, retry, cancel,
 // delete, download, lint, run, status, trigger. alias: actions
 // (command_registry.go의 commandAliases에서 연결). GitHub은 gh run, GitLab은
@@ -197,4 +202,25 @@ var ciInvocationTable = map[string]providerBuilders{
 			return append([]string{c.res, "trigger", c.req.Number}, c.target...), nil
 		},
 	},
+}
+
+// ghLatestRunID는 id 없이 ci view를 할 때 현재 branch의 최신 workflow run
+// id를 찾는다. glab ci get은 branch를 지정하지 않으면 현재 branch 기준으로
+// 찾지만, gh run view는 id가 없으면 비대화형 환경에서 오류를 내고 대화형
+// 환경에서도 branch를 가리지 않은 선택 목록을 보여주므로 "id 생략 시 현재
+// branch의 최신 실행" 계약을 gg가 미리 조회해 채운다.
+func ghLatestRunID(r RepoURL) (string, error) {
+	branch, err := runOut("git", "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil || branch == "" || branch == "HEAD" {
+		return "", errors.New("cannot resolve the current branch for ci view (check out a branch or pass a run id)")
+	}
+	out, err := runOut("gh", "run", "list", "-R", r.Host+"/"+r.Slug(),
+		"--branch", branch, "--limit", "1", "--json", "databaseId", "--jq", ".[0].databaseId")
+	if err != nil {
+		return "", fmt.Errorf("cannot resolve the latest run on branch %s: %s", branch, childErrorDetail(err))
+	}
+	if out == "" {
+		return "", fmt.Errorf("no CI runs on branch %s", branch)
+	}
+	return out, nil
 }
