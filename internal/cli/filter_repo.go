@@ -500,8 +500,18 @@ func dryRunFilterRepo(f *resolvedFilters, stats *filterStats) error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("git fast-export failed: %w", err)
 	}
-	ferr := filterFastExportStream(out, io.Discard, f, stats, true)
-	werr := cmd.Wait()
+	return runDryFilterPipeline(out, func() { _ = cmd.Process.Kill() }, func() error { return cmd.Wait() }, f, stats)
+}
+
+// runDryFilterPipeline은 dry-run 스트림을 필터링한다. 필터가 중간에 실패하면
+// fast-export를 죽인다 — 읽기를 멈춘 채 Wait만 하면 fast-export가 가득 찬
+// 파이프에 막혀 gg가 영원히 끝나지 않는다.
+func runDryFilterPipeline(exportOut io.Reader, kill func(), wait func() error, f *resolvedFilters, stats *filterStats) error {
+	ferr := filterFastExportStream(exportOut, io.Discard, f, stats, true)
+	if ferr != nil && kill != nil {
+		kill()
+	}
+	werr := wait()
 	if ferr != nil {
 		return ferr
 	}
@@ -536,10 +546,32 @@ func rewriteFilterRepo(f *resolvedFilters, stats *filterStats) error {
 		_ = exportCmd.Wait()
 		return fmt.Errorf("git fast-import failed: %w", err)
 	}
+	// fast-import는 stdin이 깨끗이 닫히면(EOF) 지금까지 읽은 ref를 확정한다.
+	// 필터가 중간에 실패했으면 부분 재작성을 남기지 않도록 닫지 말고 죽인다.
+	killAll := func() {
+		if importCmd.Process != nil {
+			_ = importCmd.Process.Kill()
+		}
+		if exportCmd.Process != nil {
+			_ = exportCmd.Process.Kill()
+		}
+	}
+	return runFilterPipeline(exportOut, importIn, killAll,
+		func() error { return exportCmd.Wait() },
+		func() error { return importCmd.Wait() }, f, stats)
+}
+
+// runFilterPipeline은 export 스트림을 필터링해 import로 옮긴다. 필터 오류 시
+// killAll로 두 프로세스를 끝내므로 fast-import의 부분 확정과 fast-export의
+// 파이프 교착을 막는다. 오류가 있으면 filter 오류가 최우선으로 반환된다.
+func runFilterPipeline(exportOut io.Reader, importIn io.WriteCloser, killAll func(), waitExport, waitImport func() error, f *resolvedFilters, stats *filterStats) error {
 	filterErr := filterFastExportStream(exportOut, importIn, f, stats, false)
+	if filterErr != nil && killAll != nil {
+		killAll()
+	}
 	_ = importIn.Close()
-	exportWaitErr := exportCmd.Wait()
-	importWaitErr := importCmd.Wait()
+	exportWaitErr := waitExport()
+	importWaitErr := waitImport()
 	if filterErr != nil {
 		return filterErr
 	}
