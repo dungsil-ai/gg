@@ -663,3 +663,54 @@ func TestE2EFilterRepoRewritesBranchesAndTagsOnly(t *testing.T) {
 		t.Errorf("원격 추적 ref 불변 기대: %s -> %s", remoteSha, got)
 	}
 }
+
+// nopWriteCloser는 오류 없이 모든 쓰기를 받아들이는 io.WriteCloser다.
+type nopWriteCloser struct{}
+
+func (nopWriteCloser) Write(p []byte) (int, error) { return len(p), nil }
+func (nopWriteCloser) Close() error                { return nil }
+
+func TestRunFilterPipelineAbortsOnError(t *testing.T) {
+	// data 길이만큼의 바이트가 오지 않아 필터 오류가 난다.
+	in := "blob\nmark :1\ndata 999\nshort"
+	killed := false
+	err := runFilterPipeline(strings.NewReader(in), nopWriteCloser{}, func() { killed = true },
+		func() error { return errors.New("export wait") },
+		func() error { return errors.New("import wait") },
+		&resolvedFilters{}, &filterStats{})
+	if err == nil {
+		t.Fatal("filter 오류 기대")
+	}
+	if !killed {
+		t.Error("filter 오류 시 killAll 호출 기대")
+	}
+}
+
+func TestRunFilterPipelinePropagatesWaitErrors(t *testing.T) {
+	in := "blob\nmark :1\ndata 2\nhi\n"
+	err := runFilterPipeline(strings.NewReader(in), nopWriteCloser{}, func() { t.Error("성공 시 kill 호출 없음") },
+		func() error { return errors.New("boom") }, func() error { return nil },
+		&resolvedFilters{}, &filterStats{})
+	if err == nil || !strings.Contains(err.Error(), "git fast-export failed") {
+		t.Errorf("export wait 오류 전파 기대, got %v", err)
+	}
+}
+
+func TestRunDryFilterPipelineAbortsOnError(t *testing.T) {
+	in := "blob\nmark :1\ndata 999\nshort"
+	killed := false
+	err := runDryFilterPipeline(strings.NewReader(in), func() { killed = true }, func() error { return nil },
+		&resolvedFilters{}, &filterStats{})
+	if err == nil {
+		t.Fatal("filter 오류 기대")
+	}
+	if !killed {
+		t.Error("filter 오류 시 kill 호출 기대")
+	}
+	killed = false
+	err = runDryFilterPipeline(strings.NewReader("blob\nmark :1\ndata 2\nhi\n"), func() { killed = true },
+		func() error { return nil }, &resolvedFilters{}, &filterStats{})
+	if err != nil || killed {
+		t.Errorf("성공 스트림: err=%v killed=%v", err, killed)
+	}
+}
