@@ -517,3 +517,47 @@ func TestE2EFilterRepoPreservesMergesAndTags(t *testing.T) {
 		t.Errorf("b.txt 제거 기대, got %q", got)
 	}
 }
+
+func TestE2EFilterRepoCreatesBackup(t *testing.T) {
+	dir := filterRepoTestRepo(t, map[string]string{"a.txt": "keep\n", "secret.txt": "topsecret\n"})
+	if err := runFilterRepoIn(t, dir, Request{
+		Resource: "repo", Action: "filter-repo",
+		FilterPaths: []string{"secret.txt"}, FilterInvert: true, FilterForce: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	gitDir := strings.TrimSpace(gitIn(t, dir, "rev-parse", "--absolute-git-dir"))
+	backup := filepath.Join(gitDir, "filter-repo-backup")
+	if _, err := os.Stat(backup); err != nil {
+		t.Fatalf("backup 없음: %v", err)
+	}
+	// 백업에는 재작성 전 히스토리(삭제된 secret.txt 포함)가 그대로 남는다.
+	if got := gitIn(t, backup, "ls-tree", "-r", "--name-only", "HEAD"); !strings.Contains(got, "secret.txt") {
+		t.Errorf("backup HEAD에 secret.txt 유지 기대, got %q", got)
+	}
+	if got := gitIn(t, backup, "log", "--oneline"); len(strings.Split(strings.TrimSpace(got), "\n")) != 2 {
+		t.Errorf("backup에 원본 커밋 2개 유지 기대, got:\n%s", got)
+	}
+}
+
+func TestE2EFilterRepoBackupNotOverwritten(t *testing.T) {
+	dir := filterRepoTestRepo(t, map[string]string{"a.txt": "keep\n", "secret.txt": "topsecret\n"})
+	req := Request{
+		Resource: "repo", Action: "filter-repo",
+		FilterPaths: []string{"secret.txt"}, FilterInvert: true, FilterForce: true,
+	}
+	if err := runFilterRepoIn(t, dir, req); err != nil {
+		t.Fatal(err)
+	}
+	before := gitIn(t, dir, "rev-parse", "HEAD")
+	err := runFilterRepoIn(t, dir, Request{
+		Resource: "repo", Action: "filter-repo",
+		FilterPaths: []string{"a.txt"}, FilterInvert: true, FilterForce: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "backup already exists") {
+		t.Fatalf("기존 backup 보호 기대, got %v", err)
+	}
+	if got := gitIn(t, dir, "rev-parse", "HEAD"); got != before {
+		t.Errorf("거부 시 HEAD 변경 없음 기대: %s -> %s", before, got)
+	}
+}

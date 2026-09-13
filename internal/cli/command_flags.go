@@ -142,7 +142,7 @@ var (
 		list: func(r *Request) *[]string { return &r.FilterReplaces }}
 	filterMailmapFlag = flagDef{name: "--mailmap", arg: "<file>", desc: "Rewrite authors/committers using a mailmap file",
 		str: func(r *Request) *string { return &r.FilterMailmap }}
-	filterForceFlag = flagDef{name: "--force", desc: "Confirm history rewrite on a fresh clone backup",
+	filterForceFlag = flagDef{name: "--force", desc: "Confirm history rewrite (a mirror backup is created automatically)",
 		bin: func(r *Request) *bool { return &r.FilterForce }}
 	filterDryRunFlag = flagDef{name: "--dry-run", desc: "Preview the rewrite without changing history",
 		bin: func(r *Request) *bool { return &r.FilterDryRun }}
