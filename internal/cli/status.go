@@ -168,26 +168,20 @@ func ghCIRollup(checks []ghCheck) string {
 	if len(checks) == 0 {
 		return "none"
 	}
-	overall := ""
+	// 체크 배열 순서와 무관하게 fail > pending > unknown > pass 중 최악을
+	// 고른다. pending을 만나면 곧바로 반환하는 방식은 실패한 체크가 뒤에
+	// 있을 때 실패를 pending으로 가린다.
+	rank := map[string]int{"pass": 1, "neutral": 1, "unknown": 2, "pending": 3, "fail": 4}
+	worst := "pass"
 	for _, c := range checks {
-		st := ghCheckState(c)
-		switch st {
-		case "fail":
-			return "fail"
-		case "pending":
-			return "pending"
-		case "unknown":
-			overall = "unknown"
-		case "pass", "neutral":
-			if overall == "" {
-				overall = "pass"
-			}
+		if st := ghCheckState(c); rank[st] > rank[worst] {
+			worst = st
 		}
 	}
-	if overall == "" {
-		return "unknown"
+	if worst == "neutral" {
+		return "pass"
 	}
-	return overall
+	return worst
 }
 
 func ghConflict(mergeable, state string) string {
