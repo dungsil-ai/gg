@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -53,19 +54,44 @@ func ghStatusFields() string {
 
 // runPRStatus는 상태 조회 성공 시 exit 0이다. 병합 불가, CI 실패, 승인 대기는
 // 결과 값일 뿐이고, 조회 자체가 실패할 때만 0이 아닌 exit code를 낸다.
-func runPRStatus(ep executionPlan) int {
+func runPRStatus(ep executionPlan, req Request) int {
 	out, err := captureChild(ep.inv)
 	if err != nil {
 		fmt.Fprintln(osStderr, "gg:", err)
 		return childFailCode(err)
 	}
-	s, perr := parsePRStatus(ep.provider, out)
+	approvals := ""
+	if ep.provider == GLab {
+		// glab mr view의 JSON은 go-gitlab 구조체를 직렬화한 것이라 승인
+		// 정보(approved_by)가 아예 없다. 승인 상태는 approvals API를
+		// glab api로 별도 조회한다.
+		approvalsInv, aerr := glabApprovalsInvocation(ep.repo, req.Number)
+		if aerr != nil {
+			fmt.Fprintln(osStderr, "gg:", aerr)
+			return 1
+		}
+		approvals, err = captureChild(approvalsInv)
+		if err != nil {
+			fmt.Fprintln(osStderr, "gg:", err)
+			return childFailCode(err)
+		}
+	}
+	s, perr := parsePRStatus(ep.provider, out, approvals)
 	if perr != nil {
 		fmt.Fprintln(osStderr, "gg:", perr)
 		return 1
 	}
 	fmt.Fprint(osStdout, s.text())
 	return 0
+}
+
+// glabApprovalsInvocation은 GitLab 승인 상태를 위한 별도 조회 명령이다.
+func glabApprovalsInvocation(r RepoURL, number string) (Invocation, error) {
+	if number == "" {
+		return Invocation{}, errors.New("pr status needs a number to look up approvals")
+	}
+	endpoint := "projects/" + url.PathEscape(r.Slug()) + "/merge_requests/" + number + "/approvals"
+	return Invocation{Bin: "glab", Args: []string{"api", endpoint}, Env: []string{"GITLAB_HOST=" + r.Host}}, nil
 }
 
 func captureChild(inv Invocation) (string, error) {
@@ -89,12 +115,12 @@ func captureChild(inv Invocation) (string, error) {
 	return stdout.String(), nil
 }
 
-func parsePRStatus(p Provider, out string) (prStatus, error) {
+func parsePRStatus(p Provider, out, approvals string) (prStatus, error) {
 	switch p {
 	case GH:
 		return parseGHStatus([]byte(out))
 	case GLab:
-		return parseGLabStatus([]byte(out))
+		return parseGLabStatus([]byte(out), []byte(approvals))
 	}
 	return prStatus{}, usageErr("pr status is not supported for " + string(p))
 }
@@ -213,13 +239,12 @@ func ghMergeable(mergeable, state string) string {
 	return "unknown"
 }
 
-func parseGLabStatus(data []byte) (prStatus, error) {
+func parseGLabStatus(data, approvalsData []byte) (prStatus, error) {
 	var v struct {
-		Draft               *bool              `json:"draft"`
-		ApprovedBy          *[]json.RawMessage `json:"approved_by"`
-		HasConflicts        *bool              `json:"has_conflicts"`
-		MergeStatus         string             `json:"merge_status"`
-		DetailedMergeStatus string             `json:"detailed_merge_status"`
+		Draft               *bool  `json:"draft"`
+		HasConflicts        *bool  `json:"has_conflicts"`
+		MergeStatus         string `json:"merge_status"`
+		DetailedMergeStatus string `json:"detailed_merge_status"`
 		HeadPipeline        *struct {
 			Status string `json:"status"`
 		} `json:"head_pipeline"`
@@ -234,13 +259,9 @@ func parseGLabStatus(data []byte) (prStatus, error) {
 	if v.Draft != nil {
 		draft = yesNo(*v.Draft)
 	}
-	approval := "unknown"
-	if v.ApprovedBy != nil {
-		if len(*v.ApprovedBy) > 0 {
-			approval = "approved"
-		} else {
-			approval = "required"
-		}
+	approval, err := parseGLabApprovals(approvalsData)
+	if err != nil {
+		return prStatus{}, err
 	}
 	ci := "none"
 	pipe := v.HeadPipeline
@@ -261,6 +282,24 @@ func parseGLabStatus(data []byte) (prStatus, error) {
 		Conflict:  conflict,
 		Mergeable: glabMergeable(v.DetailedMergeStatus, v.MergeStatus),
 	}, nil
+}
+
+// parseGLabApprovals는 approvals API 응답에서 승인 상태를 읽는다. 응답은
+// {"approved_by": [...], ...} 형태로, 빈 배열은 승인 대기를 뜻한다.
+func parseGLabApprovals(data []byte) (string, error) {
+	if len(strings.TrimSpace(string(data))) == 0 {
+		return "", fmt.Errorf("cannot parse glab approvals output: empty response")
+	}
+	var v struct {
+		ApprovedBy []json.RawMessage `json:"approved_by"`
+	}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return "", fmt.Errorf("cannot parse glab approvals output: %w", err)
+	}
+	if len(v.ApprovedBy) > 0 {
+		return "approved", nil
+	}
+	return "required", nil
 }
 
 func glabCIStatus(status string) string {

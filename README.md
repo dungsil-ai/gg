@@ -671,7 +671,8 @@ ADR 0007: Gitea CLI 고유 기능(admin, times, milestones 등)은 개별 수요
   - exit code 계약: 표 조회 자체가 실패할 때만 0이 아닌 exit code를 냅니다 — 손상된 config.json 읽기 시 1. 행별 `no`·`no cli`는 결과 값이며 exit 0입니다.
 - `pr`
   - [x] `gg pr status` (GitHub, GitLab 지원; Gitea 미지원)
-  - exit code 계약: 조회 자체가 실패할 때만 0이 아닌 exit code를 냅니다 — 하위 CLI(gh/glab) 미설치 시 127, 자식이 신호로 종료되면 128+신호 코드, 그 외 조회 실패 시 1. 조회 성공 시 병합 불가·CI 실패·승인 대기는 결과 값이며 exit 0입니다. CI 값 범위는 pass|fail|pending|none|unknown이고, NEUTRAL/SKIPPED 체크는 pass로 셉니다.
+  - GitLab은 승인 상태를 `glab api projects/<owner>%2F<repo>/merge_requests/<number>/approvals`로 별도 조회합니다(`glab mr view` JSON에는 승인 정보가 없음). 이 조회가 실패하면 조회 실패로 처리합니다.
+  - exit code 계약: 조회 자체가 실패할 때만 0이 아닌 exit code를 냅니다 — 하위 CLI(gh/glab) 미설치 시 127, 자식이 신호로 종료하면 128+신호 코드, 그 외 조회 실패는 하위 CLI의 종료 코드(신호 종료가 아니면 1로 문서화). 조회 성공 시 병합 불가·CI 실패·승인 대기는 결과 값이며 exit 0입니다. CI 값 범위는 pass|fail|pending|none|unknown이고, NEUTRAL/SKIPPED 체크는 pass로 셉니다.
   - [x] `gg pr ready` (GitHub, GitLab 지원; Gitea 미지원)
   - [x] `gg pr comment` (PR 댓글 입력; GitHub, GitLab, Gitea 지원)
   - [x] `gg pr comment list` / `gg pr comment edit` / `gg pr comment delete` (PR 댓글 조회·수정·삭제; 조회는 GitHub, GitLab, Gitea 지원 — `gh api`/`glab api`/`tea comments list` 중계. 수정·삭제는 Gitea 미지원)
