@@ -179,8 +179,10 @@ func resolvePlan(req Request) (executionPlan, error) {
 			args = append(args, req.GitArgs...)
 			return executionPlan{inv: Invocation{Bin: "git", Args: args}}, nil
 		}
-		// set-default --unset/--view는 gh 설정의 조회·해제라 저장소 문맥이 필요
-		// 없다. git 저장소 밖에서도 동작해야 하므로 문맥 조회 전에 우회한다.
+		// set-default --unset/--view는 gh 설정의 조회·해제라 저장소 문맥 조회
+		// 없이 gh로 바로 넘긴다. gh 자체가 git 저장소를 요구하므로 밖에서
+		// 실행하면 gh의 오류가 보이는데, gg의 "not a git repository" 대신
+		// gh의 안내를 보여주는 편이 낫다.
 		if req.Action == "set-default" && (req.Unset || req.View) {
 			args := []string{"repo", "set-default"}
 			if req.Unset {
