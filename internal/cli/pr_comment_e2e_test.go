@@ -121,7 +121,7 @@ func TestE2EGitLabPRCommentCRUD(t *testing.T) {
 }
 
 // TestE2EGiteaPRCommentCreateAndUnsupported는 Gitea에서 PR 댓글 추가는
-// tea comment로 중계되고 목록 조회는 미지원 오류가 나는지 본다.
+// tea comment로, 목록 조회는 tea comments list로 중계되는지 본다.
 func TestE2EGiteaPRCommentCreateAndUnsupported(t *testing.T) {
 	bin := buildGG(t)
 	fakeDir := t.TempDir()

@@ -849,7 +849,7 @@ Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없�
   ```
   - GitHub: `gh api repos/<owner>/<repo>/issues/42/comments` 호출
   - GitLab: `glab api projects/<owner>%2F<repo>/merge_requests/42/notes` 호출
-  - Gitea: 미지원 오류(`pr comment list is not supported for tea`)가 반환됩니다
+  - Gitea: `tea comments list 42 ...` 호출
 - 댓글 수정:
   ```bash
   gg pr comment edit 42 1234 --body "수정했습니다"
