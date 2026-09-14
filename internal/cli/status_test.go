@@ -79,6 +79,12 @@ func TestParseGHStatus(t *testing.T) {
 			prStatus{Draft: "no", Approval: "required", CI: "pending", Conflict: "unknown", Mergeable: "unknown"}},
 		{"empty review decision", `{"isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"CLEAN"}`,
 			prStatus{Draft: "no", Approval: "required", CI: "none", Conflict: "no", Mergeable: "yes"}},
+		{"pending 뒤에 fail", `{"isDraft":false,"reviewDecision":"APPROVED","mergeable":"MERGEABLE","mergeStateStatus":"UNSTABLE","statusCheckRollup":[{"__typename":"CheckRun","status":"IN_PROGRESS","conclusion":""},{"__typename":"CheckRun","status":"COMPLETED","conclusion":"FAILURE"}]}`,
+			prStatus{Draft: "no", Approval: "approved", CI: "fail", Conflict: "no", Mergeable: "yes"}},
+		{"fail 뒤에 pending", `{"isDraft":false,"reviewDecision":"APPROVED","mergeable":"MERGEABLE","mergeStateStatus":"UNSTABLE","statusCheckRollup":[{"__typename":"CheckRun","status":"COMPLETED","conclusion":"FAILURE"},{"__typename":"CheckRun","status":"IN_PROGRESS","conclusion":""}]}`,
+			prStatus{Draft: "no", Approval: "approved", CI: "fail", Conflict: "no", Mergeable: "yes"}},
+		{"unknown 뒤에 pending", `{"isDraft":false,"reviewDecision":"APPROVED","mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","statusCheckRollup":[{"__typename":"CheckRun","status":"COMPLETED","conclusion":"WEIRD"},{"__typename":"CheckRun","status":"IN_PROGRESS","conclusion":""}]}`,
+			prStatus{Draft: "no", Approval: "approved", CI: "pending", Conflict: "no", Mergeable: "yes"}},
 	}
 	for _, tc := range cases {
 		s, err := parseGHStatus([]byte(tc.json))
