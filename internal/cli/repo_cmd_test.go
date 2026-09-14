@@ -361,3 +361,41 @@ func TestE2ERepoForkDeleteForGitea(t *testing.T) {
 		})
 	}
 }
+
+// tea에 대응 하위 명령이 없는 repo action은 tea login이 없어도 login 요구 대신
+// 미지원 오류로 거부된다 — login을 추가해 다시 시도해도 같은 미지원 오류가
+// 나므로 헛수고를 막는 것이 contributors·transfer·mirror와 같은 원칙이다.
+func TestE2ERepoLifecycleUnsupportedForTea(t *testing.T) {
+	bin := buildGG(t)
+	// tea 바이너리를 PATH에 두지 않아 login 조회가 실패하는 상태에서도
+	// 미지원이 먼저 확정되는지 본다.
+	fakeDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	writeFakeBin(t, fakeDir, "gh", logFile)
+	writeFakeBin(t, fakeDir, "glab", logFile)
+	repo := tempRepo(t, "https://gitea.com/o/r.git")
+
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"repo", "edit", "--description", "d"}, "repo does not support edit"},
+		{[]string{"repo", "rename", "newname"}, "repo does not support rename"},
+		{[]string{"repo", "sync", "--force"}, "repo does not support sync"},
+		{[]string{"repo", "set-default"}, "repo does not support set-default"},
+	} {
+		out, code := runGG(t, bin, fakeDir, repo, tc.args...)
+		if code != 2 {
+			t.Fatalf("gg %v: exit = %d, want 2: %s", tc.args, code, out)
+		}
+		if !strings.Contains(out, tc.want) {
+			t.Errorf("gg %v output에 미지원 오류 없음: %s", tc.args, out)
+		}
+		if strings.Contains(out, "no tea login") {
+			t.Errorf("gg %v: login 요구가 먼저 나오면 안 된다: %s", tc.args, out)
+		}
+		if got := readLog(t, logFile); got != "" {
+			t.Errorf("gg %v child command should not run, got %q", tc.args, got)
+		}
+	}
+}
