@@ -120,12 +120,19 @@ var (
 		str: func(r *Request) *string { return &r.Notes }}
 	refFlag = flagDef{name: "--ref", arg: "<ref>", desc: "Branch or commit SHA to tag when the tag does not exist",
 		str: func(r *Request) *string { return &r.Ref }}
-	// release create/edit의 --draft는 pr의 --draft와 같은 Request 필드를 켜지만
+	// release create의 --draft는 pr의 --draft와 같은 Request 필드를 켜지만
 	// help 문구가 다르다. action별 정의로 나눠 받는다.
 	releaseDraftFlag = flagDef{name: "--draft", desc: "Save the release as a draft instead of publishing it",
 		bin: func(r *Request) *bool { return &r.Draft }}
 	prereleaseFlag = flagDef{name: "--prerelease", desc: "Mark the release as a prerelease",
 		bin: func(r *Request) *bool { return &r.Prerelease }}
+	// release edit의 --draft/--prerelease는 true|false 값을 받는다. gh의
+	// --draft=false가 draft release를 공개하는 유일한 표면이고 tea는 문자열
+	// flag라 같은 형태가 필요하다.
+	releaseEditDraftFlag = flagDef{name: "--draft", arg: "<true|false>", desc: "Update the draft status of the release",
+		str: func(r *Request) *string { return &r.ReleaseDraft }}
+	releaseEditPrereleaseFlag = flagDef{name: "--prerelease", arg: "<true|false>", desc: "Update the prerelease status of the release",
+		str: func(r *Request) *string { return &r.ReleasePrerelease }}
 	cleanupTagFlag = flagDef{name: "--cleanup-tag", desc: "Delete the tag along with the release",
 		bin: func(r *Request) *bool { return &r.CleanupTag }}
 	patternFlag = flagDef{name: "--pattern", arg: "<glob>", desc: "Download only assets that match the glob",

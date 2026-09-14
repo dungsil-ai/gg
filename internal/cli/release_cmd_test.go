@@ -29,6 +29,8 @@ func TestParseRequestRelease(t *testing.T) {
 			want: Request{Resource: "release", Action: "create", Tag: "v1.0.0", Files: []string{"a.zip", "b.zip"}, Prerelease: true, Ref: "main"}},
 		{name: "release edit", args: []string{"release", "edit", "v1.0.0", "--notes", "n"},
 			want: Request{Resource: "release", Action: "edit", Tag: "v1.0.0", Notes: "n"}},
+		{name: "release edit draft 해제", args: []string{"release", "edit", "v1.0.0", "--draft=false", "--prerelease=true"},
+			want: Request{Resource: "release", Action: "edit", Tag: "v1.0.0", ReleaseDraft: "false", ReleasePrerelease: "true"}},
 		{name: "release delete", args: []string{"release", "delete", "v1.0.0", "--yes", "--cleanup-tag"},
 			want: Request{Resource: "release", Action: "delete", Tag: "v1.0.0", Yes: true, CleanupTag: true}},
 		{name: "release download 생략하면 latest", args: []string{"release", "download", "--pattern", "*.zip", "--dir", "dist"},
@@ -63,6 +65,8 @@ func TestParseRequestRelease(t *testing.T) {
 		{args: []string{"release", "create"}, want: "usage: gg release create <tag> [asset...]"},
 		{args: []string{"release", "edit"}, want: "usage: gg release edit <tag>"},
 		{args: []string{"release", "edit", "a", "b"}, want: "usage: gg release edit <tag>"},
+		{args: []string{"release", "edit", "v1.0.0", "--draft=maybe"}, want: "--draft must be true or false"},
+		{args: []string{"release", "edit", "v1.0.0", "--prerelease=yes"}, want: "--prerelease must be true or false"},
 		{args: []string{"release", "delete"}, want: "usage: gg release delete <tag>"},
 		{args: []string{"release", "download", "a", "b"}, want: "usage: gg release download [<tag>]"},
 		{args: []string{"release", "upload", "v1.0.0"}, want: "usage: gg release upload <tag> <asset>..."},
@@ -119,6 +123,10 @@ func TestTranslateRelease(t *testing.T) {
 			req:  Request{Resource: "release", Action: "edit", Tag: "v1.0.0", Title: "t"},
 			repo: gh, p: GH,
 			want: Invocation{Bin: "gh", Args: []string{"release", "edit", "v1.0.0", "-R", "github.com/o/r", "--title", "t"}}},
+		{name: "gh release edit draft 해제",
+			req:  Request{Resource: "release", Action: "edit", Tag: "v1.0.0", ReleaseDraft: "false", ReleasePrerelease: "true"},
+			repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"release", "edit", "v1.0.0", "-R", "github.com/o/r", "--draft=false", "--prerelease=true"}}},
 		{name: "gh release delete",
 			req:  Request{Resource: "release", Action: "delete", Tag: "v1.0.0", Yes: true, CleanupTag: true},
 			repo: gh, p: GH,
@@ -278,6 +286,8 @@ func TestE2EReleaseInvocations(t *testing.T) {
 		{[]string{"release", "create", "v1.0.0", "--title", "t", "--notes", "n", "--draft"}, ghRepo,
 			wantCall("gh", "release", "create", "v1.0.0", "--title", "t", "--notes", "n", "--draft", "-R", "github.com/o/r")},
 		{[]string{"release", "delete", "v1.0.0", "--yes"}, ghRepo, wantCall("gh", "release", "delete", "v1.0.0", "-R", "github.com/o/r", "--yes")},
+		{[]string{"release", "edit", "v1.0.0", "--draft=false", "--title", "t"}, ghRepo,
+			wantCall("gh", "release", "edit", "v1.0.0", "-R", "github.com/o/r", "--title", "t", "--draft=false")},
 		{[]string{"release", "upload", "v1.0.0", "a.zip"}, ghRepo, wantCall("gh", "release", "upload", "v1.0.0", "a.zip", "-R", "github.com/o/r")},
 		{[]string{"release", "list"}, glabRepo, wantCall("glab", "release", "list", "--repo", "https://gitlab.com/o/r")},
 		{[]string{"release", "create", "v1.0.0", "a.zip", "--ref", "main"}, glabRepo,
@@ -318,7 +328,8 @@ func TestE2EReleaseGiteaArgv(t *testing.T) {
 		{[]string{"release", "create", "v1.0.0", "a.zip"}, wantTeaCall("releases", "create", "--login", "pub", "--repo", "o/r", "--tag", "v1.0.0", "--asset", "a.zip")},
 		{[]string{"release", "delete", "v1.0.0", "--yes", "--cleanup-tag"}, wantTeaCall("releases", "delete", "v1.0.0", "--login", "pub", "--repo", "o/r", "--confirm", "--delete-tag")},
 		{[]string{"release", "edit", "v1.0.0", "--title", "t2"}, wantTeaCall("releases", "edit", "v1.0.0", "--login", "pub", "--repo", "o/r", "--title", "t2")},
-		{[]string{"release", "edit", "v1.0.0", "--draft"}, wantTeaCall("releases", "edit", "v1.0.0", "--login", "pub", "--repo", "o/r", "--draft=true")},
+		{[]string{"release", "edit", "v1.0.0", "--draft=true"}, wantTeaCall("releases", "edit", "v1.0.0", "--login", "pub", "--repo", "o/r", "--draft=true")},
+		{[]string{"release", "edit", "v1.0.0", "--draft=false", "--prerelease=true"}, wantTeaCall("releases", "edit", "v1.0.0", "--login", "pub", "--repo", "o/r", "--draft=false", "--prerelease=true")},
 	}
 	for _, tc := range relays {
 		if err := os.WriteFile(logFile, nil, 0o600); err != nil {
@@ -352,6 +363,21 @@ func TestE2EReleaseGiteaArgv(t *testing.T) {
 		}
 		if got := readLog(t, logFile); got != "" {
 			t.Errorf("gg %v tea should not run, got %q", args, got)
+		}
+	}
+
+	// edit의 draft·prerelease는 true|false 값이 필요하다.
+	for _, args := range [][]string{
+		{"release", "edit", "v1.0.0", "--draft"},
+		{"release", "edit", "v1.0.0", "--draft=maybe"},
+		{"release", "edit", "v1.0.0", "--prerelease=yes"},
+	} {
+		out, code := runGG(t, bin, fakeDir, repo, args...)
+		if code != 2 {
+			t.Fatalf("gg %v: exit = %d, want 2: %s", args, code, out)
+		}
+		if !strings.Contains(out, "--draft") && !strings.Contains(out, "--prerelease") {
+			t.Errorf("gg %v output에 draft·prerelease 안내 없음: %s", args, out)
 		}
 	}
 }
