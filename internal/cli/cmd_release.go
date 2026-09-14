@@ -37,12 +37,22 @@ var releaseResourceDef = &resourceDef{
 		},
 		{
 			name: "edit", summary: "Edit a release (GitHub only)", usage: "gg release edit <tag> [flags]",
-			flags:    []flagDef{titleFlag, notesFlag, releaseDraftFlag, prereleaseFlag},
+			flags:    []flagDef{titleFlag, notesFlag, releaseEditDraftFlag, releaseEditPrereleaseFlag},
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
 			minPos: 1, maxPos: 1,
 			posErr: "usage: gg release edit <tag>",
-			setPos: setTag,
+			setPos: func(req *Request, pos []string) error {
+				// draft·prerelease 전환은 "true|false"로만 받는다. gh의
+				// --draft=false가 draft release를 공개하는 표면이다.
+				for flag, v := range map[string]string{"--draft": req.ReleaseDraft, "--prerelease": req.ReleasePrerelease} {
+					if v != "" && v != "true" && v != "false" {
+						return usageErr(flag + " must be true or false")
+					}
+				}
+				req.Tag = pos[0]
+				return nil
+			},
 		},
 		{
 			name: "delete", summary: "Delete a release", usage: "gg release delete <tag> [flags]",
@@ -251,25 +261,27 @@ var releaseEditBuilders = providerBuilders{
 		args = append([]string{c.res, "edit", c.req.Tag}, c.target...)
 		args = appendKV(args, "--title", c.req.Title)
 		args = appendKV(args, "--notes", c.req.Notes)
-		if c.req.Draft {
-			args = append(args, "--draft")
+		// gh의 --draft/--prerelease는 tri-state flag다. --draft=false가
+		// draft release를 공개하는 문서화된 방법이다.
+		if c.req.ReleaseDraft != "" {
+			args = append(args, "--draft="+c.req.ReleaseDraft)
 		}
-		if c.req.Prerelease {
-			args = append(args, "--prerelease")
+		if c.req.ReleasePrerelease != "" {
+			args = append(args, "--prerelease="+c.req.ReleasePrerelease)
 		}
 		return args, nil
 	},
-	// tea의 draft·prerelease는 문자열 flag이라 gg가 켤 때만 --draft=true 형태로
-	// 중계한다. gg의 boolean flag로는 끄는 표현이 없다.
+	// tea의 draft·prerelease는 문자열 flag이라 --draft=true|false 형태로
+	// 중계한다.
 	tea: func(c invocationContext) (args, env []string) {
 		args = append([]string{c.res, "edit", c.req.Tag}, c.target...)
 		args = appendKV(args, "--title", c.req.Title)
 		args = appendKV(args, "--note", c.req.Notes)
-		if c.req.Draft {
-			args = append(args, "--draft=true")
+		if c.req.ReleaseDraft != "" {
+			args = append(args, "--draft="+c.req.ReleaseDraft)
 		}
-		if c.req.Prerelease {
-			args = append(args, "--prerelease=true")
+		if c.req.ReleasePrerelease != "" {
+			args = append(args, "--prerelease="+c.req.ReleasePrerelease)
 		}
 		return args, nil
 	},

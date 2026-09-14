@@ -98,7 +98,7 @@ var actionHelpContracts = map[string]helpContract{
 	"release list":         {"[flags]", "--limit <N> " + forgeHelpFlags},
 	"release view":         {"[<tag>] [flags]", forgeHelpFlags},
 	"release create":       {"<tag> [asset...] [flags]", "--title <text> --notes <text> --ref <ref> --draft --prerelease " + forgeHelpFlags},
-	"release edit":         {"<tag> [flags]", "--title <text> --notes <text> --draft --prerelease " + forgeHelpFlags},
+	"release edit":         {"<tag> [flags]", "--title <text> --notes <text> --draft <true|false> --prerelease <true|false> " + forgeHelpFlags},
 	"release delete":       {"<tag> [flags]", "--yes --cleanup-tag " + forgeHelpFlags},
 	"release download":     {"[<tag>] [flags]", "--pattern <glob> --dir <dir> " + forgeHelpFlags},
 	"release upload":       {"<tag> <asset>... [flags]", forgeHelpFlags},

@@ -33,8 +33,9 @@ type Request struct {
 	Files                                                    []string
 	Draft, Undo, Public, Private, AllowInsecureHTTP, Explain bool
 	Yes, Prerelease, CleanupTag                              bool
-	Yaml                                                     bool // workflow view: YAML 내용 조회
-	Force, Unset, View                                       bool // repo sync 강제 동기화, repo set-default 해제·조회
+	Yaml                                                     bool   // workflow view: YAML 내용 조회
+	ReleaseDraft, ReleasePrerelease                          string // release edit의 draft·prerelease 상태(true|false)
+	Force, Unset, View                                       bool   // repo sync 강제 동기화, repo set-default 해제·조회
 
 	Merge, Squash, Rebase bool
 	DeleteBranch, Auto    bool
@@ -206,6 +207,14 @@ func flagLoop(req *Request, args []string, strs map[string]*string, bools map[st
 			*p = append(*p, args[i+1])
 			i++
 			continue
+		}
+		// --flag=value 형태도 받는다. release edit의 --draft=false가
+		// 대표 케이스다.
+		if name, value, hasValue := strings.Cut(a, "="); hasValue {
+			if p, ok := strs[name]; ok {
+				*p = value
+				continue
+			}
 		}
 		if p, ok := strs[a]; ok {
 			if i+1 >= len(args) {
