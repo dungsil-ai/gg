@@ -57,16 +57,13 @@ func runAPIRelay(args []string) int {
 	var inv Invocation
 	switch p {
 	case GH:
-		var env []string
-		if repo.Host != "github.com" {
-			env = []string{"GH_HOST=" + repo.Host}
-		}
+		// 기본 domain도 env로 고정한다. 주입을 생략하면 사용자가 내보낸
+		// GH_HOST나 gh 설정의 기본 host가 api 호출을 다른 인스턴스로 돌린다.
+		// execChild는 os.Environ 뒤에 Env를 덧붙이므로 주입값이 이긴다.
+		env := []string{"GH_HOST=" + repo.Host}
 		inv = Invocation{Bin: "gh", Args: append([]string{"api"}, relayArgs...), Env: env}
 	case GLab:
-		var env []string
-		if repo.Host != "gitlab.com" {
-			env = []string{"GITLAB_HOST=" + repo.Host}
-		}
+		env := []string{"GITLAB_HOST=" + repo.Host}
 		inv = Invocation{Bin: "glab", Args: append([]string{"api"}, relayArgs...), Env: env}
 	case Tea:
 		login := teaLoginName(repo.Host)

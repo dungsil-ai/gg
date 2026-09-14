@@ -173,3 +173,43 @@ func TestE2EAPIRelayRepoAndRemoteTogether(t *testing.T) {
 		t.Errorf("gh should not run, got %q", got)
 	}
 }
+
+// 기본 domain도 host env로 고정한다 — 주변 환경의 GH_HOST/GITLAB_HOST가
+// api 호출을 다른 인스턴스로 돌리지 않도록 한다.
+func TestE2EAPIRelayDefaultHostPinned(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("환경변수 로그는 unix fake에서만 검증한다")
+	}
+	bin := buildGG(t)
+
+	cases := []struct {
+		name    string
+		remote  string
+		binName string
+		envKey  string
+		wantEnv string
+	}{
+		{name: "gh default host", remote: "https://github.com/o/r.git", binName: "gh", envKey: "GH_HOST", wantEnv: "GH_HOST=github.com"},
+		{name: "glab default host", remote: "https://gitlab.com/o/r.git", binName: "glab", envKey: "GITLAB_HOST", wantEnv: "GITLAB_HOST=gitlab.com"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeDir := t.TempDir()
+			logFile := filepath.Join(t.TempDir(), "calls.log")
+			path := filepath.Join(fakeDir, tc.binName)
+			body := "#!/bin/sh\necho \"" + tc.envKey + "=$" + tc.envKey + "\" >> \"" + logFile + "\"\nexit 0\n"
+			if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			repo := tempRepo(t, tc.remote)
+
+			out, code := runGG(t, bin, fakeDir, repo, "api", "repos/o/r/issues/1")
+			if code != 0 {
+				t.Fatalf("gg api: exit %d: %s", code, out)
+			}
+			if got := readLog(t, logFile); !strings.Contains(got, tc.wantEnv) {
+				t.Errorf("log = %q, want %q 포함", got, tc.wantEnv)
+			}
+		})
+	}
+}
