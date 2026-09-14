@@ -103,33 +103,44 @@ func TestParseGHStatus(t *testing.T) {
 
 func TestParseGLabStatus(t *testing.T) {
 	cases := []struct {
-		name string
-		json string
-		want prStatus
+		name      string
+		json      string
+		approvals string
+		want      prStatus
 	}{
-		{"ready", `{"draft":false,"approved_by":[{"user":{"username":"a"}}],"has_conflicts":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","head_pipeline":{"status":"success"}}`,
+		{"ready", `{"draft":false,"has_conflicts":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","head_pipeline":{"status":"success"}}`,
+			`{"approved_by":[{"user":{"username":"a"}}]}`,
 			prStatus{Draft: "no", Approval: "approved", CI: "pass", Conflict: "no", Mergeable: "yes"}},
-		{"approval required", `{"draft":false,"approved_by":[],"has_conflicts":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","head_pipeline":{"status":"success"}}`,
+		{"approval required", `{"draft":false,"has_conflicts":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","head_pipeline":{"status":"success"}}`,
+			`{"approved_by":[]}`,
 			prStatus{Draft: "no", Approval: "required", CI: "pass", Conflict: "no", Mergeable: "yes"}},
-		{"pipeline pending", `{"draft":true,"approved_by":[],"has_conflicts":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","head_pipeline":{"status":"running"}}`,
+		{"pipeline pending", `{"draft":true,"has_conflicts":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","head_pipeline":{"status":"running"}}`,
+			`{"approved_by":[]}`,
 			prStatus{Draft: "yes", Approval: "required", CI: "pending", Conflict: "no", Mergeable: "yes"}},
-		{"pipeline skipped", `{"draft":false,"approved_by":[],"has_conflicts":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","head_pipeline":{"status":"skipped"}}`,
+		{"pipeline skipped", `{"draft":false,"has_conflicts":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","head_pipeline":{"status":"skipped"}}`,
+			`{"approved_by":[]}`,
 			prStatus{Draft: "no", Approval: "required", CI: "pass", Conflict: "no", Mergeable: "yes"}},
-		{"pipeline manual", `{"draft":false,"approved_by":[],"has_conflicts":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","head_pipeline":{"status":"manual"}}`,
+		{"pipeline manual", `{"draft":false,"has_conflicts":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","head_pipeline":{"status":"manual"}}`,
+			`{"approved_by":[]}`,
 			prStatus{Draft: "no", Approval: "required", CI: "pending", Conflict: "no", Mergeable: "yes"}},
-		{"no pipeline", `{"draft":false,"approved_by":[],"has_conflicts":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable"}`,
+		{"no pipeline", `{"draft":false,"has_conflicts":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable"}`,
+			`{"approved_by":[]}`,
 			prStatus{Draft: "no", Approval: "required", CI: "none", Conflict: "no", Mergeable: "yes"}},
-		{"conflict", `{"draft":false,"approved_by":[],"has_conflicts":true,"merge_status":"cannot_be_merged","detailed_merge_status":"conflicts","head_pipeline":{"status":"failed"}}`,
+		{"conflict", `{"draft":false,"has_conflicts":true,"merge_status":"cannot_be_merged","detailed_merge_status":"conflicts","head_pipeline":{"status":"failed"}}`,
+			`{"approved_by":[]}`,
 			prStatus{Draft: "no", Approval: "required", CI: "fail", Conflict: "yes", Mergeable: "no"}},
-		{"unknown merge status", `{"draft":false,"approved_by":[],"has_conflicts":false,"merge_status":"unknown","detailed_merge_status":"checking"}`,
+		{"unknown merge status", `{"draft":false,"has_conflicts":false,"merge_status":"unknown","detailed_merge_status":"checking"}`,
+			`{"approved_by":[]}`,
 			prStatus{Draft: "no", Approval: "required", CI: "none", Conflict: "no", Mergeable: "unknown"}},
 		{"missing fields", `{}`,
-			prStatus{Draft: "unknown", Approval: "unknown", CI: "none", Conflict: "unknown", Mergeable: "unknown"}},
-		{"fallback merge status", `{"draft":false,"approved_by":[],"has_conflicts":false,"merge_status":"can_be_merged"}`,
+			`{"approved_by":[]}`,
+			prStatus{Draft: "unknown", Approval: "required", CI: "none", Conflict: "unknown", Mergeable: "unknown"}},
+		{"fallback merge status", `{"draft":false,"has_conflicts":false,"merge_status":"can_be_merged"}`,
+			`{"approved_by":[]}`,
 			prStatus{Draft: "no", Approval: "required", CI: "none", Conflict: "no", Mergeable: "yes"}},
 	}
 	for _, tc := range cases {
-		s, err := parseGLabStatus([]byte(tc.json))
+		s, err := parseGLabStatus([]byte(tc.json), []byte(tc.approvals))
 		if err != nil {
 			t.Errorf("%s: %v", tc.name, err)
 			continue
@@ -138,7 +149,13 @@ func TestParseGLabStatus(t *testing.T) {
 			t.Errorf("%s: got %+v, want %+v", tc.name, s, tc.want)
 		}
 	}
-	if _, err := parseGLabStatus([]byte("nope")); err == nil {
+	if _, err := parseGLabStatus([]byte("nope"), []byte(`{}`)); err == nil {
 		t.Error("bad JSON should fail")
+	}
+	if _, err := parseGLabStatus([]byte(`{}`), []byte("not json")); err == nil {
+		t.Error("bad approvals JSON should fail")
+	}
+	if _, err := parseGLabStatus([]byte(`{}`), nil); err == nil {
+		t.Error("빈 approvals 응답은 실패해야 한다")
 	}
 }

@@ -14,6 +14,16 @@ func writeFakeStatusBin(t *testing.T, dir, name, logFile, jsonOut string) {
 	writeFakeCLI(t, dir, name, fakeCLIConfig{LogFile: logFile, Stdout: jsonOut + "\n"})
 }
 
+// writeFakeGlabStatusBin은 pr status용 fake glab이다: mr view에는 MR JSON을,
+// approvals 조회(api 호출)에는 승인 JSON을 각각 응답한다.
+func writeFakeGlabStatusBin(t *testing.T, dir, logFile, mrJSON, approvalsJSON string) {
+	t.Helper()
+	writeFakeCLI(t, dir, "glab", fakeCLIConfig{
+		LogFile: logFile, GlabStatus: true,
+		GlabMR: mrJSON + "\n", GlabApprovals: approvalsJSON + "\n",
+	})
+}
+
 func TestE2EPRStatusGitHubShowsCommonFieldsInOrder(t *testing.T) {
 	bin := buildGG(t)
 	fakeDir := t.TempDir()
@@ -68,22 +78,26 @@ func TestE2EPRStatusGitHubBadValuesStillExitZero(t *testing.T) {
 func TestE2EPRStatusGitLabShowsCommonFields(t *testing.T) {
 	bin := buildGG(t)
 	scenarios := []struct {
-		name string
-		json string
-		want string
+		name      string
+		json      string
+		approvals string
+		want      string
 	}{
-		{"ready", `{"draft":false,"approved_by":[{"user":{"username":"a"}}],"has_conflicts":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable","head_pipeline":{"status":"success"}}`,
+		{"ready", `{"draft":false,"has_conflicts":false,"detailed_merge_status":"mergeable","head_pipeline":{"status":"success"}}`,
+			`{"approved_by":[{"user":{"username":"a"}}]}`,
 			"Draft: no\nApproval: approved\nCI: pass\nConflict: no\nMergeable: yes\n"},
-		{"pending conflict", `{"draft":false,"approved_by":[],"has_conflicts":true,"merge_status":"cannot_be_merged","detailed_merge_status":"conflicts","head_pipeline":{"status":"running"}}`,
+		{"pending conflict", `{"draft":false,"has_conflicts":true,"detailed_merge_status":"conflicts","head_pipeline":{"status":"running"}}`,
+			`{"approved_by":[]}`,
 			"Draft: no\nApproval: required\nCI: pending\nConflict: yes\nMergeable: no\n"},
-		{"unknown draft", `{"approved_by":[],"has_conflicts":false,"merge_status":"can_be_merged","detailed_merge_status":"mergeable"}`,
+		{"unknown draft", `{"has_conflicts":false,"detailed_merge_status":"mergeable"}`,
+			`{"approved_by":[]}`,
 			"Draft: unknown\nApproval: required\nCI: none\nConflict: no\nMergeable: yes\n"},
 	}
 	for _, tc := range scenarios {
 		t.Run(tc.name, func(t *testing.T) {
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
-			writeFakeStatusBin(t, fakeDir, "glab", logFile, tc.json)
+			writeFakeGlabStatusBin(t, fakeDir, logFile, tc.json, tc.approvals)
 			repo := tempRepo(t, "https://gitlab.com/o/r.git")
 			out, code := runGG(t, bin, fakeDir, repo, "pr", "status", "7")
 			if code != 0 {
@@ -92,10 +106,34 @@ func TestE2EPRStatusGitLabShowsCommonFields(t *testing.T) {
 			if out != tc.want {
 				t.Fatalf("stdout = %q, want %q", out, tc.want)
 			}
-			if got := readLog(t, logFile); got != wantCall("glab", "mr", "view", "7", "--output", "json", "--repo", "https://gitlab.com/o/r") {
-				t.Errorf("glab argv = %q", got)
+			// mr view 조회와 approvals 조회, 두 번 호출된다.
+			want := wantCall("glab", "mr", "view", "7", "--output", "json", "--repo", "https://gitlab.com/o/r") + "\n" +
+				wantCall("glab", "api", "projects/o%2Fr/merge_requests/7/approvals")
+			if got := readLog(t, logFile); got != want {
+				t.Errorf("glab argv = %q, want %q", got, want)
 			}
 		})
+	}
+}
+
+func TestE2EPRStatusGitLabApprovalsFailureFails(t *testing.T) {
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	writeFakeCLI(t, fakeDir, "glab", fakeCLIConfig{
+		LogFile: logFile, GlabStatus: true,
+		GlabMR:            `{"draft":false}` + "\n",
+		GlabApprovals:     "approval service unavailable\n",
+		GlabApprovalsExit: 1,
+	})
+	repo := tempRepo(t, "https://gitlab.com/o/r.git")
+
+	out, code := runGG(t, bin, fakeDir, repo, "pr", "status", "7")
+	if code == 0 {
+		t.Fatalf("approvals 조회 실패는 0이 아니어야 한다: %s", out)
+	}
+	if !strings.Contains(out, "glab failed with exit code 1") {
+		t.Errorf("output = %s", out)
 	}
 }
 

@@ -90,6 +90,12 @@ type fakeCLIConfig struct {
 	Stderr   string
 	ExitCode int
 	TeaLogin bool
+	// GlabStatus는 pr status용 fake glab이다: mr view에는 GlabMR을,
+	// api(approvals) 호출에는 GlabApprovals를 각각 응답한다.
+	GlabStatus        bool
+	GlabMR            string
+	GlabApprovals     string
+	GlabApprovalsExit int
 }
 
 // writeFakeCLI는 실제 argv 경계를 보존하는 네이티브 probe를 설치한다.
@@ -157,6 +163,9 @@ func main() {
 			Name, LogFile, Stdout, Stderr string
 			ExitCode                      int
 			TeaLogin                      bool
+			GlabStatus                    bool
+			GlabMR, GlabApprovals         string
+			GlabApprovalsExit             int
 		}
 		if err := json.Unmarshal(data, &config); err != nil {
 			fmt.Fprint(os.Stderr, err)
@@ -181,6 +190,16 @@ func main() {
 		if config.TeaLogin && len(os.Args) == 5 && os.Args[1] == "logins" && os.Args[2] == "list" && os.Args[3] == "--output" && os.Args[4] == "json" {
 			fmt.Println("[{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]")
 			return
+		}
+		if config.GlabStatus {
+			if len(os.Args) > 1 && os.Args[1] == "api" {
+				fmt.Fprint(os.Stdout, config.GlabApprovals)
+				fmt.Fprint(os.Stderr, config.Stderr)
+				os.Exit(config.GlabApprovalsExit)
+			}
+			fmt.Fprint(os.Stdout, config.GlabMR)
+			fmt.Fprint(os.Stderr, config.Stderr)
+			os.Exit(config.ExitCode)
 		}
 		fmt.Fprint(os.Stdout, config.Stdout)
 		fmt.Fprint(os.Stderr, config.Stderr)

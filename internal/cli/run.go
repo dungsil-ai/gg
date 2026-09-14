@@ -88,7 +88,7 @@ func run(args []string) int {
 		if err != nil {
 			return fail(err)
 		}
-		return runPRStatus(ep)
+		return runPRStatus(ep, req)
 	}
 	inv, err := plan(req)
 	if err != nil {
