@@ -367,3 +367,34 @@ func TestNestedHelpGlobalFlagOrder(t *testing.T) {
 		}
 	}
 }
+
+// help와 version도 명령이므로 --help와 토픽을 지원한다(README 계약).
+func TestE2EHelpCommandTopics(t *testing.T) {
+	bin := buildGG(t)
+
+	stdout, stderr, code := runGGStreams(t, bin, t.TempDir(), "help", "pr")
+	if code != 0 || stderr != "" {
+		t.Fatalf("gg help pr = stderr %q, exit %d", stderr, code)
+	}
+	if !strings.Contains(stdout, "gg pr <command> [flags]") {
+		t.Errorf("gg help pr output:\n%s", stdout)
+	}
+
+	stdout, _, code = runGGStreams(t, bin, t.TempDir(), "help", "mr")
+	if code != 0 {
+		t.Fatalf("gg help mr exit = %d", code)
+	}
+	if !strings.Contains(stdout, "gg pr <command> [flags]") {
+		t.Errorf("gg help mr (pr alias) output:\n%s", stdout)
+	}
+
+	stdout, _, code = runGGStreams(t, bin, t.TempDir(), "help", "nope")
+	if code != 0 || !strings.Contains(stdout, "gg [flags] <command>") {
+		t.Errorf("gg help nope should show top-level help, exit %d:\n%s", code, stdout)
+	}
+
+	stdout, _, code = runGGStreams(t, bin, t.TempDir(), "version", "--help")
+	if code != 0 || !strings.Contains(stdout, "version") {
+		t.Errorf("gg version --help should show help, exit %d:\n%s", code, stdout)
+	}
+}

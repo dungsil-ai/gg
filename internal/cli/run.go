@@ -39,6 +39,25 @@ func run(args []string) int {
 		printAllVersions()
 		return 0
 	}
+	// help와 version도 명령이므로 --help를 지원한다(README 계약). gg help 뒤의
+	// 토픽은 자원이면 그 자원의 help, 아니면 전체 help를 보여준다.
+	if args[0] == "help" {
+		if len(args) >= 2 {
+			head, aliasAction := resolveAlias(args[1])
+			if aliasAction == "" {
+				if rd, ok := commandDefs[head]; ok {
+					fmt.Fprintln(os.Stdout, renderResourceHelp(rd))
+					return 0
+				}
+			}
+		}
+		fmt.Fprintln(os.Stdout, topLevelHelp())
+		return 0
+	}
+	if args[0] == "version" && len(args) == 2 && (args[1] == "--help" || args[1] == "-h") {
+		fmt.Fprintln(os.Stdout, topLevelHelp())
+		return 0
+	}
 	// gg api는 원시 passthrough(ADR 0007)라 action 모델로 파싱하지 않는다.
 	if _, ok := apiCommandIndex(args); ok {
 		return runAPIRelay(args)
