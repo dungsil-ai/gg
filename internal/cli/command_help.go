@@ -120,15 +120,24 @@ func nestedHelp(args []string) (string, bool) {
 	}
 	path := args[:len(args)-1]
 	hasLeadingGlobal := false
-	// gg 전역 flag는 일반 명령의 help 대상을 바꾸지 않는다. passthrough에는
-	// 저장소 문맥이나 설명 모드가 없으므로 ParseRequest가 이를 검증하게 둔다.
-	for len(path) >= 2 && (path[0] == "--repo" || path[0] == "--remote") {
-		hasLeadingGlobal = true
-		path = path[2:]
-	}
-	if len(path) >= 1 && path[0] == "--explain" {
-		hasLeadingGlobal = true
-		path = path[1:]
+	// gg 전역 flag는 일반 명령의 help 대상을 바꾸지 않고 어떤 순서로 섞여
+	// 와도 앞에서 걸러낸다. passthrough에는 저장소 문맥이나 설명 모드가 없으므로
+	// ParseRequest가 이를 검증하게 둔다.
+stripping:
+	for len(path) >= 1 {
+		switch path[0] {
+		case "--repo", "--remote":
+			if len(path) < 2 {
+				return "", false
+			}
+			hasLeadingGlobal = true
+			path = path[2:]
+		case "--explain":
+			hasLeadingGlobal = true
+			path = path[1:]
+		default:
+			break stripping
+		}
 	}
 	if len(path) == 0 {
 		return "", false
