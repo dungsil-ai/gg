@@ -352,3 +352,18 @@ func TestTopLevelHelpContent(t *testing.T) {
 		t.Errorf("topLevelHelp가 일반형 help를 광고함:\n%s", help)
 	}
 }
+
+// 전역 flag는 어떤 순서로 섞여도 help 대상을 바꾸지 않는다.
+func TestNestedHelpGlobalFlagOrder(t *testing.T) {
+	for _, args := range [][]string{
+		{"--repo", "https://github.com/o/r", "--explain", "pr", "--help"},
+		{"--explain", "--repo", "https://github.com/o/r", "pr", "--help"},
+		{"--explain", "--remote", "upstream", "pr", "--help"},
+		{"--remote", "upstream", "--explain", "--repo", "https://gitlab.com/o/r", "mr", "--help"},
+		{"--explain", "--repo", "https://github.com/o/r", "pr", "list", "--help"},
+	} {
+		if _, ok := nestedHelp(args); !ok {
+			t.Errorf("nestedHelp(%v): help를 찾아야 한다", args)
+		}
+	}
+}
