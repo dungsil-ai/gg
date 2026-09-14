@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -222,5 +224,34 @@ func TestE2ERepoSearchTransferHelp(t *testing.T) {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("repo transfer help missing %q:\n%s", want, stdout)
 		}
+	}
+}
+
+// glab repo search는 --repo의 host를 무시하고 glab 기본 host로 검색하므로
+// GITLAB_HOST로 대상 인스턴스를 고정해야 한다.
+func TestE2ERepoSearchGitLabHostEnv(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("환경변수 로그는 unix fake에서만 검증한다")
+	}
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	path := filepath.Join(fakeDir, "glab")
+	body := "#!/bin/sh\necho \"GITLAB_HOST=$GITLAB_HOST\" >> \"" + logFile + "\"\necho \"glab $@\" >> \"" + logFile + "\"\nexit 0\n"
+	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	repo := tempRepo(t, "https://git.example.com/grp/p.git")
+
+	out, code := runGG(t, bin, fakeDir, repo, "repo", "search", "--search", "gg")
+	if code != 0 {
+		t.Fatalf("gg repo search: exit %d: %s", code, out)
+	}
+	got := readLog(t, logFile)
+	if !strings.Contains(got, "GITLAB_HOST=git.example.com") {
+		t.Errorf("GITLAB_HOST 주입 없음: %q", got)
+	}
+	if !strings.Contains(got, "--search gg") {
+		t.Errorf("glab argv 예상과 다름: %q", got)
 	}
 }

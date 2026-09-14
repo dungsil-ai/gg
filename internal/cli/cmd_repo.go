@@ -208,7 +208,10 @@ var repoMirrorBuilders = providerBuilders{
 var repoSearchBuilders = providerBuilders{
 	glab: func(c invocationContext) (args, env []string) {
 		args = append([]string{"repo", "search"}, c.target...)
-		return appendKV(args, "--search", c.req.Search), nil
+		args = appendKV(args, "--search", c.req.Search)
+		// glab repo search는 --repo의 host를 무시하고 glab 기본 host로
+		// 검색한다. GITLAB_HOST로 대상 인스턴스를 고정한다.
+		return args, []string{"GITLAB_HOST=" + c.r.Host}
 	},
 	// tea repos search에는 --repo flag가 없다(login·output만 받는다). 검색어는
 	// positional이므로 login 인자만 붙인다.
