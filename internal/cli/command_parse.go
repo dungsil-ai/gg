@@ -145,6 +145,11 @@ globalFlags:
 	if req.Resource == "config" && req.RepoFlag != "" {
 		return req, usageErr("--repo is not supported for " + req.Resource + " " + req.Action)
 	}
+	// repo clone의 대상 저장소는 positional URL이다. --repo를 받아놓고 무시하면
+	// 사용자가 다른 저장소를 클론한 줄 알게 되므로 사용법 오류로 막는다.
+	if req.Resource == "repo" && req.Action == "clone" && req.RepoFlag != "" {
+		return req, usageErr("--repo is not supported for repo clone")
+	}
 	return req, nil
 }
 
