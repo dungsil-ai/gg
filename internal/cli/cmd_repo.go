@@ -336,7 +336,10 @@ var repoInvocationTable = map[string]providerBuilders{
 			if c.req.Yes {
 				args = append(args, "--yes")
 			}
-			return args, nil
+			// glab repo delete는 positional slug로 host를 정하지 않고 glab의
+			// 기본 host로 접속한다. 주입하지 않으면 자가 호스팅 저장소 삭제가
+			// gitlab.com으로 향한다.
+			return args, []string{"GITLAB_HOST=" + c.r.Host}
 		},
 		tea: func(c invocationContext) (args, env []string) {
 			args = append([]string{"repos", "delete"}, c.auth...)
