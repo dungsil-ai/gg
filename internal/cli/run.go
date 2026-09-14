@@ -237,8 +237,9 @@ func resolvePlan(req Request) (executionPlan, error) {
 	// diff/checks/lock/unlock/update-branch/rebase, pr comment edit/delete,
 	// pr merge --auto/--delete-branch, pr review --comment, label edit·delete·
 	// clone, issue 관계 등록, issue comment edit/delete, issue edit, issue
-	// delete는 provider를 고른 뒤 미지원을 확정하므로 tea login을 묻지 않는다.
-	// label list·create, pr/issue comment list와 pr review의
+	// delete, repo의 contributors·transfer·mirror·edit·rename·sync·
+	// set-default는 provider를 고른 뒤 미지원을 확정하므로 tea login을 묻지
+	// 않는다. label list·create, pr/issue comment list와 pr review의
 	// approve·request-changes는 tea도 중계하므로 login을 묻는다.
 	unsupportedTeaAction := (req.Resource == "pr" && (req.Action == "status" || req.Action == "ready" ||
 		req.Action == "diff" ||
@@ -254,7 +255,8 @@ func resolvePlan(req Request) (executionPlan, error) {
 			req.Action == "upload" || req.Action == "delete-asset")) ||
 		req.Resource == "ci" || req.Resource == "workflow" ||
 		(req.Resource == "repo" && (req.Action == "contributors" || req.Action == "transfer" ||
-			req.Action == "mirror")) ||
+			req.Action == "mirror" || req.Action == "edit" || req.Action == "rename" ||
+			req.Action == "sync" || req.Action == "set-default")) ||
 		(req.Resource == "issue" && (ghOnlyIssueActions[req.Action] || req.Action == "edit" ||
 			req.Action == "subscribe" || req.Action == "unsubscribe" ||
 			req.Action == "comment edit" || req.Action == "comment delete" || req.Action == "delete"))
