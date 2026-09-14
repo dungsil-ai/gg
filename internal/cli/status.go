@@ -267,9 +267,14 @@ func glabCIStatus(status string) string {
 	switch status {
 	case "success":
 		return "pass"
+	case "skipped":
+		// 실행되지 않은 파이프라인은 GitHub의 SKIPPED 체크와 같이 통과로 본다.
+		return "pass"
 	case "failed", "canceled":
 		return "fail"
-	case "created", "waiting_for_resource", "preparing", "pending", "running", "scheduled":
+	case "created", "waiting_for_resource", "preparing", "pending", "running",
+		"scheduled", "manual":
+		// manual은 수동 실행을 기다리는 상태다.
 		return "pending"
 	}
 	return "unknown"
