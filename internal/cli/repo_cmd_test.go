@@ -183,7 +183,7 @@ func TestTranslateRepoLifecycleUnsupported(t *testing.T) {
 }
 
 func TestResolvePlanRepoSetDefaultBypass(t *testing.T) {
-	t.Run("unset과 view는 git 저장소 밖에서도 gh로 바로 간다", func(t *testing.T) {
+	t.Run("unset과 view는 저장소 문맥 조회 없이 gh로 바로 간다", func(t *testing.T) {
 		for _, tc := range []struct {
 			req  Request
 			want []string
@@ -276,7 +276,7 @@ func TestE2ERepoLifecycleInvocations(t *testing.T) {
 		}
 	})
 
-	t.Run("set-default unset과 view는 git 저장소 밖에서 동작한다", func(t *testing.T) {
+	t.Run("set-default unset과 view는 문맥 조회 없이 gh로 바로 간다", func(t *testing.T) {
 		for _, tc := range []struct {
 			args []string
 			want string
