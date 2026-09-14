@@ -146,6 +146,9 @@ func TestTranslateRepoLifecycle(t *testing.T) {
 		{name: "gh sync 전체 flag",
 			req: Request{Resource: "repo", Action: "sync", Branch: "main", Source: "o/up", Force: true}, repo: gh, p: GH,
 			want: Invocation{Bin: "gh", Args: []string{"repo", "sync", "https://github.com/o/r", "--branch", "main", "--source", "o/up", "--force"}}},
+		{name: "gh sync source 없으면 로컬 동기화",
+			req: Request{Resource: "repo", Action: "sync"}, repo: gh, p: GH,
+			want: Invocation{Bin: "gh", Args: []string{"repo", "sync"}}},
 		{name: "gh set-default",
 			req: Request{Resource: "repo", Action: "set-default"}, repo: gh, p: GH,
 			want: Invocation{Bin: "gh", Args: []string{"repo", "set-default", "https://github.com/o/r"}}},
@@ -235,6 +238,8 @@ func TestE2ERepoLifecycleInvocations(t *testing.T) {
 		{"edit 가시성", []string{"repo", "edit", "--private"}, wantCall("gh", "repo", "edit", "https://github.com/o/r", "--visibility", "private", "--accept-visibility-change-consequences")},
 		{"rename", []string{"repo", "rename", "newname", "--yes"}, wantCall("gh", "repo", "rename", "newname", "-R", "github.com/o/r", "--yes")},
 		{"sync", []string{"repo", "sync", "--source", "o/up", "--force"}, wantCall("gh", "repo", "sync", "https://github.com/o/r", "--source", "o/up", "--force")},
+		{"sync source 없으면 로컬 동기화", []string{"repo", "sync", "--branch", "main", "--force"}, wantCall("gh", "repo", "sync", "--branch", "main", "--force")},
+		{"sync 무 flag 로컬 동기화", []string{"repo", "sync"}, wantCall("gh", "repo", "sync")},
 		{"set-default", []string{"repo", "set-default"}, wantCall("gh", "repo", "set-default", "https://github.com/o/r")},
 	}
 	for _, tc := range cases {

@@ -390,7 +390,15 @@ var repoInvocationTable = map[string]providerBuilders{
 	},
 	"repo sync": {
 		gh: func(c invocationContext) (args, env []string) {
-			args = []string{"repo", "sync", c.r.HTTPS()}
+			// gh repo sync는 positional이 없으면 현재 저장소의 branch를
+			// 동기화하고, positional + --source는 fork의 원격 branch를
+			// 동기화하는 모드다. --source 없이 positional을 넘기면 gh가
+			// "not a fork" 오류를 내므로, --source가 있을 때만 대상을
+			// 넘겨 원격 모드를 살린다.
+			args = []string{"repo", "sync"}
+			if c.req.Source != "" {
+				args = append(args, c.r.HTTPS())
+			}
 			args = appendKV(args, "--branch", c.req.Branch)
 			args = appendKV(args, "--source", c.req.Source)
 			if c.req.Force {
