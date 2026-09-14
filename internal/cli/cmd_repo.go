@@ -314,7 +314,10 @@ var repoInvocationTable = map[string]providerBuilders{
 			return []string{"repo", "fork", c.r.HTTPS()}, nil
 		},
 		glab: func(c invocationContext) (args, env []string) {
-			return []string{"repo", "fork", c.r.Slug()}, nil
+			// glab fork는 slug positional의 host를 glab 기본 host로 해석한다.
+			// 전체 URL을 넘겨 대상 인스턴스를 고정하고, client 생성 경로에도
+			// 같은 host가 쓰이도록 GITLAB_HOST를 주입한다.
+			return []string{"repo", "fork", c.r.HTTPS()}, []string{"GITLAB_HOST=" + c.r.Host}
 		},
 		tea: func(c invocationContext) (args, env []string) {
 			return append([]string{"repos", "fork"}, c.target...), nil
