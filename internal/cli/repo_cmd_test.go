@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -120,7 +121,7 @@ func TestTranslateRepoLifecycle(t *testing.T) {
 			want: Invocation{Bin: "gh", Args: []string{"repo", "delete", "https://github.com/o/r", "--yes"}}},
 		{name: "glab delete",
 			req: Request{Resource: "repo", Action: "delete", Yes: true}, repo: gl, p: GLab,
-			want: Invocation{Bin: "glab", Args: []string{"repo", "delete", "grp/sub/p", "--yes"}}},
+			want: Invocation{Bin: "glab", Args: []string{"repo", "delete", "grp/sub/p", "--yes"}, Env: []string{"GITLAB_HOST=git.example.com"}}},
 		{name: "tea delete는 --force로 확인을 건너뛴다",
 			req: Request{Resource: "repo", Action: "delete", Yes: true}, repo: te, p: Tea, tea: "corp",
 			want: Invocation{Bin: "tea", Args: []string{"repos", "delete", "--login", "corp", "--owner", "o", "--name", "r", "--force"}}},
@@ -397,5 +398,35 @@ func TestE2ERepoLifecycleUnsupportedForTea(t *testing.T) {
 		if got := readLog(t, logFile); got != "" {
 			t.Errorf("gg %v child command should not run, got %q", tc.args, got)
 		}
+	}
+}
+
+// glab repo delete는 positional slug로 host를 정하지 않으므로 GITLAB_HOST로
+// 대상 인스턴스를 고정해야 한다. 자가 호스팅에서 gitlab.com으로 삭제 요청이
+// 향하는 것을 막는다.
+func TestE2ERepoDeleteGitLabHostEnv(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("환경변수 로그는 unix fake에서만 검증한다")
+	}
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	path := filepath.Join(fakeDir, "glab")
+	body := "#!/bin/sh\necho \"GITLAB_HOST=$GITLAB_HOST\" >> \"" + logFile + "\"\necho \"glab $@\" >> \"" + logFile + "\"\nexit 0\n"
+	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	repo := tempRepo(t, "https://git.example.com/grp/p.git")
+
+	out, code := runGG(t, bin, fakeDir, repo, "repo", "delete", "--yes")
+	if code != 0 {
+		t.Fatalf("gg repo delete: exit %d: %s", code, out)
+	}
+	got := readLog(t, logFile)
+	if !strings.Contains(got, "GITLAB_HOST=git.example.com") {
+		t.Errorf("GITLAB_HOST 주입 없음: %q", got)
+	}
+	if !strings.Contains(got, "glab repo delete grp/p --yes") {
+		t.Errorf("glab argv 예상과 다름: %q", got)
 	}
 }
