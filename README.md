@@ -360,7 +360,7 @@ ADR 0007: GitHub 고유 자원(codespace, project, secret, gist 등)은 세 prov
   - [ ] `gh alias import`
   - [ ] `gh alias list`
   - [ ] `gh alias set`
-- [x] `gh api` (대응: `gg api [args...]`; ADR 0007 — 모든 인자를 gh api에 전달, 기본 domain이 아니면 GH_HOST 주입)
+- [x] `gh api` (대응: `gg api [args...]`; ADR 0007 — 모든 인자를 gh api에 전달, 문맥 host를 GH_HOST로 항상 고정)
 - `attestation`
   - [ ] `gh attestation download`
   - [ ] `gh attestation trusted-root`
@@ -479,7 +479,7 @@ ADR 0007: GitLab 고유 기능(incident, schedule, stack 등)은 개별 수요�
   - [ ] `glab alias delete`
   - [ ] `glab alias list`
   - [ ] `glab alias set`
-- [x] `glab api` (대응: `gg api [args...]`; ADR 0007 — 모든 인자를 glab api에 전달, 기본 domain이 아니면 GITLAB_HOST 주입)
+- [x] `glab api` (대응: `gg api [args...]`; ADR 0007 — 모든 인자를 glab api에 전달, 문맥 host를 GITLAB_HOST로 항상 고정)
 - `ask`
   - [ ] `glab ask git`
 - `changelog`
@@ -601,7 +601,7 @@ ADR 0007: GitLab 고유 기능(incident, schedule, stack 등)은 개별 수요�
   - [x] `tea releases create` (대응: `gg release create`; 자산 파일은 `--asset` 반복 flag로 전달)
   - [x] `tea releases delete` (대응: `gg release delete`; `--yes`는 `--confirm`으로, `--cleanup-tag`는 `--delete-tag`로 중계)
   - [ ] `tea releases download` (tea에 download 하위 명령이 없어 `gg release download`로 중계하지 않음)
-  - [x] `tea releases edit` (대응: `gg release edit`; draft·prerelease는 `--draft=true` 형태의 문자열 flag라 켤 때만 중계)
+  - [x] `tea releases edit` (대응: `gg release edit`; draft·prerelease는 `--draft=<true|false>` 형태의 문자열 flag로 중계)
   - [x] `tea releases list` (대응: `gg release list`)
 - `repos`
   - [x] `tea repos create` (대응: `gg repo create`, `gg create`)
@@ -695,7 +695,7 @@ ADR 0007: Gitea CLI 고유 기능(admin, times, milestones 등)은 개별 수요
 - `히스토리 재작성`
   - [x] `gg repo filter-repo` (외부 git-filter-repo 없이 `git fast-export`/`fast-import` 파이프라인으로 직접 재작성)
   - `--path <path>` (반복 가능; 지정한 경로만 남김), `--invert-paths` (지정한 경로를 삭제), `--path-rename <old:new>` (반복 가능), `--replace-text <regex==>replacement|file>` (반복 가능; 파일이면 한 줄에 하나씩 `regex==>replacement`), `--mailmap <file>` (작성자·커미터 재작성), `--dry-run` (미리보기만), `--force` (재작성 확정)
-  - 안전장치: 작업 트리가 깨끗해야 하고 stash가 비어 있어야 하며 detached HEAD가 아니어야 합니다. `--force` 없이 재작성하지 않습니다. 재작성 전 `<git dir>/filter-repo-backup`에 mirror 백업을 만들고(이미 백업이 있으면 사용자가 확인한 뒤 직접 치워야 함), 완료 후 재작성된 ref를 force-push합니다. `--repo`·`--remote`·`--explain`은 지원하지 않습니다.
+  - 안전장치: 작업 트리가 깨끗해야 하고 stash가 비어 있어야 하며 detached HEAD가 아니어야 합니다. `--force` 없이 재작성하지 않습니다. 재작성 전 `<git dir>/filter-repo-backup`에 mirror 백업을 만들고(이미 백업이 있으면 사용자가 확인한 뒤 직접 치워야 함), 완료 후 재작성된 ref의 force-push를 안내합니다(직접 실행하지는 않음). `--repo`·`--remote`·`--explain`은 지원하지 않습니다.
 - `저장소 문맥`
   - [x] `--repo <URL>` (명시한 URL을 저장소 문맥으로 사용)
   - [x] `--remote <name>` (명시한 Git remote를 저장소 문맥으로 사용)
@@ -949,7 +949,7 @@ Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없�
   gg repo filter-repo --replace-text 'password=\S+==>password=***' --mailmap /tmp/mailmap --force
   ```
 - 재작성은 branch와 tag만 대상으로 하며, stash 항목이 있으면 실행 전에 비우도록 거부합니다. 원격 추적 ref(`refs/remotes/*`)는 재작성하지 않으므로 예전 객체가 남아 있을 수 있고, 다음 `git fetch`에서 갱신됩니다.
-- 재작성 후에는 재작성 대상 ref의 reflog 만료와 gc로 예전 객체를 정리하고 작업 트리를 새 `HEAD`로 되돌립니다. 완료되면 재작성된 ref를 force-push합니다 (`git push --force --all && git push --force --tags`).
+- 재작성 후에는 재작성 대상 ref와 HEAD의 reflog를 만료하고 작업 트리를 새 `HEAD`로 되돌린 뒤 gc로 예전 객체를 정리합니다. 완료되면 재작성된 ref의 force-push(`git push --force --all && git push --force --tags`)를 안내합니다 — gg가 실행하지는 않습니다.
 
 # TOBE
 

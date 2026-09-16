@@ -6,7 +6,9 @@ README TODO의 `gh api`, `glab api`, `tea api`는 각 provider CLI의 원시 API
 
 `gg api [args...]`는 action 뒤의 모든 인자를 검사 없이 provider의 `api` 하위 명령에 전달한다. 인자 모델은 git passthrough(ADR 0004)와 같고, provider 선택은 저장소 문맥(DetectProvider)으로 한다.
 
-호스트 전달 방식은 기존 api 사용처(issue comment list/edit/delete)의 계약을 따른다. gh는 host가 `github.com`이 아니면 `GH_HOST` env를, glab은 host가 `gitlab.com`이 아니면 `GITLAB_HOST` env로 주입한다. tea는 다른 명령과 같이 저장소 문맥에서 얻은 `--login`과 `--repo`를 붙인다.
+호스트 전달 방식은 기존 api 사용처(issue comment list/edit/delete)의 계약을 따른다. gh는 `GH_HOST` env를, glab은 `GITLAB_HOST` env로 문맥 host를 주입한다. tea는 다른 명령과 같이 저장소 문맥에서 얻은 `--login`과 `--repo`를 붙인다.
+
+(2026-09-15 갱신, #140) 처음에는 기본 domain(`github.com`·`gitlab.com`)일 때 주입을 생략했지만, 사용자가 내보낸 `GH_HOST`/`GITLAB_HOST`나 CLI 설정의 기본 host가 api 호출을 다른 인스턴스로 돌릴 수 있어 기본 domain도 항상 주입하도록 강화했다. env는 `os.Environ` 뒤에 덧붙으므로 주입값이 이긴다.
 
 검토한 다른 방식 두 가지는 기각했다. (1) `--repo`/`--remote` 같은 저장소 문맥 flag를 api 인자 사이에서 파싱하는 방식은 원시 API 인자와 충돌할 수 있어 passthrough 계약을 깬다. (2) endpoint를 gg가 파싱해 표준화하는 방식은 세 provider의 API 차이를 gg가 추상화해야 하므로 범위가 과도하다.
 
