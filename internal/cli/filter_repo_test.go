@@ -687,13 +687,30 @@ func TestRunFilterPipelineAbortsOnError(t *testing.T) {
 	}
 }
 
+// export가 실패로 끝나면 필터가 EOF로 깨끗이 끝났어도 부분 스트림이다 —
+// import를 확정시키지 않도록 kill해야 한다.
 func TestRunFilterPipelinePropagatesWaitErrors(t *testing.T) {
 	in := "blob\nmark :1\ndata 2\nhi\n"
-	err := runFilterPipeline(strings.NewReader(in), nopWriteCloser{}, func() { t.Error("성공 시 kill 호출 없음") },
+	killed := false
+	err := runFilterPipeline(strings.NewReader(in), nopWriteCloser{}, func() { killed = true },
 		func() error { return errors.New("boom") }, func() error { return nil },
 		&resolvedFilters{}, &filterStats{})
 	if err == nil || !strings.Contains(err.Error(), "git fast-export failed") {
 		t.Errorf("export wait 오류 전파 기대, got %v", err)
+	}
+	if !killed {
+		t.Error("export 실패 시 killAll 호출 기대")
+	}
+}
+
+// export가 정상 종료했으면 import 실패만 뒤따른다 — kill은 없다.
+func TestRunFilterPipelineImportFailureWithoutKill(t *testing.T) {
+	in := "blob\nmark :1\ndata 2\nhi\n"
+	err := runFilterPipeline(strings.NewReader(in), nopWriteCloser{}, func() { t.Error("export 성공 시 kill 호출 없음") },
+		func() error { return nil }, func() error { return errors.New("import boom") },
+		&resolvedFilters{}, &filterStats{})
+	if err == nil || !strings.Contains(err.Error(), "git fast-import failed") {
+		t.Errorf("import wait 오류 전파 기대, got %v", err)
 	}
 }
 
