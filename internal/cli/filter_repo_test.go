@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -755,5 +756,35 @@ func TestQuoteFastExportPath(t *testing.T) {
 		if got := parseFastExportPath(quoteFastExportPath(c.in)); got != c.in {
 			t.Errorf("roundtrip(%q) = %q", c.in, got)
 		}
+	}
+}
+
+// 재작성 후에는 예전 객체가 완전히 prune되어야 한다. logs/HEAD나 오래된
+// index가 예전 커밋을 붙들고 있으면 비밀 제거가 실패한 것이다.
+func TestE2EFilterRepoPrunesOldObjects(t *testing.T) {
+	dir := filterRepoTestRepo(t, map[string]string{"a.txt": "keep\n", "secret.txt": "topsecret\n"})
+	oldCommit := strings.TrimSpace(gitIn(t, dir, "rev-parse", "HEAD"))
+	oldSecretBlob := strings.TrimSpace(gitIn(t, dir, "rev-parse", "HEAD:secret.txt"))
+
+	if err := runFilterRepoIn(t, dir, Request{
+		Resource: "repo", Action: "filter-repo",
+		FilterPaths: []string{"secret.txt"}, FilterInvert: true, FilterForce: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	for name, object := range map[string]string{"예전 커밋": oldCommit, "예전 블롭": oldSecretBlob} {
+		cmd := exec.Command("git", "-C", dir, "cat-file", "-e", object)
+		if err := cmd.Run(); err == nil {
+			t.Errorf("%s 객체(%s)가 gc 뒤에도 남아 있다", name, object)
+		}
+	}
+	if data, err := os.ReadFile(filepath.Join(dir, ".git", "logs", "HEAD")); err == nil {
+		if strings.Contains(string(data), oldCommit) {
+			t.Errorf("logs/HEAD에 예전 SHA가 남아 있다:\n%s", data)
+		}
+	}
+	if got := gitIn(t, dir, "rev-parse", "HEAD:a.txt"); got == "" {
+		t.Error("새 HEAD의 a.txt를 읽지 못했다")
 	}
 }
