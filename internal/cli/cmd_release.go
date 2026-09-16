@@ -36,7 +36,7 @@ var releaseResourceDef = &resourceDef{
 			setPos: setTagAndAssets,
 		},
 		{
-			name: "edit", summary: "Edit a release (GitHub only)", usage: "gg release edit <tag> [flags]",
+			name: "edit", summary: "Edit a release (GitHub, Gitea)", usage: "gg release edit <tag> [flags]",
 			flags:    []flagDef{titleFlag, notesFlag, releaseEditDraftFlag, releaseEditPrereleaseFlag},
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
