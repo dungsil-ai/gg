@@ -167,15 +167,17 @@ func runFilterRepo(req Request) error {
 	if err := rewriteFilterRepo(filters, stats); err != nil {
 		return err
 	}
-	// reflog expire은 재작성 대상인 branches·tags로 한정한다. --all은 stash 등
-	// 재작성하지 않은 ref의 reflog까지 지워 접근 불가능하게 만든다. reflog가
-	// 없는 ref(대표적으로 tag)에 expire를 실행하면 오류가 나므로 존재할 때만
-	// 만료한다.
+	// reflog expire은 재작성 대상인 branches·tags와 HEAD로 한정한다. --all은
+	// stash 등 재작성하지 않은 ref의 reflog까지 지워 접근 불가능하게 만들고,
+	// HEAD reflog를 남겨 두면 fast-import가 남긴 logs/HEAD의 예전 SHA가 gc
+	// 뒤에도 예전 객체를 붙들어마다. reflog가 없는 ref(대표적으로 tag)에
+	// expire를 실행하면 오류가 나므로 존재할 때만 만료한다.
 	rewrittenRefs, err := runOut("git", "for-each-ref", "--format=%(refname)", "refs/heads", "refs/tags")
 	if err != nil {
 		return fmt.Errorf("history rewritten but reflog expire failed: %w", err)
 	}
-	for _, ref := range strings.Fields(rewrittenRefs) {
+	expireRefs := append(strings.Fields(rewrittenRefs), "HEAD")
+	for _, ref := range expireRefs {
 		if _, err := runOut("git", "reflog", "exists", ref); err != nil {
 			continue
 		}
@@ -183,13 +185,16 @@ func runFilterRepo(req Request) error {
 			return fmt.Errorf("history rewritten but reflog expire failed: %w", err)
 		}
 	}
-	if _, err := runOut("git", "gc", "--prune=now", "--quiet"); err != nil {
-		return fmt.Errorf("history rewritten but gc failed: %w", err)
-	}
+	// gc보다 먼저 작업 트리·index를 새 HEAD로 맞춘다. 오래된 index는 예전
+	// 트리의 블롭을 계속 참조하므로, 되돌리기 전에 gc하면 예전 객체가
+	// prune되지 않는다.
 	if !bare {
 		if _, err := runOut("git", "reset", "--hard", "-q"); err != nil {
 			return fmt.Errorf("history rewritten but working tree reset failed: %w", err)
 		}
+	}
+	if _, err := runOut("git", "gc", "--prune=now", "--quiet"); err != nil {
+		return fmt.Errorf("history rewritten but gc failed: %w", err)
 	}
 	fmt.Fprintf(osStdout, "rewrote %d commits, %d blobs changed (backup: %s); force-push rewritten refs (e.g. git push --force --all && git push --force --tags)\n",
 		stats.commits, stats.blobsChanged, backupPath)
