@@ -1440,6 +1440,8 @@ func TestParseRequestErrorMessages(t *testing.T) {
 		{[]string{"--repo", "https://github.com/o/r", "--remote", "upstream", "issue", "list"}, "--repo and --remote cannot be used together"},
 		{[]string{"repo", "clone", "https://github.com/a/b", "--repo", "https://github.com/x/y"}, "--repo is not supported for repo clone"},
 		{[]string{"--repo", "https://github.com/x/y", "clone", "https://github.com/a/b"}, "--repo is not supported for repo clone"},
+		{[]string{"--repo", "https://github.com/b/b", "repo", "sync"}, "--repo/--remote are not supported for repo sync without --source"},
+		{[]string{"repo", "sync", "--force", "--remote", "upstream"}, "--repo/--remote are not supported for repo sync without --source"},
 		{[]string{"--repo"}, "--repo needs a URL"},
 		{[]string{"--remote"}, "--remote needs a name"},
 	}

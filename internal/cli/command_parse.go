@@ -151,6 +151,13 @@ globalFlags:
 	if req.Resource == "repo" && req.Action == "clone" && req.RepoFlag != "" {
 		return req, usageErr("--repo is not supported for repo clone")
 	}
+	// repo sync는 --source가 없으면 현재 로컬 체크아웃을 동기화하는 gh 모드라
+	// 저장소 문맥이 적용될 대상이 없다. 문맥을 받아놓고 무시하면 사용자가
+	// 모르는 저장소의 branch가 갱신되므로 --source와 함께 쓰도록 요구한다.
+	if req.Resource == "repo" && req.Action == "sync" && req.Source == "" &&
+		(req.RepoFlag != "" || req.RemoteFlag != "") {
+		return req, usageErr("--repo/--remote are not supported for repo sync without --source")
+	}
 	return req, nil
 }
 
