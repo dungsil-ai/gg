@@ -805,3 +805,43 @@ func TestE2EFilterRepoPrunesOldObjects(t *testing.T) {
 		t.Error("새 HEAD의 a.txt를 읽지 못했다")
 	}
 }
+
+func TestE2EFilterRepoRefusesNestedTags(t *testing.T) {
+	dir := t.TempDir()
+	gitIn(t, dir, "init", "-q")
+	gitIn(t, dir, "config", "user.name", "T")
+	gitIn(t, dir, "config", "user.email", "t@e.com")
+	gitIn(t, dir, "config", "commit.gpgsign", "false")
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("hello\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	gitIn(t, dir, "add", ".")
+	gitIn(t, dir, "commit", "-qm", "c1")
+	gitIn(t, dir, "tag", "-a", "v1", "-m", "v1 message")
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("world\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	gitIn(t, dir, "add", ".")
+	gitIn(t, dir, "commit", "-qm", "c2")
+	gitIn(t, dir, "tag", "-a", "v2", "-m", "v2 message", "v1")
+	before := gitIn(t, dir, "rev-parse", "HEAD")
+
+	for _, dryRun := range []bool{false, true} {
+		err := runFilterRepoIn(t, dir, Request{
+			Resource: "repo", Action: "filter-repo",
+			FilterReplaces: []string{"hello==>hallo"}, FilterForce: !dryRun, FilterDryRun: dryRun,
+		})
+		if err == nil || !strings.Contains(err.Error(), "nested annotated tag v2") {
+			t.Fatalf("중첩 태그 거부 기대 (dry-run=%v), got %v", dryRun, err)
+		}
+	}
+	if got := gitIn(t, dir, "rev-parse", "HEAD"); got != before {
+		t.Errorf("거부 시 HEAD 변경 없음 기대: %s -> %s", before, got)
+	}
+	if got := gitIn(t, dir, "cat-file", "-t", "refs/tags/v2"); got != "tag" {
+		t.Errorf("v2는 여전히 tag 객체여야 한다, got %s", got)
+	}
+	if got := gitIn(t, dir, "cat-file", "-t", "refs/tags/v1"); got != "tag" {
+		t.Errorf("v1은 여전히 tag 객체여야 한다, got %s", got)
+	}
+}

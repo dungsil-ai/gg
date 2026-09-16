@@ -139,6 +139,14 @@ func runFilterRepo(req Request) error {
 			return fmt.Errorf("stash is not empty (drop or pop it first); filter-repo rewrites branches and tags only")
 		}
 	}
+	// tag가 다른 tag를 가리키면 fast-export가 스트림 도중 죽는다("tags
+	// unexported object"). 내부 tag의 메시지로 뭉개는 손실도 있어 미리
+	// 거부하고 평탄화를 요구한다.
+	if nested, err := nestedAnnotatedTag(); err != nil {
+		return err
+	} else if nested != "" {
+		return fmt.Errorf("nested annotated tag %s (a tag pointing at another tag); flatten it first (git tag -f %s %s^{}) and re-run", nested, nested, nested)
+	}
 	if !req.FilterDryRun && !req.FilterForce {
 		return fmt.Errorf("refusing to rewrite history without --force (a mirror backup is created before rewriting)")
 	}
@@ -199,6 +207,35 @@ func runFilterRepo(req Request) error {
 	fmt.Fprintf(osStdout, "rewrote %d commits, %d blobs changed (backup: %s); force-push rewritten refs (e.g. git push --force --all && git push --force --tags)\n",
 		stats.commits, stats.blobsChanged, backupPath)
 	return nil
+}
+
+// nestedAnnotatedTag은 다른 tag를 가리키는 refs/tags 항목을 찾는다.
+// for-each-ref의 %(*objecttype)는 중첩 태그를 끝까지 peel해 버리므로, tag
+// 객체 헤더의 type 필드를 직접 읽어 바로 아래 대상의 형식을 확인한다.
+func nestedAnnotatedTag() (string, error) {
+	out, err := runOut("git", "for-each-ref", "--format=%(refname) %(objectname)", "refs/tags")
+	if err != nil {
+		return "", fmt.Errorf("cannot inspect tags: %w", err)
+	}
+	for _, line := range strings.Split(out, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			continue
+		}
+		body, err := runOut("git", "cat-file", "tag", fields[1])
+		if err != nil {
+			continue // lightweight tag는 tag 객체가 없다
+		}
+		for _, l := range strings.Split(body, "\n") {
+			if strings.TrimSpace(l) == "" {
+				break // 헤더 끝 — 본문의 "type tag" 문구는 무시한다
+			}
+			if t, ok := strings.CutPrefix(l, "type "); ok && strings.TrimSpace(t) == "tag" {
+				return strings.TrimPrefix(fields[0], "refs/tags/"), nil
+			}
+		}
+	}
+	return "", nil
 }
 
 // backupFilterRepo는 재작성 전 현재 저장소의 mirror 백업을 만든다. 백업은
