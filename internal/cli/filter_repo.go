@@ -612,16 +612,23 @@ func rewriteFilterRepo(f *resolvedFilters, stats *filterStats) error {
 		func() error { return importCmd.Wait() }, f, stats)
 }
 
-// runFilterPipeline은 export 스트림을 필터링해 import로 옮긴다. 필터 오류 시
-// killAll로 두 프로세스를 끝내므로 fast-import의 부분 확정과 fast-export의
-// 파이프 교착을 막는다. 오류가 있으면 filter 오류가 최우선으로 반환된다.
+// runFilterPipeline은 export 스트림을 필터링해 import로 옮긴다. 필터 오류와
+// export 실패 시 killAll로 두 프로세스를 끝내므로 fast-import의 부분 확정과
+// fast-export의 파이프 교착을 막는다. 오류가 있으면 filter 오류가 최우선으로
+// 반환된다.
 func runFilterPipeline(exportOut io.Reader, importIn io.WriteCloser, killAll func(), waitExport, waitImport func() error, f *resolvedFilters, stats *filterStats) error {
 	filterErr := filterFastExportStream(exportOut, importIn, f, stats, false)
 	if filterErr != nil && killAll != nil {
 		killAll()
 	}
-	_ = importIn.Close()
+	// import stdin을 닫기 전에 export 종료를 확인한다. 필터가 EOF로 깨끗이
+	// 끝났어도 export가 실패로 끝났다면 지금까지 온 것은 부분 스트림이다 —
+	// 닫는 순간 fast-import가 부분 재작성을 확정하므로 닫지 않고 죽인다.
 	exportWaitErr := waitExport()
+	if filterErr == nil && exportWaitErr != nil && killAll != nil {
+		killAll()
+	}
+	_ = importIn.Close()
 	importWaitErr := waitImport()
 	if filterErr != nil {
 		return filterErr
