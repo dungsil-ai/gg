@@ -463,7 +463,7 @@ ADR 0007: GitHub 고유 자원(codespace, project, secret, gist 등)은 세 prov
   - [x] `glab repo delete` (대응: `gg repo delete`, `gg delete`)
   - [x] `glab repo fork` (대응: `gg repo fork`, `gg fork`)
   - [x] `glab repo list` (대응: `gg repo list`, `gg list`)
-  - [x] `glab repo mirror` (대응: `gg repo mirror --url <url>`; gh·tea에 미러링 구성 하위 명령이 없어 미지원)
+  - [x] `glab repo mirror` (대응: `gg repo mirror --url <url> --direction <pull|push|both>`; `--direction`은 glab의 필수 flag — gh·tea에 미러링 구성 하위 명령이 없어 미지원)
   - [x] `glab repo search` (대응: `gg repo search --search <text>`; gh·tea에 저장소 검색 하위 명령이 없어 미지원)
   - [x] `glab repo transfer` (대응: `gg repo transfer --target-namespace <namespace> [--yes]`; gh·tea에 이전 하위 명령이 없어 미지원)
   - [x] `glab repo view` (대응: `gg repo view`, `gg view`)

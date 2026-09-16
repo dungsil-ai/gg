@@ -23,7 +23,7 @@ var actionHelpContracts = map[string]helpContract{
 	"repo clone":        {"<URL> [DIR] [flags]", "--allow-insecure-http --explain --help"},
 	"repo fork":         {"[flags]", forgeHelpFlags},
 	"repo contributors": {"[flags]", forgeHelpFlags},
-	"repo mirror":       {"--url <url> [flags]", "--url <url> " + forgeHelpFlags},
+	"repo mirror":       {"--url <url> --direction <pull|push|both> [flags]", "--url <url> --direction <pull|push|both> " + forgeHelpFlags},
 	"repo search":       {"--search <text> [flags]", "--search <text> " + forgeHelpFlags},
 	"repo transfer":     {"--target-namespace <namespace> [flags]", "--target-namespace <namespace> --yes " + forgeHelpFlags},
 	"repo delete":       {"[flags]", "--yes " + forgeHelpFlags},
