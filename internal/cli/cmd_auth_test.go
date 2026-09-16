@@ -13,7 +13,8 @@ func TestAuthStatusRowsCoverDefaultsSettingsAndLoginValues(t *testing.T) {
 		"BIN tea":  "tea",
 		"gh auth status --hostname github.com --json hosts": `{"hosts":{"github.com":[{"login":"dungsil","active":true}]}}`,
 		"glab auth status --hostname gitlab.com":            "yes",
-		"tea logins list --output json":                     `[{"name":"my-login","url":"https://git.example.com"}]`,
+		"tea logins list --output csv": `"Name","URL","SSHHost","User","Default"
+"my-login","https://git.example.com","","my-login","false"`,
 	})
 	cfg := Config{Hosts: map[string]string{"git.example.com": "tea"}}
 
@@ -56,7 +57,7 @@ func TestAuthLoginValueReportsNoWhenLookupSaysNotLoggedIn(t *testing.T) {
 		"BIN tea":  "tea",
 		"gh auth status --hostname github.com --json hosts":       `{"hosts":{"other.com":[{"login":"someone"}]}}`,
 		"gh auth status --hostname empty.github.com --json hosts": `{"hosts":{"empty.github.com":[]}}`,
-		"tea logins list --output json":                           `[]`,
+		"tea logins list --output csv":                            `"Name","URL","SSHHost","User","Default"`,
 	})
 
 	cases := []struct {

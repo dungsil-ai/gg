@@ -17,7 +17,7 @@ func TestE2EAuthStatusShowsProviderTable(t *testing.T) {
 	logFile := filepath.Join(t.TempDir(), "calls.log")
 	writeFakeStatusBin(t, fakeDir, "gh", logFile, `{"hosts":{"github.com":[{"login":"dungsil","active":true}]}}`)
 	writeFakeStatusBin(t, fakeDir, "glab", logFile, "yes")
-	writeFakeStatusBin(t, fakeDir, "tea", logFile, `[{"name":"my-login","url":"https://git.example.com"}]`)
+	writeFakeStatusBin(t, fakeDir, "tea", logFile, "\"Name\",\"URL\",\"SSHHost\",\"User\",\"Default\"\n\"my-login\",\"https://git.example.com\",\"\",\"my-login\",\"false\"")
 	ggHome := t.TempDir()
 	if err := os.WriteFile(filepath.Join(ggHome, "config.json"), []byte(`{"hosts":{"git.example.com":"tea"}}`), 0o600); err != nil {
 		t.Fatal(err)
@@ -38,8 +38,8 @@ func TestE2EAuthStatusShowsProviderTable(t *testing.T) {
 	// 각 host의 조회 횟수는 검증하지만 서로 독립적인 조회 순서는 고정하지 않는다.
 	got := strings.Split(readLog(t, logFile), "\n")
 	wantCalls := []string{
-		wantCall("tea", "logins", "list", "--output", "json"),
-		wantCall("tea", "logins", "list", "--output", "json"),
+		wantCall("tea", "logins", "list", "--output", "csv"),
+		wantCall("tea", "logins", "list", "--output", "csv"),
 		wantCall("gh", "auth", "status", "--hostname", "github.com", "--json", "hosts"),
 		wantCall("glab", "auth", "status", "--hostname", "gitlab.com"),
 	}

@@ -163,7 +163,7 @@ func TestE2EPRCleanExplain(t *testing.T) {
 			t.Errorf("gg %v output unexpected:\n%s", args, out)
 		}
 		// 실행 계획에 사용할 login만 조회하고 clean 명령은 실행하지 않는다.
-		if got, want := readLog(t, logFile), wantCall("tea", "logins", "list", "--output", "json"); got != want {
+		if got, want := readLog(t, logFile), wantCall("tea", "logins", "list", "--output", "csv"); got != want {
 			t.Errorf("gg %v provider calls = %q, want %q", args, got, want)
 		}
 	}

@@ -131,7 +131,7 @@ func wantCall(args ...string) string {
 
 // wantTeaCall은 로그인 조회 한 번과 이어지는 명령 호출을 함께 검증한다.
 func wantTeaCall(args ...string) string {
-	return wantCall("tea", "logins", "list", "--output", "json") + "\n" + wantCall(append([]string{"tea"}, args...)...)
+	return wantCall("tea", "logins", "list", "--output", "csv") + "\n" + wantCall(append([]string{"tea"}, args...)...)
 }
 
 // buildSharedProbe는 자식 CLI 전달 검증용 probe를 공유 임시 폴더에 딱 한 번
@@ -187,8 +187,10 @@ func main() {
 				os.Exit(99)
 			}
 		}
-		if config.TeaLogin && len(os.Args) == 5 && os.Args[1] == "logins" && os.Args[2] == "list" && os.Args[3] == "--output" && os.Args[4] == "json" {
-			fmt.Println("[{\"name\":\"pub\",\"url\":\"https://gitea.com\"}]")
+		if config.TeaLogin && len(os.Args) == 5 && os.Args[1] == "logins" && os.Args[2] == "list" && os.Args[3] == "--output" && os.Args[4] == "csv" {
+			// tea v0.9의 logins list --output csv 형식(첫 행은 헤더)이다.
+			fmt.Println("\"Name\",\"URL\",\"SSHHost\",\"User\",\"Default\"")
+			fmt.Println("\"pub\",\"https://gitea.com\",\"\",\"pub\",\"false\"")
 			return
 		}
 		if config.GlabStatus {

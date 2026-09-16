@@ -245,8 +245,9 @@ func TestTranslateReleaseGlabCreateDraftUnsupported(t *testing.T) {
 func TestPlanReleaseTeaListRelayedAndViewSkipsLogin(t *testing.T) {
 	t.Setenv("GG_HOME", t.TempDir())
 	fakeExec(t, map[string]string{
-		"BIN tea":                       "tea",
-		"tea logins list --output json": `[{"name":"pub","url":"https://gitea.com"}]`,
+		"BIN tea": "tea",
+		"tea logins list --output csv": `"Name","URL","SSHHost","User","Default"
+"pub","https://gitea.com","","pub","false"`,
 	})
 
 	inv, err := plan(Request{Resource: "release", Action: "list", RepoFlag: "https://gitea.com/o/r"})

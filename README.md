@@ -575,7 +575,7 @@ ADR 0007: GitLab 고유 기능(incident, schedule, stack 등)은 개별 수요�
   - [x] `tea issues open` (대응: `gg issue view`)
   - [x] `tea issues reopen` (대응: `gg issue reopen`)
 - `labels`
-  - [x] `tea labels create` (대응: `gg label create`)
+  - [x] `tea labels create` (대응: `gg label create`; tea는 `--color`가 필요합니다)
   - [ ] `tea labels delete` (tea가 label 이름이 아니라 numeric label id `--id`를 요구해 `gg label delete`로 중계하지 않음)
   - [x] `tea labels list` (대응: `gg label list`)
   - [ ] `tea labels update` (tea가 label 이름이 아니라 numeric label id `--id`를 요구해 `gg label edit`로 중계하지 않음)
