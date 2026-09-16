@@ -18,14 +18,14 @@ func TestE2ERepoMirrorArgv(t *testing.T) {
 		{
 			name:   "glab mirror",
 			remote: "https://gitlab.com/o/r.git",
-			args:   []string{"repo", "mirror", "--url", "https://example.com/o/r.git"},
-			want:   wantCall("glab", "repo", "mirror", "--repo", "https://gitlab.com/o/r", "--url", "https://example.com/o/r.git"),
+			args:   []string{"repo", "mirror", "--url", "https://example.com/o/r.git", "--direction", "pull"},
+			want:   wantCall("glab", "repo", "mirror", "--repo", "https://gitlab.com/o/r", "--url", "https://example.com/o/r.git", "--direction", "pull"),
 		},
 		{
 			name:   "glab mirror repo flag",
 			remote: "https://gitlab.com/o/r.git",
-			args:   []string{"--repo", "https://gitlab.com/custom/repo", "repo", "mirror", "--url", "https://example.com/o/r.git"},
-			want:   wantCall("glab", "repo", "mirror", "--repo", "https://gitlab.com/custom/repo", "--url", "https://example.com/o/r.git"),
+			args:   []string{"--repo", "https://gitlab.com/custom/repo", "repo", "mirror", "--url", "https://example.com/o/r.git", "--direction", "both"},
+			want:   wantCall("glab", "repo", "mirror", "--repo", "https://gitlab.com/custom/repo", "--url", "https://example.com/o/r.git", "--direction", "both"),
 		},
 	}
 
@@ -59,14 +59,14 @@ func TestE2ERepoMirrorUnsupported(t *testing.T) {
 			name:     "gh mirror",
 			remote:   "https://github.com/o/r.git",
 			fakeName: "gh",
-			args:     []string{"repo", "mirror", "--url", "https://example.com/o/r.git"},
+			args:     []string{"repo", "mirror", "--url", "https://example.com/o/r.git", "--direction", "pull"},
 			want:     "repo does not support mirror",
 		},
 		{
 			name:     "tea mirror",
 			remote:   "https://gitea.com/o/r.git",
 			fakeName: "tea",
-			args:     []string{"repo", "mirror", "--url", "https://example.com/o/r.git"},
+			args:     []string{"repo", "mirror", "--url", "https://example.com/o/r.git", "--direction", "pull"},
 			want:     "repo does not support mirror",
 		},
 	}
@@ -117,8 +117,18 @@ func TestE2ERepoMirrorUsageErrors(t *testing.T) {
 			want: "repo mirror needs --url <url>",
 		},
 		{
+			name: "mirror without --direction",
+			args: []string{"repo", "mirror", "--url", "https://example.com/o/r.git"},
+			want: "repo mirror needs --direction <pull|push|both>",
+		},
+		{
+			name: "mirror with invalid --direction",
+			args: []string{"repo", "mirror", "--url", "https://example.com/o/r.git", "--direction", "sideways"},
+			want: "repo mirror needs --direction <pull|push|both>",
+		},
+		{
 			name: "mirror unknown flag",
-			args: []string{"repo", "mirror", "--url", "https://example.com/o/r.git", "--invalid"},
+			args: []string{"repo", "mirror", "--url", "https://example.com/o/r.git", "--direction", "pull", "--invalid"},
 			want: "unknown flag",
 		},
 	}
@@ -151,8 +161,8 @@ func TestE2ERepoMirrorExplain(t *testing.T) {
 	repo := tempRepo(t, "https://gitlab.com/o/r.git")
 
 	for _, args := range [][]string{
-		{"--explain", "repo", "mirror", "--url", "https://example.com/o/r.git"},
-		{"repo", "mirror", "--url", "https://example.com/o/r.git", "--explain"},
+		{"--explain", "repo", "mirror", "--url", "https://example.com/o/r.git", "--direction", "pull"},
+		{"repo", "mirror", "--url", "https://example.com/o/r.git", "--direction", "pull", "--explain"},
 	} {
 		clearFile(t, logFile)
 		out, code := runGG(t, bin, fakeDir, repo, args...)
@@ -175,7 +185,7 @@ func TestE2ERepoMirrorHelp(t *testing.T) {
 	if code != 0 || stderr != "" {
 		t.Fatalf("gg repo mirror --help = stderr %q, exit %d", stderr, code)
 	}
-	for _, want := range []string{"gg repo mirror --url <url> [flags]", "--url <url>", "--repo", "--remote", "--explain"} {
+	for _, want := range []string{"gg repo mirror --url <url> --direction <pull|push|both> [flags]", "--url <url>", "--direction <pull|push|both>", "--repo", "--remote", "--explain"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("repo mirror help missing %q:\n%s", want, stdout)
 		}

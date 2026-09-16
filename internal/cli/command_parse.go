@@ -47,6 +47,7 @@ type Request struct {
 	Destination                string // issue transfer의 대상 저장소
 	Search, TargetNamespace    string // repo search의 검색어, repo transfer의 대상 namespace
 	MirrorURL                  string // repo mirror의 미러 대상 URL
+	MirrorDirection            string // repo mirror의 미러 방향(pull|push|both)
 
 	List, Checkout bool // issue develop: 연결 branch 목록 조회, branch 생성 후 check out
 	SkipCI         bool // pr rebase: 리베이스 후 CI 파이프라인 건너뛰기

@@ -111,6 +111,9 @@ var (
 	// repo mirror의 --url은 미러링할 대상 원격 저장소다.
 	repoMirrorURLFlag = flagDef{name: "--url", arg: "<url>", desc: "The target URL to which the repository is mirrored",
 		str: func(r *Request) *string { return &r.MirrorURL }}
+	// repo mirror의 --direction은 glab에서 필수 flag다.
+	mirrorDirectionFlag = flagDef{name: "--direction", arg: "<pull|push|both>", desc: "Set the mirror direction (pull, push, both)",
+		str: func(r *Request) *string { return &r.MirrorDirection }}
 	// pr rebase의 --skip-ci는 리베이스 후 CI 파이프라인 실행을 건너뛴다.
 	rebaseSkipCIFlag = flagDef{name: "--skip-ci", desc: "Rebase while skipping the CI/CD pipeline",
 		bin: func(r *Request) *bool { return &r.SkipCI }}

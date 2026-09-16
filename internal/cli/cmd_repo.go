@@ -68,13 +68,19 @@ var repoResourceDef = &resourceDef{
 			// mirror는 glab 전용 기능이라 glab builder만 등록한다 — gh와 tea는
 			// dispatch의 builder 부재 오류로 걸러지고, tea는 tea login을 묻기
 			// 전에 거부된다.
-			name: "mirror", summary: "Configure repository mirroring (GitLab only)", usage: "gg repo mirror --url <url> [flags]",
-			flags:    []flagDef{repoMirrorURLFlag},
+			name: "mirror", summary: "Configure repository mirroring (GitLab only)", usage: "gg repo mirror --url <url> --direction <pull|push|both> [flags]",
+			flags:    []flagDef{repoMirrorURLFlag, mirrorDirectionFlag},
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
 			setPos: func(req *Request, pos []string) error {
 				if strings.TrimSpace(req.MirrorURL) == "" {
 					return usageErr("repo mirror needs --url <url>")
+				}
+				// glab repo mirror는 --direction을 필수 flag로 요구한다.
+				switch req.MirrorDirection {
+				case "pull", "push", "both":
+				default:
+					return usageErr("repo mirror needs --direction <pull|push|both>")
 				}
 				return nil
 			},
@@ -196,7 +202,9 @@ var repoContributorsBuilders = providerBuilders{
 var repoMirrorBuilders = providerBuilders{
 	glab: func(c invocationContext) (args, env []string) {
 		args = append([]string{"repo", "mirror"}, c.target...)
-		return appendKV(args, "--url", c.req.MirrorURL), nil
+		args = appendKV(args, "--url", c.req.MirrorURL)
+		// glab repo mirror는 --direction을 필수 flag로 요구한다.
+		return appendKV(args, "--direction", c.req.MirrorDirection), nil
 	},
 }
 
