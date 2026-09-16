@@ -47,7 +47,7 @@ func topLevelHelp() string {
 	}
 	rows = append(rows,
 		[2]string{"version", "Show gg version"},
-		[2]string{"help", "Show this help"})
+		[2]string{"help", "Show help, or a command's help (help <command>)"})
 	b.WriteString(renderRows(rows, 4))
 	b.WriteString(topLevelHelpTail)
 	return b.String()
