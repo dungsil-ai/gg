@@ -1152,7 +1152,7 @@ func TestPlanUsesRemoteWhenNoRepoFlag(t *testing.T) {
 func TestPlanTeaNeedsLogin(t *testing.T) {
 	t.Setenv("GG_HOME", t.TempDir())
 	fakeExec(t, map[string]string{
-		"tea logins list --output json": `[]`,
+		"tea logins list --output csv": `"Name","URL","SSHHost","User","Default"`,
 	})
 	_, err := plan(Request{Resource: "issue", Action: "list",
 		RepoFlag: "https://gitea.com/o/r"})
@@ -1183,8 +1183,9 @@ func TestPlanTeaReadyUnsupportedSkipsLogin(t *testing.T) {
 func TestPlanTeaPRCommentListRelayed(t *testing.T) {
 	t.Setenv("GG_HOME", t.TempDir())
 	fakeExec(t, map[string]string{
-		"BIN tea":                       "tea",
-		"tea logins list --output json": `[{"name":"pub","url":"https://gitea.com"}]`,
+		"BIN tea": "tea",
+		"tea logins list --output csv": `"Name","URL","SSHHost","User","Default"
+"pub","https://gitea.com","","pub","false"`,
 	})
 
 	inv, err := plan(Request{
@@ -1205,8 +1206,9 @@ func TestPlanTeaPRCommentListRelayed(t *testing.T) {
 func TestPlanTeaIssueCommentListRelayed(t *testing.T) {
 	t.Setenv("GG_HOME", t.TempDir())
 	fakeExec(t, map[string]string{
-		"BIN tea":                       "tea",
-		"tea logins list --output json": `[{"name":"pub","url":"https://gitea.com"}]`,
+		"BIN tea": "tea",
+		"tea logins list --output csv": `"Name","URL","SSHHost","User","Default"
+"pub","https://gitea.com","","pub","false"`,
 	})
 
 	inv, err := plan(Request{

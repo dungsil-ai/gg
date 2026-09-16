@@ -196,21 +196,30 @@ func glabHasLogin(host string) bool {
 }
 
 // teaLoginName은 host에 맞는 tea login 이름을 돌려준다. 없으면 "".
+// logins list의 json 출력은 tea 버전마다 지원 여부가 달라(v0.9는 미지원)
+// csv로 받아 읽는다. csv 필드는 버전에 따라 인용되거나(0.9) 그대로(0.16)
+// 나오므로 두 형식을 모두 읽는다.
 func teaLoginName(host string) string {
-	out, err := runOut("tea", "logins", "list", "--output", "json")
+	out, err := runOut("tea", "logins", "list", "--output", "csv")
 	if err != nil {
 		return ""
 	}
-	var logins []struct {
-		Name string `json:"name"`
-		URL  string `json:"url"`
-	}
-	if json.Unmarshal([]byte(out), &logins) != nil {
-		return ""
-	}
-	for _, l := range logins {
-		if u, err := url.Parse(l.URL); err == nil && strings.EqualFold(u.Hostname(), host) {
-			return l.Name
+	for i, line := range strings.Split(out, "\n") {
+		if i == 0 || strings.TrimSpace(line) == "" {
+			continue // 첫 행은 헤더다
+		}
+		line = strings.TrimSpace(line)
+		var fields []string
+		if strings.HasPrefix(line, `"`) {
+			fields = strings.Split(strings.Trim(line, `"`), `","`)
+		} else {
+			fields = strings.Split(line, ",")
+		}
+		if len(fields) < 2 {
+			continue
+		}
+		if u, err := url.Parse(fields[1]); err == nil && strings.EqualFold(u.Hostname(), host) {
+			return fields[0]
 		}
 	}
 	return ""

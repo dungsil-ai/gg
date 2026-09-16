@@ -201,12 +201,28 @@ func TestDetectProviderInteractiveChoiceSaves(t *testing.T) {
 
 func TestTeaLoginName(t *testing.T) {
 	fakeExec(t, map[string]string{
-		"tea logins list --output json": `[{"name":"corp","url":"https://gitea.example.com"},{"name":"pub","url":"https://gitea.com"}]`,
+		// tea v0.9는 필드를 인용해서 내보낸다.
+		"tea logins list --output csv": `"Name","URL","SSHHost","User","Default"
+"corp","https://gitea.example.com","","corp","false"
+"pub","https://gitea.com","","pub","false"`,
 	})
 	if got := teaLoginName("gitea.example.com"); got != "corp" {
 		t.Errorf("teaLoginName = %q", got)
 	}
 	if got := teaLoginName("unknown.com"); got != "" {
 		t.Errorf("없는 host = %q", got)
+	}
+
+	// tea v0.16은 필드를 인용하지 않고 내보낸다.
+	fakeExec(t, map[string]string{
+		"tea logins list --output csv": `Name,URL,SSHHost,User,Default
+corp,https://gitea.example.com,,corp,false
+pub,https://gitea.com,,pub,false`,
+	})
+	if got := teaLoginName("gitea.example.com"); got != "corp" {
+		t.Errorf("teaLoginName(비인용) = %q", got)
+	}
+	if got := teaLoginName("gitea.com"); got != "pub" {
+		t.Errorf("teaLoginName(비인용 두 번째) = %q", got)
 	}
 }

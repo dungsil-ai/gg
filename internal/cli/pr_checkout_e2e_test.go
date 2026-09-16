@@ -135,7 +135,7 @@ func TestE2EPRCheckoutExplain(t *testing.T) {
 	}{
 		{name: "gh", remote: "https://github.com/o/r.git", fakeName: "gh"},
 		{name: "glab", remote: "https://gitlab.com/o/r.git", fakeName: "glab"},
-		{name: "tea", remote: "https://gitea.com/o/r.git", fakeName: "tea", wantCalls: wantCall("tea", "logins", "list", "--output", "json")},
+		{name: "tea", remote: "https://gitea.com/o/r.git", fakeName: "tea", wantCalls: wantCall("tea", "logins", "list", "--output", "csv")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			bin := buildGG(t)
