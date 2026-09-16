@@ -228,7 +228,14 @@ func releaseDeleteArgs(c invocationContext, cleanupFlag string) []string {
 
 var releaseDownloadBuilders = providerBuilders{
 	gh: func(c invocationContext) (args, env []string) {
-		return append(releaseDownloadArgs(c, "--pattern"), c.target...), nil
+		// gh는 태그와 --pattern이 모두 없으면 최신 release 다운로드를 거부한다
+		// (--pattern 또는 --archive가 필요하다고 오류를 낸다). glab의 빈 형태
+		//("최신 release 전체 자산")와 같은 결과가 나도록 전체 자산 glob을 채운다.
+		args = releaseDownloadArgs(c, "--pattern")
+		if c.req.Tag == "" && c.req.Pattern == "" {
+			args = appendKV(args, "--pattern", "*")
+		}
+		return append(args, c.target...), nil
 	},
 	glab: func(c invocationContext) (args, env []string) {
 		return append(releaseDownloadArgs(c, "--asset-name"), c.target...), nil
