@@ -773,10 +773,23 @@ func writeFastExportLine(bw *bufio.Writer, s string) error {
 }
 
 // readDataSection은 "data <len>" 줄 다음의 날 바이트를 정확히 읽는다.
+// 잘린/오염된 스트림은 과장된 길이를 선언할 수 있으므로 n을 통째로 할당하지
+// 않고 청크로 읽어 스트림이 먼저 끝나면 즉시 실패한다.
 func readDataSection(br *bufio.Reader, n int) ([]byte, error) {
-	buf := make([]byte, n)
-	_, err := io.ReadFull(br, buf)
-	return buf, err
+	const chunkMax = 1 << 20
+	buf := make([]byte, 0, min(n, chunkMax))
+	chunk := make([]byte, min(n, chunkMax))
+	for len(buf) < n {
+		read, err := br.Read(chunk[:min(n-len(buf), chunkMax)])
+		buf = append(buf, chunk[:read]...)
+		if err != nil {
+			return nil, err
+		}
+		if read == 0 {
+			return nil, io.EOF
+		}
+	}
+	return buf, nil
 }
 
 // parseDataLength는 "data 123" 줄에서 길이를 읽는다.
