@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"os"
@@ -843,5 +844,16 @@ func TestE2EFilterRepoRefusesNestedTags(t *testing.T) {
 	}
 	if got := gitIn(t, dir, "cat-file", "-t", "refs/tags/v1"); got != "tag" {
 		t.Errorf("v1은 여전히 tag 객체여야 한다, got %s", got)
+	}
+}
+
+// 잘린 스트림이 과장된 data 길이를 선언해도 통째로 할당하지 않고 실패한다.
+func TestReadDataSectionRejectsHugeLength(t *testing.T) {
+	br := bufio.NewReader(strings.NewReader("short"))
+	if _, err := readDataSection(br, 3_000_000_000); err == nil {
+		t.Error("스트림이 먼저 끝나면 실패해야 한다")
+	}
+	if _, err := readDataSection(br, 0); err != nil {
+		t.Errorf("길이 0은 오류 없는 빈 값이어야 한다, got %v", err)
 	}
 }
