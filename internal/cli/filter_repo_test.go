@@ -645,6 +645,26 @@ func TestE2EFilterRepoRefusesStash(t *testing.T) {
 	}
 }
 
+func TestE2EFilterRepoRefusesLinkedWorktrees(t *testing.T) {
+	dir := filterRepoTestRepo(t, map[string]string{"a.txt": "keep\n"})
+	// 연결 worktree는 저장소 바깥에 둔다. 안에 두면 untracked 파일로 작업
+	// 트리가 더러워져 worktree 검사보다 dirty 검사가 먼저 걸린다.
+	linked := filepath.Join(t.TempDir(), "linked")
+	gitIn(t, dir, "worktree", "add", linked, "-b", "wtb")
+	before := gitIn(t, dir, "rev-parse", "HEAD")
+
+	err := runFilterRepoIn(t, dir, Request{
+		Resource: "repo", Action: "filter-repo",
+		FilterPaths: []string{"a.txt"}, FilterInvert: true, FilterForce: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "multiple worktrees") {
+		t.Fatalf("연결 worktree 거부 기대, got %v", err)
+	}
+	if got := gitIn(t, dir, "rev-parse", "HEAD"); got != before {
+		t.Errorf("거부 시 HEAD 변경 없음 기대: %s -> %s", before, got)
+	}
+}
+
 func TestE2EFilterRepoRewritesBranchesAndTagsOnly(t *testing.T) {
 	dir := filterRepoTestRepo(t, map[string]string{"a.txt": "keep\n", "secret.txt": "topsecret\n"})
 	gitIn(t, dir, "tag", "-a", "v1", "-m", "tag one")
