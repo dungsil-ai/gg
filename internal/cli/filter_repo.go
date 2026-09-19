@@ -170,9 +170,13 @@ func runFilterRepo(req Request) error {
 	if err != nil {
 		return err
 	}
+	remoteRefs, remoteExpireRefs, err := remoteTrackingRefs()
+	if err != nil {
+		return fmt.Errorf("cannot inspect remote-tracking refs: %w", err)
+	}
 	stats := &filterStats{}
 	if req.FilterDryRun {
-		if err := dryRunFilterRepo(filters, stats); err != nil {
+		if err := dryRunFilterRepo(filters, stats, remoteRefs); err != nil {
 			return err
 		}
 		fmt.Fprintf(osStdout, "dry-run: %d commits, %d blobs (%d would change), %d identities (%d would change), %d paths dropped, %d renamed\n",
@@ -188,19 +192,20 @@ func runFilterRepo(req Request) error {
 	if err != nil {
 		return err
 	}
-	if err := rewriteFilterRepo(filters, stats); err != nil {
+	if err := rewriteFilterRepo(filters, stats, remoteRefs); err != nil {
 		return err
 	}
-	// reflog expire은 재작성 대상인 branches·tags와 HEAD로 한정한다. --all은
-	// stash 등 재작성하지 않은 ref의 reflog까지 지워 접근 불가능하게 만들고,
-	// HEAD reflog를 남겨 두면 fast-import가 남긴 logs/HEAD의 예전 SHA가 gc
-	// 뒤에도 예전 객체를 붙들어마다. reflog가 없는 ref(대표적으로 tag)에
+	// reflog expire은 재작성 대상인 branches·tags·원격 추적 ref와 HEAD로
+	// 한정한다. --all은 stash 등 재작성하지 않은 ref의 reflog까지 지워 접근
+	// 불가능하게 만들고, HEAD나 원격 추적 ref의 reflog를 남겨 두면 예전 SHA가
+	// gc 뒤에도 예전 객체를 붙들어마다. reflog가 없는 ref(대표적으로 tag)에
 	// expire를 실행하면 오류가 나므로 존재할 때만 만료한다.
 	rewrittenRefs, err := runOut("git", "for-each-ref", "--format=%(refname)", "refs/heads", "refs/tags")
 	if err != nil {
 		return fmt.Errorf("history rewritten but reflog expire failed: %w", err)
 	}
 	expireRefs := append(strings.Fields(rewrittenRefs), "HEAD")
+	expireRefs = append(expireRefs, remoteExpireRefs...)
 	for _, ref := range expireRefs {
 		if _, err := runOut("git", "reflog", "exists", ref); err != nil {
 			continue
@@ -584,18 +589,48 @@ func quoteFastExportPath(s string) string {
 	return b.String()
 }
 
-// filterRepoExportArgs는 재작성 대상 ref 범위다. --all은 refs/stash와
-// refs/remotes까지 재작성해 stash 접근을 깨고 원격 추적 ref를 재작성된 SHA로
-// 어긋나게 만든다. filter-repo의 대상은 branch와 tag뿐이다.
-var filterRepoExportArgs = []string{"fast-export", "--branches", "--tags", "--full-tree"}
+// remoteTrackingRefs는 refs/remotes 아래 ref를 둘로 나눠 돌려준다. rewrite는
+// 재작성 대상 순수 ref, expire는 reflog 만료 대상 전체다. 심볼릭 ref
+// (refs/remotes/*/HEAD)는 fast-import가 심볼릭 관계를 유지하지 못해 재작성에서
+// 빼지만, 생성 시점의 reflog가 예전 커밋을 붙들어 gc가 prune하지 못하므로
+// 만료는 해야 한다 — upstream git-filter-repo도 origin/HEAD는 재작성에서
+// 건너뛴다. refs/remotes를 재작성에 빼 두면 재작성 전 커밋 전체가 여기
+// 붙들려 비밀 제거가 `git show refs/remotes/origin/main:<path>`로 그대로
+// 드러난다.
+func remoteTrackingRefs() (rewrite, expire []string, err error) {
+	out, err := runOut("git", "for-each-ref", "--format=%(refname) %(symref)", "refs/remotes")
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, line := range strings.Split(out, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		expire = append(expire, fields[0])
+		// 비심볼릭 ref는 refname 한 필드, 심볼릭 ref는 refname 뒤에 symref가 붙는다.
+		if len(fields) == 1 {
+			rewrite = append(rewrite, fields[0])
+		}
+	}
+	return rewrite, expire, nil
+}
+
+// filterRepoExportArgs는 재작성 대상 ref 범위다. branch·tag와 원격 추적 ref를
+// 모두 내보낸다. --all은 refs/stash까지 재작성해 stash 접근을 깨므로 쓰지
+// 않는다(stash는 실행 전에 거부된다).
+func filterRepoExportArgs(remoteRefs []string) []string {
+	args := []string{"fast-export", "--branches", "--tags", "--full-tree"}
+	return append(args, remoteRefs...)
+}
 
 // dryRunFilterRepo는 fast-export를 읽어 필터 통계만 낸다.
-func dryRunFilterRepo(f *resolvedFilters, stats *filterStats) error {
+func dryRunFilterRepo(f *resolvedFilters, stats *filterStats, remoteRefs []string) error {
 	gitPath, err := lookPath("git")
 	if err != nil {
 		return fmt.Errorf("git is not installed or not on PATH")
 	}
-	cmd := exec.Command(gitPath, filterRepoExportArgs...)
+	cmd := exec.Command(gitPath, filterRepoExportArgs(remoteRefs)...)
 	cmd.Stderr = os.Stderr
 	out, err := cmd.StdoutPipe()
 	if err != nil {
@@ -626,12 +661,12 @@ func runDryFilterPipeline(exportOut io.Reader, kill func(), wait func() error, f
 }
 
 // rewriteFilterRepo는 fast-export 출력을 필터링해 fast-import에 바로 넣는다.
-func rewriteFilterRepo(f *resolvedFilters, stats *filterStats) error {
+func rewriteFilterRepo(f *resolvedFilters, stats *filterStats, remoteRefs []string) error {
 	gitPath, err := lookPath("git")
 	if err != nil {
 		return fmt.Errorf("git is not installed or not on PATH")
 	}
-	exportCmd := exec.Command(gitPath, filterRepoExportArgs...)
+	exportCmd := exec.Command(gitPath, filterRepoExportArgs(remoteRefs)...)
 	exportCmd.Stderr = os.Stderr
 	exportOut, err := exportCmd.StdoutPipe()
 	if err != nil {

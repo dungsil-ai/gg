@@ -680,9 +680,39 @@ func TestE2EFilterRepoRewritesBranchesAndTagsOnly(t *testing.T) {
 	if got := gitIn(t, dir, "log", "--branches", "--oneline", "--", "secret.txt"); strings.TrimSpace(got) != "" {
 		t.Errorf("branch 히스토리에서 secret.txt 제거 기대, got %q", got)
 	}
-	// 원격 추적 ref는 재작성하지 않는다(다음 fetch에서 갱신된다).
-	if got := strings.TrimSpace(gitIn(t, dir, "rev-parse", "refs/remotes/origin/main")); got != remoteSha {
-		t.Errorf("원격 추적 ref 불변 기대: %s -> %s", remoteSha, got)
+	// 원격 추적 ref도 재작성한다. 남겨 두면 예전 커밋이 refs/remotes에 붙들려
+	// gc 뒤에도 살아 있어 비밀 제거가 불완전해진다.
+	if got := strings.TrimSpace(gitIn(t, dir, "rev-parse", "refs/remotes/origin/main")); got == remoteSha {
+		t.Errorf("원격 추적 ref 재작성 기대: %s", got)
+	}
+}
+
+func TestE2EFilterRepoPrunesObjectsBehindRemoteRefs(t *testing.T) {
+	dir := filterRepoTestRepo(t, map[string]string{"a.txt": "keep\n", "secret.txt": "topsecret\n"})
+	oldCommit := strings.TrimSpace(gitIn(t, dir, "rev-parse", "HEAD"))
+	oldSecretBlob := strings.TrimSpace(gitIn(t, dir, "rev-parse", "HEAD:secret.txt"))
+	gitIn(t, dir, "update-ref", "refs/remotes/origin/main", oldCommit)
+	gitIn(t, dir, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+
+	if err := runFilterRepoIn(t, dir, Request{
+		Resource: "repo", Action: "filter-repo",
+		FilterPaths: []string{"secret.txt"}, FilterInvert: true, FilterForce: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// refs/remotes가 재작성 전 커밋을 붙들면 gc가 prune하지 못해 비밀이
+	// `git show refs/remotes/origin/main:secret.txt`로 그대로 복구된다.
+	for name, object := range map[string]string{"예전 커밋": oldCommit, "예전 블롭": oldSecretBlob} {
+		cmd := exec.Command("git", "-C", dir, "cat-file", "-e", object)
+		if err := cmd.Run(); err == nil {
+			t.Errorf("%s 객체(%s)가 gc 뒤에도 남아 있다", name, object)
+		}
+	}
+	if out, err := exec.Command("git", "-C", dir, "show", "refs/remotes/origin/main:secret.txt").CombinedOutput(); err == nil {
+		t.Errorf("원격 추적 ref에서 비밀 제거 기대, got %q", out)
+	}
+	if got := gitIn(t, dir, "symbolic-ref", "refs/remotes/origin/HEAD"); got != "refs/remotes/origin/main" {
+		t.Errorf("origin/HEAD 심볼릭 유지 기대, got %q", got)
 	}
 }
 
