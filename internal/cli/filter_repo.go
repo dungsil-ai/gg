@@ -139,6 +139,22 @@ func runFilterRepo(req Request) error {
 			return fmt.Errorf("stash is not empty (drop or pop it first); filter-repo rewrites branches and tags only")
 		}
 	}
+	// 연결 worktree는 재작성 대상에서 빠진다. 재작성 뒤 branch ref만 바뀌고 그
+	// worktree의 index·작업 트리는 재작성 전 상태로 남아 둘의 상태가 어긋나므로
+	// 미리 거부한다 — stash 거부와 같은 이유고, 업스트림 git-filter-repo도
+	// worktree가 둘 이상이면 재작성을 거부한다. git worktree list는 worktree
+	// 하나당 한 행을 낸다.
+	if out, err := runOut("git", "worktree", "list"); err == nil {
+		worktrees := 0
+		for _, line := range strings.Split(out, "\n") {
+			if strings.TrimSpace(line) != "" {
+				worktrees++
+			}
+		}
+		if worktrees > 1 {
+			return fmt.Errorf("multiple worktrees exist (git worktree list); rewrite from a repo without linked worktrees")
+		}
+	}
 	// tag가 다른 tag를 가리키면 fast-export가 스트림 도중 죽는다("tags
 	// unexported object"). 내부 tag의 메시지로 뭉개는 손실도 있어 미리
 	// 거부하고 평탄화를 요구한다.
