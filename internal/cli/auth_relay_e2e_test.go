@@ -162,3 +162,111 @@ func TestE2EAuthStatusStillWorks(t *testing.T) {
 		t.Errorf("auth status 외 실행이 있으면 안 된다, got %q", got)
 	}
 }
+
+func TestE2EAuthRelayProviderFlag(t *testing.T) {
+	bin := buildGG(t)
+
+	cases := []struct {
+		name     string
+		remote   string
+		fakeName string
+		args     []string
+		want     string
+	}{
+		{
+			name:     "glab login",
+			remote:   "https://github.com/o/r.git",
+			fakeName: "glab",
+			args:     []string{"auth", "login", "--provider", "glab", "--hostname", "git.example.com"},
+			want:     wantCall("glab", "auth", "login", "--hostname", "git.example.com"),
+		},
+		{
+			name:     "glab logout 등호 형태",
+			remote:   "https://github.com/o/r.git",
+			fakeName: "glab",
+			args:     []string{"auth", "logout", "--provider=glab", "--hostname", "git.example.com"},
+			want:     wantCall("glab", "auth", "logout", "--hostname", "git.example.com"),
+		},
+		{
+			name:     "glab token",
+			remote:   "https://github.com/o/r.git",
+			fakeName: "glab",
+			args:     []string{"auth", "token", "--provider", "glab"},
+			want:     wantCall("glab", "auth", "token"),
+		},
+		{
+			name:     "gh 기본값 유지",
+			remote:   "https://github.com/o/r.git",
+			fakeName: "gh",
+			args:     []string{"auth", "login", "--with-token"},
+			want:     wantCall("gh", "auth", "login", "--with-token"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeDir := t.TempDir()
+			logFile := filepath.Join(t.TempDir(), "calls.log")
+			writeFakeBin(t, fakeDir, tc.fakeName, logFile)
+			repo := tempRepo(t, tc.remote)
+
+			out, code := runGG(t, bin, fakeDir, repo, tc.args...)
+			if code != 0 {
+				t.Fatalf("gg %v: exit %d: %s", tc.args, code, out)
+			}
+			if got := readLog(t, logFile); got != tc.want {
+				t.Errorf("gg %v argv = %q, want %q", tc.args, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestE2EAuthRelayProviderFlagFailures(t *testing.T) {
+	bin := buildGG(t)
+
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "glab에 없는 refresh",
+			args: []string{"auth", "refresh", "--provider", "glab"},
+			want: "glab auth refresh is not supported",
+		},
+		{
+			name: "glab에 없는 setup-git",
+			args: []string{"auth", "setup-git", "--provider=glab"},
+			want: "glab auth setup-git is not supported",
+		},
+		{
+			name: "tea 거부",
+			args: []string{"auth", "login", "--provider", "tea"},
+			want: "--provider tea is not supported",
+		},
+		{
+			name: "값 없는 --provider",
+			args: []string{"auth", "login", "--provider"},
+			want: "--provider needs a value",
+		},
+		{
+			name: "glab 미설치",
+			args: []string{"auth", "token", "--provider", "glab"},
+			want: "glab is not installed or not on PATH",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := tempRepo(t, "https://github.com/o/r.git")
+
+			out, code := runGGWithoutProviderCLIs(t, bin, repo, t.TempDir(), tc.args...)
+			if code == 0 {
+				t.Fatalf("gg %v: exit 0이어야 안 됨: %s", tc.args, out)
+			}
+			if !strings.Contains(out, tc.want) {
+				t.Errorf("gg %v: output = %s, want substring %q", tc.args, out, tc.want)
+			}
+		})
+	}
+}

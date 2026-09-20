@@ -92,7 +92,11 @@ func run(args []string) int {
 			}
 			return 0
 		}
-		return execChild(authRelayInvocation(req))
+		inv, err := authRelayInvocation(req)
+		if err != nil {
+			return fail(err)
+		}
+		return execChild(inv)
 	}
 	if req.Explain {
 		ep, err := resolvePlan(req)

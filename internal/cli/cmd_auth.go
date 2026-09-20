@@ -3,18 +3,21 @@ package cli
 import (
 	"fmt"
 	"os"
+	"slices"
 	"sort"
+	"strings"
 	"text/tabwriter"
 )
 
-// authResourceDef는 "auth" 최상위 명령의 정의다: status와 gh CLI 계정 작업
+// authResourceDef는 "auth" 최상위 명령의 정의다: status와 provider CLI 계정 작업
 // 릴레이(login, logout, refresh, setup-git, switch, token). auth는 forge 명령이
 // 아니므로 저장소 문맥 flag와 --explain이 없다(ADR 0006). 릴레이 action은 모든
-// 인자를 gh에 그대로 전달하는 passthrough다.
+// 인자를 provider CLI에 그대로 전달하는 passthrough이고, --provider flag로
+// gh(기본값) 외에 glab을 고를 수 있다(ADR 0008).
 var authResourceDef = &resourceDef{
 	name:    "auth",
 	summary: "Show provider CLI login status, and relay GitHub CLI account operations",
-	desc:    "Show provider CLI login status, and relay GitHub CLI account operations.",
+	desc:    "Show provider CLI login status, and relay GitHub CLI account operations. Use --provider glab on a relay action to target the GitLab CLI instead.",
 	usage:   "gg auth <command>",
 	actions: append([]actionDef{
 		{
@@ -27,11 +30,16 @@ var authResourceDef = &resourceDef{
 // authRelayActionNames는 gh CLI 계정 작업을 그대로 전달하는 auth action이다.
 var authRelayActionNames = []string{"login", "logout", "refresh", "setup-git", "switch", "token"}
 
+// glabAuthActions은 --provider glab을 받아들일 수 있는 auth action이다. glab에
+// 없는 gh 하위 명령(refresh·setup-git·switch)은 거부한다.
+var glabAuthActions = []string{"login", "logout", "token"}
+
 func authRelayActions() []actionDef {
 	actions := make([]actionDef, len(authRelayActionNames))
 	for i, name := range authRelayActionNames {
 		actions[i] = actionDef{
-			name: name, summary: "Run gh auth " + name + " (all args pass through)",
+			name:        name,
+			summary:     "Run gh auth " + name + " (all args pass through; --provider glab targets the GitLab CLI)",
 			usage:       "gg auth " + name + " [args...]",
 			passthrough: true, maxPos: -1,
 		}
@@ -50,10 +58,71 @@ func isAuthRelayAction(name string) bool {
 	return false
 }
 
-// authRelayInvocation은 auth 릴레이 action을 gh 호출로 옮긴다. action 뒤의 모든
-// 인자(--help 포함)는 검사 없이 gh auth에 그대로 전달된다.
-func authRelayInvocation(req Request) Invocation {
-	return Invocation{Bin: "gh", Args: append([]string{"auth", req.Action}, req.GitArgs...)}
+// splitAuthProvider는 auth 릴레이 인자에서 gg가 해석하는 --provider 값을 뽑아
+// 내고 나머지를 돌려준다. "--provider glab"과 "--provider=glab" 형태를 모두
+// 받고 위치는 action 뒤 어디든 좋다. 기본값은 gh다.
+func splitAuthProvider(args []string) (rest []string, p Provider, err error) {
+	p = GH
+	rest = make([]string, 0, len(args))
+	take := func(raw string) error {
+		got, vErr := validateAuthProvider(raw)
+		if vErr != nil {
+			return vErr
+		}
+		p = got
+		return nil
+	}
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--provider" {
+			if i+1 >= len(args) {
+				return nil, "", usageErr("--provider needs a value")
+			}
+			i++
+			if err := take(args[i]); err != nil {
+				return nil, "", err
+			}
+			continue
+		}
+		if name, value, hasValue := strings.Cut(a, "="); hasValue && name == "--provider" {
+			if err := take(value); err != nil {
+				return nil, "", err
+			}
+			continue
+		}
+		rest = append(rest, a)
+	}
+	return rest, p, nil
+}
+
+func validateAuthProvider(raw string) (Provider, error) {
+	switch p := Provider(raw); p {
+	case GH, GLab:
+		return p, nil
+	case Tea:
+		return "", usageErr("--provider tea is not supported; tea logins is the tea CLI's own local auth store (ADR 0007)")
+	}
+	return "", usageErr("--provider must be gh or glab")
+}
+
+// authRelayInvocation은 auth 릴레이 action을 provider CLI 호출로 옮긴다. action
+// 뒤의 모든 인자(--help 포함)는 검사 없이 그대로 전달되고, --provider만 gg가
+// 뽑아 내어 대상 CLI를 고른다. glab이 없는 하위 명령(refresh·setup-git·switch)은
+// 거부한다(ADR 0008).
+func authRelayInvocation(req Request) (Invocation, error) {
+	rest, p, err := splitAuthProvider(req.GitArgs)
+	if err != nil {
+		return Invocation{}, err
+	}
+	switch p {
+	case GLab:
+		if !slices.Contains(glabAuthActions, req.Action) {
+			return Invocation{}, usageErr("glab auth " + req.Action + " is not supported; glab has login, logout, status, and token")
+		}
+		return Invocation{Bin: "glab", Args: append([]string{"auth", req.Action}, rest...)}, nil
+	default:
+		return Invocation{Bin: "gh", Args: append([]string{"auth", req.Action}, rest...)}, nil
+	}
 }
 
 func runAuth(req Request) error {

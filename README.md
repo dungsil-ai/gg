@@ -410,8 +410,8 @@ ADR 0007: GitHub 고유 자원(codespace, project, secret, gist 등)은 세 prov
 
 ### 공통 핵심 명령 (Core Commands)
 - `auth`
-  - [ ] `glab auth login` (gg auth 중계는 현재 gh만 지원 — provider 선택 방식 설계 후 검토)
-  - [ ] `glab auth logout` (gg auth 중계는 현재 gh만 지원 — provider 선택 방식 설계 후 검토)
+  - [x] `glab auth login` (대응: `gg auth login --provider glab`; `--provider`는 gg가 해석해 제거한 뒤 나머지 인자를 중계합니다 — ADR 0008)
+  - [x] `glab auth logout` (대응: `gg auth logout --provider glab` — ADR 0008)
   - [x] `glab auth status` (대응: `gg auth status`)
 - `issue`
   - [ ] `glab issue board` (보드 조회는 GitLab 고유 기능으로 별도 설계 필요 — ADR 0007)
