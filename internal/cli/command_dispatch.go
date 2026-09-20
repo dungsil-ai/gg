@@ -157,11 +157,10 @@ func teaInvocation(req Request, r RepoURL, login string) (Invocation, error) {
 	if req.Resource == "pr" && req.Action == "review" && req.ReviewComment {
 		return Invocation{}, usageErr("pr review --comment is not supported for tea")
 	}
-	// tea label edit·delete는 label 이름이 아니라 numeric label id(--id)를
-	// 요구하고 clone은 명령 자체가 없어 중계하지 않는다. list·create는 이름
-	// 기반 표면이라 중계한다.
-	if req.Resource == "label" && (req.Action == "edit" || req.Action == "delete" || req.Action == "clone") {
-		return Invocation{}, usageErr("label " + req.Action + " is not supported for tea")
+	// tea label clone은 명령 자체가 없다. edit·delete는 numeric label id를
+	// 요구하지만 resolvePlan의 사전 조회(이름→id)로 중계한다.
+	if req.Resource == "label" && req.Action == "clone" {
+		return Invocation{}, usageErr("label clone is not supported for tea")
 	}
 	// tea는 PR 댓글의 수정/삭제 명령이 없다. 목록은 comments list로 중계한다.
 	if req.Resource == "pr" && (req.Action == "comment edit" || req.Action == "comment delete") {

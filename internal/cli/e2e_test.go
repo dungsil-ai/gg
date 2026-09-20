@@ -1952,7 +1952,7 @@ func TestE2EGitLabIssueCommentCloseReopen(t *testing.T) {
 	}
 }
 
-func TestE2EGiteaLabelEditUnsupported(t *testing.T) {
+func TestE2EGiteaLabelEditNeedsLogin(t *testing.T) {
 	bin := buildGG(t)
 	fakeDir := t.TempDir()
 	logFile := filepath.Join(t.TempDir(), "calls.log")
@@ -1960,14 +1960,11 @@ func TestE2EGiteaLabelEditUnsupported(t *testing.T) {
 	repo := tempRepo(t, "https://gitea.com/o/r.git")
 
 	out, code := runGG(t, bin, fakeDir, repo, "label", "edit", "bug", "--color", "00ff00")
-	if code != 2 {
-		t.Fatalf("exit = %d, want 2: %s", code, out)
+	if code != 1 {
+		t.Fatalf("exit = %d, want 1: %s", code, out)
 	}
-	if !strings.Contains(out, "label edit is not supported for tea") {
-		t.Errorf("output에 미지원 오류 없음: %s", out)
-	}
-	if got := readLog(t, logFile); got != "" {
-		t.Errorf("tea should not run, got %q", got)
+	if !strings.Contains(out, "no tea login for gitea.com") {
+		t.Errorf("output에 로그인 안내 없음: %s", out)
 	}
 }
 

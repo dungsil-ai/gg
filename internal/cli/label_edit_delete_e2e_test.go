@@ -104,34 +104,54 @@ func TestE2ELabelEditDeleteArgv(t *testing.T) {
 	}
 }
 
-func TestE2ELabelEditDeleteUnsupported(t *testing.T) {
+// numeric label id를 요구하는 glab·tea는 gg가 이름→id를 미리 조회한다.
+// 조회 api 호출과 실제 명령 호출이 순서대로 기록되는지 본다.
+func TestE2ELabelEditDeleteIDResolution(t *testing.T) {
 	cases := []struct {
 		name     string
 		remote   string
 		fakeName string
+		stdout   string // label 목록 api 응답
+		login    bool   // tea logins csv 응답 여부
 		args     []string
-		want     string
+		calls    []string
 	}{
 		{
-			name:     "glab edit은 label id를 요구해 미지원",
+			name:     "glab edit resolves label id",
 			remote:   "https://gitlab.com/o/r.git",
 			fakeName: "glab",
+			stdout:   `[{"id":7,"name":"bug"}]`,
 			args:     []string{"label", "edit", "bug", "--color", "00ff00"},
-			want:     "label does not support edit",
+			calls: []string{
+				wantCall("glab", "api", "projects/o%2Fr/labels"),
+				wantCall("glab", "label", "edit", "--label-id", "7", "--color", "00ff00", "--repo", "https://gitlab.com/o/r"),
+			},
 		},
 		{
-			name:     "tea edit",
+			name:     "tea edit resolves label id",
 			remote:   "https://gitea.com/o/r.git",
 			fakeName: "tea",
-			args:     []string{"label", "edit", "bug", "--color", "00ff00"},
-			want:     "label edit is not supported for tea",
+			stdout:   `[{"id":9,"name":"bug"}]`,
+			login:    true,
+			args:     []string{"label", "edit", "bug", "--name", "defect"},
+			calls: []string{
+				wantCall("tea", "logins", "list", "--output", "csv"),
+				wantCall("tea", "api", "repos/o/r/labels", "--login", "pub", "--repo", "o/r"),
+				wantCall("tea", "labels", "update", "--id", "9", "--login", "pub", "--repo", "o/r", "--name", "defect"),
+			},
 		},
 		{
-			name:     "tea delete",
+			name:     "tea delete resolves label id",
 			remote:   "https://gitea.com/o/r.git",
 			fakeName: "tea",
-			args:     []string{"label", "delete", "bug"},
-			want:     "label delete is not supported for tea",
+			stdout:   `[{"id":9,"name":"bug"}]`,
+			login:    true,
+			args:     []string{"label", "delete", "bug", "--yes"},
+			calls: []string{
+				wantCall("tea", "logins", "list", "--output", "csv"),
+				wantCall("tea", "api", "repos/o/r/labels", "--login", "pub", "--repo", "o/r"),
+				wantCall("tea", "labels", "delete", "--id", "9", "--login", "pub", "--repo", "o/r"),
+			},
 		},
 	}
 
@@ -140,22 +160,56 @@ func TestE2ELabelEditDeleteUnsupported(t *testing.T) {
 			bin := buildGG(t)
 			fakeDir := t.TempDir()
 			logFile := filepath.Join(t.TempDir(), "calls.log")
-			writeFakeBin(t, fakeDir, "tea", logFile)
-			writeFakeReadyBin(t, fakeDir, "glab", logFile, "", "", 0)
+			writeFakeCLI(t, fakeDir, tc.fakeName, fakeCLIConfig{LogFile: logFile, TeaLogin: tc.login, Stdout: tc.stdout})
 			repo := tempRepo(t, tc.remote)
 
-			stdout, stderr, code := runGGStreamsWithFake(t, bin, fakeDir, repo, tc.args...)
-			if code != 2 {
-				t.Errorf("gg %v: exit code = %d, want 2 (stdout: %s, stderr: %s)", tc.args, code, stdout, stderr)
+			out, code := runGG(t, bin, fakeDir, repo, tc.args...)
+			if code != 0 {
+				t.Fatalf("gg %v: exit %d: %s", tc.args, code, out)
 			}
-			if !strings.Contains(stderr, tc.want) {
-				t.Errorf("gg %v: stderr = %q, want substring %q", tc.args, stderr, tc.want)
-			}
-			if got := readLog(t, logFile); got != "" {
-				t.Errorf("fake provider should not be called, got: %q", got)
+			got := readLog(t, logFile)
+			for _, want := range tc.calls {
+				if !strings.Contains(got, want) {
+					t.Errorf("호출 기록에 %q 없음:\n%s", want, got)
+				}
 			}
 		})
 	}
+}
+
+// 로그인이 없거나 목록에 없는 label은 오류로 끝난다.
+func TestE2ELabelEditDeleteIDResolutionFailures(t *testing.T) {
+	t.Run("glab edit without login", func(t *testing.T) {
+		bin := buildGG(t)
+		fakeDir := t.TempDir()
+		logFile := filepath.Join(t.TempDir(), "calls.log")
+		writeFakeCLI(t, fakeDir, "glab", fakeCLIConfig{LogFile: logFile, Stderr: "no auth", ExitCode: 1})
+		repo := tempRepo(t, "https://gitlab.com/o/r.git")
+
+		out, code := runGG(t, bin, fakeDir, repo, "label", "edit", "bug", "--color", "00ff00")
+		if code == 0 {
+			t.Fatalf("api 실패 시 종료 코드 0이어야 안 됨: %s", out)
+		}
+		if !strings.Contains(out, "cannot look up label") {
+			t.Errorf("조회 실패 안내 기대, got %s", out)
+		}
+	})
+
+	t.Run("tea edit label not found", func(t *testing.T) {
+		bin := buildGG(t)
+		fakeDir := t.TempDir()
+		logFile := filepath.Join(t.TempDir(), "calls.log")
+		writeFakeCLI(t, fakeDir, "tea", fakeCLIConfig{LogFile: logFile, TeaLogin: true, Stdout: `[{"id":9,"name":"bug"}]`})
+		repo := tempRepo(t, "https://gitea.com/o/r.git")
+
+		out, code := runGG(t, bin, fakeDir, repo, "label", "edit", "missing", "--color", "00ff00")
+		if code != 1 {
+			t.Fatalf("exit = %d, want 1: %s", code, out)
+		}
+		if !strings.Contains(out, `label "missing" not found`) {
+			t.Errorf("label 부재 안내 기대, got %s", out)
+		}
+	})
 }
 
 func TestE2ELabelEditUsageErrors(t *testing.T) {

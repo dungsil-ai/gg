@@ -429,7 +429,7 @@ ADR 0007: GitHub 고유 자원(codespace, project, secret, gist 등)은 세 prov
 - `label`
   - [x] `glab label create` (대응: `gg label create`)
   - [x] `glab label delete` (대응: `gg label delete`; glab에는 확인 flag가 없어 `--yes`는 gh에만 전달)
-  - [ ] `glab label edit` (glab이 label 이름이 아니라 numeric label id `--label-id`를 요구해 `gg label edit`로 중계하지 않음)
+  - [x] `glab label edit` (대응: `gg label edit <name>`; gg가 label 목록을 `glab api`로 조회해 이름을 numeric label id로 바꿔 `--label-id`로 전달합니다)
   - [x] `glab label list` (대응: `gg label list`)
 - `mr`
   - [x] `glab mr approve` (대응: `gg pr review --approve`)
@@ -580,9 +580,9 @@ ADR 0007: GitLab 고유 기능(incident, schedule, stack 등)은 개별 수요�
   - [x] `tea issues reopen` (대응: `gg issue reopen`)
 - `labels`
   - [x] `tea labels create` (대응: `gg label create`; tea는 `--color`가 필요합니다)
-  - [ ] `tea labels delete` (tea가 label 이름이 아니라 numeric label id `--id`를 요구해 `gg label delete`로 중계하지 않음)
+  - [x] `tea labels delete` (대응: `gg label delete <name>`; gg가 label 목록을 `tea api`로 조회해 이름을 numeric label id로 바꿔 `--id`로 전달합니다)
   - [x] `tea labels list` (대응: `gg label list`)
-  - [ ] `tea labels update` (tea가 label 이름이 아니라 numeric label id `--id`를 요구해 `gg label edit`로 중계하지 않음)
+  - [x] `tea labels update` (대응: `gg label edit <name>`; gg가 label 목록을 `tea api`로 조회해 이름을 numeric label id로 바꿔 `--id`로 전달합니다)
 - `logins`
   - [ ] `tea logins add` (tea CLI 자신의 로컬 인증 설정 관리라 gg가 중계하지 않음 — gg config가 host→provider 매핑을 대신한다. ADR 0007)
   - [ ] `tea logins delete` (tea CLI 자신의 로컬 인증 설정 관리라 gg가 중계하지 않음 — ADR 0007)

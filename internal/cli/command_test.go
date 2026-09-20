@@ -912,9 +912,9 @@ func TestTranslateTeaPRCommentSubActionsUnsupported(t *testing.T) {
 	}
 }
 
-// TestTranslateLabelEditUnsupported는 label edit의 provider별 미지원을 본다.
-// glab은 dispatch의 builder 부재 오류, tea는 사전 가드 오류이다.
-func TestTranslateLabelEditUnsupported(t *testing.T) {
+// TestTranslateLabelEditIDSurface는 numeric label id를 요구하는 glab·tea의
+// label edit argv를 본다. id는 resolvePlan의 사전 조회(forgeLabelID)로 채워진다.
+func TestTranslateLabelEditIDSurface(t *testing.T) {
 	cases := []struct {
 		name string
 		p    Provider
@@ -922,21 +922,20 @@ func TestTranslateLabelEditUnsupported(t *testing.T) {
 		want string
 	}{
 		{name: "glab", p: GLab, repo: RepoURL{Host: "gitlab.com", Owner: "o", Name: "r"},
-			want: "label does not support edit"},
+			want: "label edit --label-id 7 --new-name critical --color #00FF00 --repo https://gitlab.com/o/r"},
 		{name: "tea", p: Tea, repo: RepoURL{Host: "gitea.com", Owner: "o", Name: "r"},
-			want: "label edit is not supported for tea"},
+			want: "labels update --id 7 --login corp --repo o/r --name critical --color #00FF00"},
 	}
 	for _, c := range cases {
-		_, err := Translate(
-			Request{Resource: "label", Action: "edit", Name: "bug", Color: "#00FF00"},
+		got, err := Translate(
+			Request{Resource: "label", Action: "edit", Name: "bug", NewName: "critical", Color: "#00FF00", LabelID: "7"},
 			c.repo, c.p, "corp",
 		)
-		var usage UsageError
-		if !errors.As(err, &usage) {
-			t.Fatalf("Translate(label edit, %s): UsageError 기대, got %v", c.name, err)
+		if err != nil {
+			t.Fatalf("Translate(label edit, %s): %v", c.name, err)
 		}
-		if usage.Msg != c.want {
-			t.Errorf("%s 오류 = %q, want %q", c.name, usage.Msg, c.want)
+		if got.Bin != string(c.p) || strings.Join(got.Args, " ") != c.want {
+			t.Errorf("%s argv = %q, want %q", c.name, strings.Join(got.Args, " "), c.want)
 		}
 	}
 }
@@ -1047,16 +1046,16 @@ func TestTranslateLabelListCreateForTea(t *testing.T) {
 		t.Errorf("label create tea argv = %v, want %v", got.Args, want.Args)
 	}
 
-	_, err = Translate(
-		Request{Resource: "label", Action: "delete", Name: "bug"},
+	got, err = Translate(
+		Request{Resource: "label", Action: "delete", Name: "bug", LabelID: "7"},
 		repo, Tea, "corp",
 	)
-	var usage UsageError
-	if !errors.As(err, &usage) {
-		t.Fatalf("Translate(label delete, tea): UsageError 기대, got %v", err)
+	if err != nil {
+		t.Fatalf("Translate(label delete, tea): %v", err)
 	}
-	if usage.Msg != "label delete is not supported for tea" {
-		t.Errorf("Tea 오류 = %q", usage.Msg)
+	want = Invocation{Bin: "tea", Args: []string{"labels", "delete", "--id", "7", "--login", "corp", "--repo", "o/r"}}
+	if got.Bin != want.Bin || strings.Join(got.Args, " ") != strings.Join(want.Args, " ") {
+		t.Errorf("label delete tea argv = %v, want %v", got.Args, want.Args)
 	}
 }
 
@@ -1226,7 +1225,7 @@ func TestPlanTeaIssueCommentListRelayed(t *testing.T) {
 	}
 }
 
-func TestPlanTeaLabelUnsupportedSkipsLogin(t *testing.T) {
+func TestPlanTeaLabelDeleteNeedsLogin(t *testing.T) {
 	t.Setenv("GG_HOME", t.TempDir())
 	fakeExec(t, map[string]string{})
 
@@ -1236,12 +1235,11 @@ func TestPlanTeaLabelUnsupportedSkipsLogin(t *testing.T) {
 		Name:     "bug",
 		RepoFlag: "https://gitea.com/o/r",
 	})
-	var usage UsageError
-	if !errors.As(err, &usage) {
-		t.Fatalf("plan(label delete, tea): UsageError 기대, got %v", err)
+	if err == nil {
+		t.Fatal("plan(label delete, tea): tea 미설치 시 로그인 오류 기대")
 	}
-	if usage.Msg != "label delete is not supported for tea" {
-		t.Errorf("Tea 오류 = %q", usage.Msg)
+	if !strings.Contains(err.Error(), "no tea login for gitea.com") {
+		t.Errorf("로그인 안내 기대, got %v", err)
 	}
 }
 
