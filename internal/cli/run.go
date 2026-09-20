@@ -292,7 +292,7 @@ func resolvePlan(req Request) (executionPlan, error) {
 			req.Action == "comment edit" || req.Action == "comment delete" || req.Action == "delete"))
 	if p == Tea && !(req.Resource == "repo" && req.Action == "clone") && !unsupportedTeaAction {
 		if teaLogin = teaLoginName(repo.Host); teaLogin == "" {
-			return executionPlan{}, fmt.Errorf("no tea login for %s (run: tea login add)", repo.Host)
+			return executionPlan{}, teaLoginError(repo.Host)
 		}
 	}
 	inv, err := Translate(req, repo, p, teaLogin)

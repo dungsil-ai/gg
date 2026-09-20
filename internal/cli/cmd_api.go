@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 )
 
 // runAPIRelay는 "gg api [args...]" 원시 passthrough를 처리한다(ADR 0007).
@@ -68,7 +67,7 @@ func runAPIRelay(args []string) int {
 	case Tea:
 		login := teaLoginName(repo.Host)
 		if login == "" {
-			return fail(fmt.Errorf("no tea login for %s (run: tea login add)", repo.Host))
+			return fail(teaLoginError(repo.Host))
 		}
 		inv = Invocation{Bin: "tea", Args: append([]string{"api", "--login", login, "--repo", repo.Slug()}, relayArgs...)}
 	}
