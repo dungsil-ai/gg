@@ -102,6 +102,15 @@ func run(args []string) int {
 		explain(os.Stdout, ep)
 		return 0
 	}
+	// 번호 없는 pr status는 gh pr status(자기 PR 현황 조회)를 그대로 중계한다.
+	// 출력이 사람 읽용 텍스트라 merge readiness 파서를 거치지 않는다.
+	if req.Resource == "pr" && req.Action == "status" && req.Number == "" {
+		inv, err := plan(req)
+		if err != nil {
+			return fail(err)
+		}
+		return execChild(inv)
+	}
 	if req.Resource == "pr" && req.Action == "status" {
 		ep, err := resolvePlan(req)
 		if err != nil {

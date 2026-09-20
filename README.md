@@ -249,7 +249,7 @@ release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게�
   - [x] `gh pr ready` (대응: `gg pr ready`)
   - [x] `gh pr reopen` (대응: `gg pr reopen`)
   - [x] `gh pr review` (대응: `gg pr review [--approve|--request-changes|--comment]`; glab은 approve만, tea는 approve·request-changes만 중계)
-  - [ ] `gh pr status` (`gg pr status <number>`가 이미 병합 가능성 조회로 쓰는 이름이라, 번호 없이 자기 PR 현황을 보는 `gh pr status` 표면과 충돌 — 별도 표면 설계가 필요해 보류)
+  - [x] `gh pr status` (대응: 번호 없는 `gg pr status` — 자기 PR 현황 `gh pr status`를 그대로 중계; glab·tea에는 대응 명령이 없어 번호와 함께 쓰는 병합 가능성 조회 `gg pr status <number>`만 지원)
   - [x] `gh pr unlock` (대응: `gg pr unlock`; glab·tea에 PR 잠금 해제 하위 명령이 없어 미지원)
   - [x] `gh pr update-branch` (대응: `gg pr update-branch`; glab·tea에 같은 동작의 하위 명령이 없어 미지원)
   - [x] `gh pr view` (대응: `gg pr view`)
@@ -672,7 +672,7 @@ ADR 0007: Gitea CLI 고유 기능(admin, times, milestones 등)은 개별 수요
   - [x] `gg auth status` (provider 설정 host와 기본 domain의 로그인 상태를 한 표로 조회; gh, glab, tea 지원)
   - exit code 계약: 표 조회 자체가 실패할 때만 0이 아닌 exit code를 냅니다 — 손상된 config.json 읽기 시 1. 행별 `no`·`no cli`는 결과 값이며 exit 0입니다.
 - `pr`
-  - [x] `gg pr status` (GitHub, GitLab 지원; Gitea 미지원)
+  - [x] `gg pr status` (번호와 함께: GitHub·GitLab 병합 가능성 조회, Gitea 미지원. 번호 없이: `gh pr status` 자기 PR 현황 중계 — GitHub 전용)
   - GitLab은 승인 상태를 `glab api projects/<owner>%2F<repo>/merge_requests/<number>/approvals`로 별도 조회합니다(`glab mr view` JSON에는 승인 정보가 없음). 이 조회가 실패하면 조회 실패로 처리합니다.
   - exit code 계약: 조회 자체가 실패할 때만 0이 아닌 exit code를 냅니다 — 하위 CLI(gh/glab) 미설치 시 127, 자식이 신호로 종료하면 128+신호 코드, 그 외 조회 실패는 하위 CLI의 종료 코드(신호 종료가 아니면 1로 문서화). 조회 성공 시 병합 불가·CI 실패·승인 대기는 결과 값이며 exit 0입니다. CI 값 범위는 pass|fail|pending|none|unknown이고, NEUTRAL/SKIPPED 체크는 pass로 셉니다.
   - [x] `gg pr ready` (GitHub, GitLab 지원; Gitea 미지원)

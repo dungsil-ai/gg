@@ -109,6 +109,11 @@ func glabInvocation(req Request, r RepoURL) (Invocation, error) {
 	if req.Resource == "pr" && req.Action == "update-branch" {
 		return Invocation{}, usageErr("pr update-branch is not supported for glab")
 	}
+	// glab에는 gh pr status 같은 자기 MR 현황 명령이 없다. 번호가 있으면
+	// merge readiness 조회로 중계한다.
+	if req.Resource == "pr" && req.Action == "status" && req.Number == "" {
+		return Invocation{}, usageErr("pr status without a number is not supported for glab")
+	}
 	// glab에는 changes 요청과 리뷰 본문 달기 명령이 없어 approve만 중계한다.
 	if req.Resource == "pr" && req.Action == "review" && (req.RequestChanges || req.ReviewComment) {
 		return Invocation{}, usageErr("pr review --request-changes/--comment is not supported for glab")

@@ -13,17 +13,20 @@ func TestParseRequestPRStatus(t *testing.T) {
 	if req.Resource != "pr" || req.Action != "status" || req.Number != "42" {
 		t.Fatalf("req = %+v", req)
 	}
+	// 번호 없이는 gh pr status(자기 PR 현황) 중계다.
+	req, err = ParseRequest([]string{"pr", "status"})
+	if err != nil {
+		t.Fatalf("pr status: %v", err)
+	}
+	if req.Resource != "pr" || req.Action != "status" || req.Number != "" {
+		t.Fatalf("numberless req = %+v", req)
+	}
 	req, err = ParseRequest([]string{"pr", "status", "42", "--remote", "upstream"})
 	if err != nil || req.RemoteFlag != "upstream" {
 		t.Fatalf("--remote: req %+v, err %v", req, err)
 	}
-	for _, args := range [][]string{
-		{"pr", "status"},
-		{"pr", "status", "1", "2"},
-	} {
-		if _, err := ParseRequest(args); err == nil {
-			t.Errorf("ParseRequest(%v) should fail", args)
-		}
+	if _, err := ParseRequest([]string{"pr", "status", "1", "2"}); err == nil {
+		t.Error("ParseRequest([pr status 1 2]) should fail")
 	}
 }
 
@@ -38,6 +41,15 @@ func TestTranslatePRStatus(t *testing.T) {
 		t.Errorf("gh args = %q, want %q", got, want)
 	}
 
+	// 번호 없이는 gh pr status 자체를 중계한다.
+	inv, err = Translate(Request{Resource: "pr", Action: "status"}, r, GH, "")
+	if err != nil {
+		t.Fatalf("gh numberless: %v", err)
+	}
+	if want := "pr status -R github.com/o/r"; strings.Join(inv.Args, " ") != want {
+		t.Errorf("gh numberless args = %q, want %q", strings.Join(inv.Args, " "), want)
+	}
+
 	r = RepoURL{Host: "gitlab.com", Owner: "o", Name: "r"}
 	inv, err = Translate(Request{Resource: "pr", Action: "status", Number: "7"}, r, GLab, "")
 	if err != nil {
@@ -46,6 +58,13 @@ func TestTranslatePRStatus(t *testing.T) {
 	want = "mr view 7 --output json --repo https://gitlab.com/o/r"
 	if got := strings.Join(inv.Args, " "); got != want {
 		t.Errorf("glab args = %q, want %q", got, want)
+	}
+
+	// glab에는 번호 없는 현황 명령이 없다.
+	if _, err := Translate(Request{Resource: "pr", Action: "status"}, r, GLab, ""); err == nil {
+		t.Error("glab numberless pr status should fail")
+	} else if !strings.Contains(err.Error(), "not supported for glab") {
+		t.Errorf("glab numberless error = %v", err)
 	}
 
 	if _, err := Translate(Request{Resource: "pr", Action: "status", Number: "7"}, RepoURL{Host: "gitea.com", Owner: "o", Name: "r"}, Tea, "pub"); err == nil {
