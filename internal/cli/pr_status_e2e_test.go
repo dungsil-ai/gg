@@ -223,12 +223,36 @@ func TestE2EPRStatusProviderFailureFails(t *testing.T) {
 	}
 }
 
-func TestE2EPRStatusMissingNumberIsUsageError(t *testing.T) {
+func TestE2EPRStatusOverviewRelaysGHStatus(t *testing.T) {
 	bin := buildGG(t)
 	fakeDir := t.TempDir()
-	writeFakeStatusBin(t, fakeDir, "gh", filepath.Join(t.TempDir(), "calls.log"), `{}`)
-	out, code := runGG(t, bin, fakeDir, t.TempDir(), "pr", "status")
-	if code != 2 || !strings.Contains(out, "usage: gg pr status <number>") {
+	logFile := filepath.Join(t.TempDir(), "calls.log")
+	writeFakeBin(t, fakeDir, "gh", logFile)
+	repo := tempRepo(t, "https://github.com/o/r.git")
+
+	out, code := runGG(t, bin, fakeDir, repo, "pr", "status")
+	if code != 0 {
+		t.Fatalf("exit %d, output %s", code, out)
+	}
+	got := readLog(t, logFile)
+	for _, want := range []string{`"pr"`, `"status"`, `"-R"`, `"github.com/o/r"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("gh pr status relay 기대, log = %q", got)
+		}
+	}
+	if strings.Contains(out, "Draft:") {
+		t.Errorf("번호 없이는 merge readiness 파서를 거치지 않아야 한다, got %s", out)
+	}
+}
+
+func TestE2EPRStatusOverviewGlabUnsupported(t *testing.T) {
+	bin := buildGG(t)
+	fakeDir := t.TempDir()
+	writeFakeBin(t, fakeDir, "glab", filepath.Join(t.TempDir(), "calls.log"))
+	repo := tempRepo(t, "https://gitlab.com/o/r.git")
+
+	out, code := runGG(t, bin, fakeDir, repo, "pr", "status")
+	if code != 2 || !strings.Contains(out, "pr status without a number is not supported for glab") {
 		t.Fatalf("exit %d, output %s", code, out)
 	}
 }
@@ -240,11 +264,13 @@ func TestE2EPRStatusTeaUnsupported(t *testing.T) {
 	writeFakeBin(t, fakeDir, "tea", logFile)
 	repo := tempRepo(t, "https://gitea.com/o/r.git")
 
-	out, code := runGG(t, bin, fakeDir, repo, "pr", "status", "42")
-	if code != 2 || !strings.Contains(out, "pr status is not supported for tea") {
-		t.Fatalf("exit %d, output %s", code, out)
-	}
-	if got := readLog(t, logFile); got != "" {
-		t.Errorf("tea should not run, got %q", got)
+	for _, args := range [][]string{{"pr", "status", "42"}, {"pr", "status"}} {
+		out, code := runGG(t, bin, fakeDir, repo, args...)
+		if code != 2 || !strings.Contains(out, "pr status is not supported for tea") {
+			t.Fatalf("args %v: exit %d, output %s", args, code, out)
+		}
+		if got := readLog(t, logFile); got != "" {
+			t.Errorf("tea should not run, got %q", got)
+		}
 	}
 }

@@ -136,11 +136,11 @@ var prResourceDef = &resourceDef{
 			},
 		},
 		{
-			name: "status", summary: "Show merge readiness for one pull request", usage: "gg pr status <number> [flags]",
+			name: "status", summary: "Show merge readiness for one pull request, or the gh PR overview without a number", usage: "gg pr status [<number>] [flags]",
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
-			minPos: 1, maxPos: 1,
-			posErr: "usage: gg pr status <number>",
+			minPos: 0, maxPos: 1,
+			posErr: "usage: gg pr status [<number>]",
 			setPos: setNumber,
 		},
 		{
@@ -647,6 +647,10 @@ var prInvocationTable = map[string]providerBuilders{
 	"pr diff":          prDiffBuilders,
 	"pr status": {
 		gh: func(c invocationContext) (args, env []string) {
+			if c.req.Number == "" {
+				// 번호 없이는 gh pr status(자기 PR 현황 조회)를 그대로 중계한다.
+				return []string{"pr", "status", "-R", c.r.Host + "/" + c.r.Slug()}, nil
+			}
 			return []string{"pr", "view", c.req.Number, "-R", c.r.Host + "/" + c.r.Slug(), "--json", ghStatusFields()}, nil
 		},
 		glab: func(c invocationContext) (args, env []string) {

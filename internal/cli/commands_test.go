@@ -72,7 +72,7 @@ var actionHelpContracts = map[string]helpContract{
 	"pr comment list":   {"<number> [flags]", forgeHelpFlags},
 	"pr comment edit":   {"<number> <comment-id> [flags]", "--body <text> " + forgeHelpFlags},
 	"pr comment delete": {"<number> <comment-id> [flags]", forgeHelpFlags},
-	"pr status":         {"<number> [flags]", forgeHelpFlags},
+	"pr status":         {"[<number>] [flags]", forgeHelpFlags},
 	"pr ready":          {"<number> [flags]", "--undo " + forgeHelpFlags},
 	"pr merge":          {"<number> [flags]", "--merge --squash --rebase --delete-branch --auto " + forgeHelpFlags},
 	"pr close":          {"<number> [flags]", forgeHelpFlags},
