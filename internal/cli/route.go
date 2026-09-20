@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -223,6 +225,39 @@ func teaLoginName(host string) string {
 		}
 	}
 	return ""
+}
+
+// teaMajorVersion은 tea --version 출력에서 주 버전을 읽는다. 출력 형식이
+// 버전대마다 달라(urfave/cli 기본 템플릿, v 접두사 유무) 관용적으로 본다.
+// 모르면 0을 돌려준다.
+func teaMajorVersion() int {
+	out, err := runOut("tea", "--version")
+	if err != nil {
+		return 0
+	}
+	m := teaVersionMajorRe.FindStringSubmatch(out)
+	if m == nil {
+		return 0
+	}
+	n, err := strconv.Atoi(m[1])
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
+// teaVersionMajorRe는 "--version" 출력의 첫 버전 숫자 쌍("v1.3", " 0.16")을
+// 찾는다.
+var teaVersionMajorRe = regexp.MustCompile(`(?:^|\s)v?(\d+)\.\d`)
+
+// teaLoginError는 tea login 조회가 실패했을 때 낼 오류다. tea v1.x는
+// gg가 중계하는 클래식 표면(logins, api 등)이 아예 없어, 로그인 부재 오류는
+// 사용자를 잘못된 방향으로 보내므로 미대응 안내를 대신 낸다.
+func teaLoginError(host string) error {
+	if teaMajorVersion() == 1 {
+		return fmt.Errorf("tea v1.x is not supported yet; gg relays classic tea (v0.x) surfaces (see the tea notes in README)")
+	}
+	return fmt.Errorf("no tea login for %s (run: tea login add)", host)
 }
 
 func hasLogin(p Provider, host string) bool {

@@ -564,6 +564,8 @@ ADR 0007: GitLab 고유 기능(incident, schedule, stack 등)은 개별 수요�
 
 ## tea (Gitea CLI) 기능 목록
 
+> **tea v1.x(리디자인 CLI) 미대응**: gg의 tea 중계는 클래식 tea(v0.x) 표면을 기준으로 합니다. tea v1.x는 `logins`·`api` 등 gg가 쓰는 하위 명령이 없어서, 설치된 tea가 v1.x이면 로그인 안내 대신 미대응 오류를 냅니다. 클래식 tea를 설치해 사용하세요.
+
 ### 공통 핵심 명령 (Core Commands)
 - [x] `tea clone` (대응: `gg repo clone`, `gg clone`)
 - `comment`
