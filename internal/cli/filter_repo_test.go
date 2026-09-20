@@ -210,6 +210,29 @@ func TestE2EFilterRepoReplaceTextFromFile(t *testing.T) {
 	}
 }
 
+// 메모장·PowerShell 등이 넣는 UTF-8 BOM이 파일 첫 규칙을 조용히 무력화하지
+// 않아야 한다.
+func TestE2EFilterRepoReplaceTextFromFileWithBOM(t *testing.T) {
+	dir := filterRepoTestRepo(t, map[string]string{"a.txt": "secret password=hunter2\n"})
+	f := filepath.Join(t.TempDir(), "replacements.txt")
+	content := "\xef\xbb\xbfsecret==>***\npassword=\\S+==>password=?\n"
+	if err := os.WriteFile(f, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := runFilterRepoIn(t, dir, Request{
+		Resource: "repo", Action: "filter-repo",
+		FilterReplaces: []string{f}, FilterForce: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := gitIn(t, dir, "show", "HEAD:a.txt"); got != "second" {
+		t.Errorf("BOM 뒤 첫 규칙 적용 기대, got %q", got)
+	}
+	if got := gitIn(t, dir, "show", "HEAD^:a.txt"); got != "*** password=?" {
+		t.Errorf("BOM 뒤 두 번째 규칙 적용 기대, got %q", got)
+	}
+}
+
 func TestParseMailmapFile(t *testing.T) {
 	dir := t.TempDir()
 	f := filepath.Join(dir, "mailmap")
@@ -234,6 +257,22 @@ func TestParseMailmapFile(t *testing.T) {
 	}
 	if _, err := parseMailmapFile(filepath.Join(dir, "missing")); err == nil {
 		t.Error("missing file: 오류 기대")
+	}
+}
+
+// BOM이 남으면 proper name 앞에 BOM이 붙어 재작성된 저자 이름에 박제된다.
+func TestParseMailmapFileWithBOM(t *testing.T) {
+	f := filepath.Join(t.TempDir(), "mailmap")
+	content := "\xef\xbb\xbfNew Name <new@example.com> <old@example.com>\n"
+	if err := os.WriteFile(f, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	mm, err := parseMailmapFile(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nn, ee, changed := applyMailmap(mm, "Old", "old@example.com"); !changed || nn != "New Name" || ee != "new@example.com" {
+		t.Errorf("BOM mailmap = %q <%q> changed=%v", nn, ee, changed)
 	}
 }
 

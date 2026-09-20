@@ -382,6 +382,7 @@ func resolveReplaceTextFilters(raw []string) ([]replaceRule, error) {
 			if err != nil {
 				return nil, usageErr(fmt.Sprintf("repo filter-repo --replace-text: cannot read file %q", v))
 			}
+			data = trimUTF8BOM(data)
 			for i, line := range strings.Split(string(data), "\n") {
 				line = strings.TrimRight(line, "\r")
 				if strings.TrimSpace(line) == "" || strings.HasPrefix(strings.TrimSpace(line), "#") {
@@ -429,6 +430,13 @@ func (r replaceRule) apply(s string) string {
 
 var mailmapEmailRe = regexp.MustCompile(`<([^<>]*)>`)
 
+// trimUTF8BOM은 파일 앞의 UTF-8 BOM을 벗긴다. 메모장·PowerShell 등이 BOM을
+// 넣는데 남겨 두면 replace-text 첫 규칙의 정규식에 BOM 바이트가 포함돼 조용히
+// 어긋나고, mailmap은 BOM을 proper name 앞에 붙여 재작성된 저자 이름에 박제한다.
+func trimUTF8BOM(data []byte) []byte {
+	return bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
+}
+
 // parseMailmapFile은 자주 쓰는 mailmap 줄 형식을 읽는다:
 // "Name <proper> <commit>", "Name <proper> Commit <commit>",
 // "<proper> <commit>", "Name <proper>".
@@ -437,6 +445,7 @@ func parseMailmapFile(p string) (*mailmap, error) {
 	if err != nil {
 		return nil, usageErr(fmt.Sprintf("repo filter-repo --mailmap: cannot read file %q", p))
 	}
+	data = trimUTF8BOM(data)
 	mm := &mailmap{byEmail: map[string]mailmapEntry{}, byNameEmail: map[string]mailmapEntry{}}
 	for i, line := range strings.Split(string(data), "\n") {
 		line = strings.TrimRight(line, "\r")
