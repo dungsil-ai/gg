@@ -1,0 +1,116 @@
+name: Create and push release tag
+description: >-
+  release 커밋임을 검증하고 annotated tag를 만들어 push한다. tag push는
+  RELEASE_ADMIN_TOKEN(PAT)으로 해야 한다 — GITHUB_TOKEN으로 push한 tag는
+  이어지는 Release workflow를 트리거하지 못한다(GitHub 재귀 방지).
+inputs:
+  tag:
+    description: 만들 tag(vMAJOR.MINOR.PATCH)
+    required: true
+  release-admin-token:
+    description: Contents write 권한이 있는 PAT
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Verify release commit
+      shell: bash
+      run: |
+        TAG="${{ inputs.tag }}"
+
+        HEAD_COMMIT=$(git rev-parse HEAD)
+        COMMIT_MSG=$(git log -1 --format=%s HEAD)
+        echo "HEAD commit: $HEAD_COMMIT"
+        echo "Commit subject: $COMMIT_MSG"
+
+        if [ "$COMMIT_MSG" != "release: $TAG" ]; then
+          echo "Error: Commit subject '$COMMIT_MSG' does not match expected release commit format 'release: $TAG'."
+          exit 1
+        fi
+
+        HEAD_TREE=$(git rev-parse "HEAD^{tree}")
+        PARENT_TREE=$(git rev-parse "HEAD~1^{tree}" 2>/dev/null || echo "")
+        echo "HEAD tree: $HEAD_TREE"
+        echo "Parent tree: $PARENT_TREE"
+
+        if [ -z "$PARENT_TREE" ]; then
+          echo "Error: Release commit '$HEAD_COMMIT' has no parent commit."
+          exit 1
+        fi
+
+        if [ "$HEAD_TREE" != "$PARENT_TREE" ]; then
+          echo "Error: Release commit '$HEAD_COMMIT' is not an empty commit (tree changed from parent)."
+          exit 1
+        fi
+
+        DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+        if [ -z "$DEFAULT_BRANCH" ]; then
+          echo "Error: Repository default branch is empty."
+          exit 1
+        fi
+
+        set +e
+        DEFAULT_BRANCH_OUTPUT=$(git ls-remote --exit-code --refs origin "refs/heads/$DEFAULT_BRANCH" 2>&1)
+        DEFAULT_BRANCH_STATUS=$?
+        set -e
+
+        if [ "$DEFAULT_BRANCH_STATUS" -ne 0 ]; then
+          echo "Error: Failed to resolve current tip of default branch '$DEFAULT_BRANCH' (exit code $DEFAULT_BRANCH_STATUS):"
+          echo "$DEFAULT_BRANCH_OUTPUT"
+          exit 1
+        fi
+
+        DEFAULT_BRANCH_TIP=${DEFAULT_BRANCH_OUTPUT%%$'\t'*}
+        echo "Default branch: $DEFAULT_BRANCH"
+        echo "Default branch tip: $DEFAULT_BRANCH_TIP"
+        if [ "$HEAD_COMMIT" != "$DEFAULT_BRANCH_TIP" ]; then
+          echo "Error: Release commit '$HEAD_COMMIT' is not the current tip of default branch '$DEFAULT_BRANCH' ('$DEFAULT_BRANCH_TIP')."
+          exit 1
+        fi
+
+        git fetch --tags --force origin
+        if git show-ref --verify --quiet "refs/tags/$TAG"; then
+          TAG_TARGET=$(git rev-parse "refs/tags/$TAG^{}")
+          if [ "$TAG_TARGET" = "$HEAD_COMMIT" ]; then
+            echo "Tag '$TAG' already points to HEAD; skipping."
+            exit 0
+          fi
+          echo "Error: Tag '$TAG' already exists pointing to '$TAG_TARGET'."
+          exit 1
+        fi
+
+        set +e
+        LS_REMOTE_TAG_OUTPUT=$(git ls-remote --exit-code --tags origin "refs/tags/$TAG" 2>&1)
+        LS_REMOTE_TAG_STATUS=$?
+        set -e
+        if [ "$LS_REMOTE_TAG_STATUS" -eq 0 ]; then
+          echo "Error: Tag '$TAG' already exists on origin."
+          exit 1
+        elif [ "$LS_REMOTE_TAG_STATUS" -ne 2 ]; then
+          echo "Error: Failed to check remote tag '$TAG' (exit code $LS_REMOTE_TAG_STATUS):"
+          echo "$LS_REMOTE_TAG_OUTPUT"
+          exit 1
+        fi
+
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        git tag -a "$TAG" -m "Release $TAG"
+
+    - name: Push release tag
+      shell: bash
+      env:
+        RELEASE_ADMIN_TOKEN: ${{ inputs.release-admin-token }}
+      run: |
+        TAG="${{ inputs.tag }}"
+
+        if [ -z "${RELEASE_ADMIN_TOKEN:-}" ]; then
+          echo "Error: RELEASE_ADMIN_TOKEN is required to push the tag."
+          echo "A tag pushed with GITHUB_TOKEN does not trigger the Release workflow (GitHub recursion prevention),"
+          echo "so the tag must be pushed with a PAT that has Contents write permission."
+          exit 1
+        fi
+
+        git remote add release-push "https://x-access-token:${RELEASE_ADMIN_TOKEN}@github.com/${{ github.repository }}.git"
+        git push release-push "refs/tags/$TAG"
+        echo "Created and pushed tag '$TAG'."
