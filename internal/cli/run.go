@@ -265,12 +265,12 @@ func resolvePlan(req Request) (executionPlan, error) {
 	teaLogin := ""
 	// ci 전체와 release의 view·download·upload·delete-asset, pr status/ready/
 	// diff/checks/lock/unlock/update-branch/rebase, pr comment edit/delete,
-	// pr merge --auto/--delete-branch, pr review --comment, label edit·delete·
-	// clone, issue 관계 등록, issue comment edit/delete, issue edit, issue
+	// pr merge --auto/--delete-branch, pr review --comment, label clone,
+	// issue 관계 등록, issue comment edit/delete, issue edit, issue
 	// delete, repo의 contributors·transfer·mirror·edit·rename·sync·
 	// set-default는 provider를 고른 뒤 미지원을 확정하므로 tea login을 묻지
-	// 않는다. label list·create, pr/issue comment list와 pr review의
-	// approve·request-changes는 tea도 중계하므로 login을 묻는다.
+	// 않는다. label list·create·edit·delete, pr/issue comment list와 pr
+	// review의 approve·request-changes는 tea도 중계하므로 login을 묻는다.
 	unsupportedTeaAction := (req.Resource == "pr" && (req.Action == "status" || req.Action == "ready" ||
 		req.Action == "diff" ||
 		req.Action == "checks" || req.Action == "update-branch" || req.Action == "rebase" ||
@@ -280,7 +280,7 @@ func resolvePlan(req Request) (executionPlan, error) {
 		req.Action == "comment edit" || req.Action == "comment delete")) ||
 		(req.Resource == "pr" && req.Action == "review" && req.ReviewComment) ||
 		(req.Resource == "pr" && req.Action == "merge" && (req.Auto || req.DeleteBranch)) ||
-		(req.Resource == "label" && (req.Action == "edit" || req.Action == "delete" || req.Action == "clone")) ||
+		(req.Resource == "label" && req.Action == "clone") ||
 		(req.Resource == "release" && (req.Action == "view" || req.Action == "download" ||
 			req.Action == "upload" || req.Action == "delete-asset")) ||
 		req.Resource == "ci" || req.Resource == "workflow" ||
@@ -294,6 +294,18 @@ func resolvePlan(req Request) (executionPlan, error) {
 		if teaLogin = teaLoginName(repo.Host); teaLogin == "" {
 			return executionPlan{}, teaLoginError(repo.Host)
 		}
+	}
+	// glab label edit과 tea labels update·delete는 label 이름이 아니라 numeric
+	// label id를 요구하므로, 이름→id를 미리 조회해 builder에 넣는다
+	// (ghIssueDatabaseID·ghLatestRunID와 같은 사전 조회 패턴). explain은 실행
+	// 예고일 뿐이라 조회하지 않는다.
+	if req.Resource == "label" && !req.Explain &&
+		((p == GLab && req.Action == "edit") || (p == Tea && (req.Action == "edit" || req.Action == "delete"))) {
+		id, err := forgeLabelID(p, repo, req.Name, teaLogin)
+		if err != nil {
+			return executionPlan{}, err
+		}
+		req.LabelID = id
 	}
 	inv, err := Translate(req, repo, p, teaLogin)
 	if err != nil {
