@@ -163,6 +163,33 @@ jobs:
             echo "Auto-merge enabled for PR #$PR_NUMBER."
           fi
 
+          # auto-merge로 병합하면 GITHUB_TOKEN 재귀 방지 때문에 push 이벤트가
+          # Release workflow를 트리거하지 않는다. 병합을 여기서 기다린 뒤 이
+          # 실행에서 직접 tag를 만들고 push한다(tag push는 PAT로 해야 이어지는
+          # Release workflow가 트리거된다).
+          echo "Waiting for PR #$PR_NUMBER to merge..."
+          PR_STATE=""
+          for i in $(seq 1 40); do
+            PR_STATE=$(gh pr view "$PR_NUMBER" --json state --jq .state)
+            if [ "$PR_STATE" = "MERGED" ]; then
+              break
+            fi
+            sleep 30
+          done
+          if [ "$PR_STATE" != "MERGED" ]; then
+            echo "Error: PR #$PR_NUMBER did not merge within 20 minutes (state: ${PR_STATE:-unknown})."
+            exit 1
+          fi
+
+          git fetch origin "$DEFAULT_BRANCH"
+          git checkout -B "$DEFAULT_BRANCH" "origin/$DEFAULT_BRANCH"
+
+      - name: Create and push release tag
+        uses: ./.github/actions/create-release-tag
+        with:
+          tag: ${{ inputs.tag }}
+          release-admin-token: ${{ secrets.RELEASE_ADMIN_TOKEN }}
+
   tag-release:
     name: Tag release commit
     if: github.event_name == 'push' && github.ref_type == 'branch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
@@ -175,11 +202,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create and push release tag
+      - name: Derive tag from release commit
         run: |
-          HEAD_COMMIT=$(git rev-parse HEAD)
           COMMIT_MSG=$(git log -1 --format=%s HEAD)
-          echo "HEAD commit: $HEAD_COMMIT"
+          echo "HEAD commit: $(git rev-parse HEAD)"
           echo "Commit subject: $COMMIT_MSG"
 
           if ! echo "$COMMIT_MSG" | grep -Eq '^release: (v[0-9]+\.[0-9]+\.[0-9]+)$'; then
@@ -188,78 +214,14 @@ jobs:
           fi
 
           TAG=$(echo "$COMMIT_MSG" | sed -E 's/^release: //')
-          echo "Tag: $TAG"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
 
-          HEAD_TREE=$(git rev-parse "HEAD^{tree}")
-          PARENT_TREE=$(git rev-parse "HEAD~1^{tree}" 2>/dev/null || echo "")
-          echo "HEAD tree: $HEAD_TREE"
-          echo "Parent tree: $PARENT_TREE"
-
-          if [ -z "$PARENT_TREE" ]; then
-            echo "Error: Release commit '$HEAD_COMMIT' has no parent commit."
-            exit 1
-          fi
-
-          if [ "$HEAD_TREE" != "$PARENT_TREE" ]; then
-            echo "Error: Release commit '$HEAD_COMMIT' is not an empty commit (tree changed from parent)."
-            exit 1
-          fi
-
-          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
-          if [ -z "$DEFAULT_BRANCH" ]; then
-            echo "Error: Repository default branch is empty."
-            exit 1
-          fi
-
-          set +e
-          DEFAULT_BRANCH_OUTPUT=$(git ls-remote --exit-code --refs origin "refs/heads/$DEFAULT_BRANCH" 2>&1)
-          DEFAULT_BRANCH_STATUS=$?
-          set -e
-
-          if [ "$DEFAULT_BRANCH_STATUS" -ne 0 ]; then
-            echo "Error: Failed to resolve current tip of default branch '$DEFAULT_BRANCH' (exit code $DEFAULT_BRANCH_STATUS):"
-            echo "$DEFAULT_BRANCH_OUTPUT"
-            exit 1
-          fi
-
-          DEFAULT_BRANCH_TIP=${DEFAULT_BRANCH_OUTPUT%%$'\t'*}
-          echo "Default branch: $DEFAULT_BRANCH"
-          echo "Default branch tip: $DEFAULT_BRANCH_TIP"
-          if [ "$HEAD_COMMIT" != "$DEFAULT_BRANCH_TIP" ]; then
-            echo "Error: Release commit '$HEAD_COMMIT' is not the current tip of default branch '$DEFAULT_BRANCH' ('$DEFAULT_BRANCH_TIP')."
-            exit 1
-          fi
-
-          git fetch --tags --force origin
-          if git show-ref --verify --quiet "refs/tags/$TAG"; then
-            TAG_TARGET=$(git rev-parse "refs/tags/$TAG^{}")
-            if [ "$TAG_TARGET" = "$HEAD_COMMIT" ]; then
-              echo "Tag '$TAG' already points to HEAD; skipping."
-              exit 0
-            fi
-            echo "Error: Tag '$TAG' already exists pointing to '$TAG_TARGET'."
-            exit 1
-          fi
-
-          set +e
-          LS_REMOTE_TAG_OUTPUT=$(git ls-remote --exit-code --tags origin "refs/tags/$TAG" 2>&1)
-          LS_REMOTE_TAG_STATUS=$?
-          set -e
-          if [ "$LS_REMOTE_TAG_STATUS" -eq 0 ]; then
-            echo "Error: Tag '$TAG' already exists on origin."
-            exit 1
-          elif [ "$LS_REMOTE_TAG_STATUS" -ne 2 ]; then
-            echo "Error: Failed to check remote tag '$TAG' (exit code $LS_REMOTE_TAG_STATUS):"
-            echo "$LS_REMOTE_TAG_OUTPUT"
-            exit 1
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git tag -a "$TAG" -m "Release $TAG"
-          git push origin "refs/tags/$TAG"
-          echo "Created and pushed tag '$TAG'."
+      - name: Create and push release tag
+        if: env.TAG != ''
+        uses: ./.github/actions/create-release-tag
+        with:
+          tag: ${{ env.TAG }}
+          release-admin-token: ${{ secrets.RELEASE_ADMIN_TOKEN }}
 
   release:
     name: Release

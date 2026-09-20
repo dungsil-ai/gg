@@ -29,14 +29,16 @@ go install github.com/dungsil-ai/gg@latest
 gh workflow run Release --ref main -f tag=vMAJOR.MINOR.PATCH
 ```
 
-위 dispatch는 `release/vMAJOR.MINOR.PATCH` branch에 전용 빈 릴리즈 커밋(`release: vMAJOR.MINOR.PATCH`)을 만들고 PR을 올린 뒤, 정확한 subject로 squash auto-merge를 예약합니다. PR이 `main`에 squash 병합되면 push 이벤트에서 같은 subject의 annotated tag를 자동으로 만들고 push하고, tag push에서 Release workflow가 GitHub Release를 게시합니다.
+위 dispatch는 `release/vMAJOR.MINOR.PATCH` branch에 전용 빈 릴리즈 커밋(`release: vMAJOR.MINOR.PATCH`)을 만들고 PR을 올린 뒤, 정확한 subject로 squash auto-merge를 예약합니다. dispatch 실행은 PR 병합을 기다렸다가(`GITHUB_TOKEN`으로 병합된 push는 workflow를 트리거하지 않음) 같은 subject의 annotated tag를 만들어 push하고, tag push에서 Release workflow가 GitHub Release를 게시합니다.
 
-수동으로 병합해야 한다면 squash로만 병합하고 subject를 `release: vMAJOR.MINOR.PATCH`로, body를 비워 병합합니다. rebase 병합은 빈 커밋을 제거하므로 사용하지 않습니다. `main` 직접 push나 `--atomic` push, force push는 사용하지 않습니다.
+수동으로 병합해야 한다면 squash로만 병합하고 subject를 `release: vMAJOR.MINOR.PATCH`로, body를 비워 병합합니다. 수동 병합의 push 이벤트에서 `Tag release commit` job이 같은 검증으로 tag를 만들어 push합니다. rebase 병합은 빈 커밋을 제거하므로 사용하지 않습니다. `main` 직접 push나 `--atomic` push, force push는 사용하지 않습니다.
+
+tag push는 `RELEASE_ADMIN_TOKEN` PAT로 이뤄집니다. `GITHUB_TOKEN`으로 push한 tag는 이어지는 Release workflow를 트리거하지 못하므로(GitHub 재귀 방지), 이 secret은 `Administration: read`에 더해 **Contents: read and write** 권한을 가져야 합니다.
 
 release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게시합니다.
 
 - 저장소에서 GitHub Immutable Releases 설정이 활성화되어 있어야 합니다.
-- `RELEASE_ADMIN_TOKEN` secret(`Administration: read` 권한)이 등록되어 있어야 합니다.
+- `RELEASE_ADMIN_TOKEN` secret(`Administration: read`와 Contents: read and write 권한)이 등록되어 있어야 합니다.
 - 같은 tag의 기존 Release가 존재하지 않아야 합니다.
 - 같은 version을 다시 쓰거나 tag를 이동하거나 force push하는 것은 금지합니다.
 - tag는 유의적 버전 형식(`vMAJOR.MINOR.PATCH`, 선택적 접미사 허용)이어야 하며, `BuildAndPackageRelease`가 ldflags 주입 전에 이를 검증합니다.
