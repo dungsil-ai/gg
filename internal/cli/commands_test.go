@@ -103,6 +103,7 @@ var actionHelpContracts = map[string]helpContract{
 	"release download":     {"[<tag>] [flags]", "--pattern <glob> --dir <dir> " + forgeHelpFlags},
 	"release upload":       {"<tag> <asset>... [flags]", forgeHelpFlags},
 	"release delete-asset": {"<tag> <asset> [flags]", "--yes " + forgeHelpFlags},
+	"release prepare":      {"<tag>", "--explain --help"},
 
 	"ci list":     {"[flags]", "--limit <N> --branch <branch> " + forgeHelpFlags},
 	"ci view":     {"[<id>] [flags]", forgeHelpFlags},
@@ -132,7 +133,7 @@ var resourceHelpContracts = map[string]helpContract{
 	"issue":    {"<command> [flags]", forgeHelpFlags},
 	"pr":       {"<command> [flags]", forgeHelpFlags},
 	"label":    {"<command> [flags]", forgeHelpFlags},
-	"release":  {"<command> [flags]", forgeHelpFlags},
+	"release":  {"<command> [flags]", "--explain --help"},
 	"ci":       {"<command> [flags]", forgeHelpFlags},
 	"workflow": {"<command> [flags]", forgeHelpFlags},
 	"auth":     {"<command>", "--help"},
