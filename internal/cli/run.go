@@ -98,6 +98,21 @@ func run(args []string) int {
 		}
 		return execChild(inv)
 	}
+	// release prepare는 config처럼 forge resolve 이전에 우회하는 gg-native
+	// action이다(ADR 0005). --explain도 핸들러가 직접 처리한다.
+	if req.Resource == "release" && req.Action == "prepare" {
+		if err := runReleasePrepare(req); err != nil {
+			var ec exitCodeError
+			if errors.As(err, &ec) {
+				if ec.Msg != "" {
+					fmt.Fprintln(os.Stderr, "gg:", err)
+				}
+				return ec.Code
+			}
+			return fail(err)
+		}
+		return 0
+	}
 	if req.Explain {
 		ep, err := resolvePlan(req)
 		if err != nil {

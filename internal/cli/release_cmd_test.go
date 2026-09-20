@@ -59,7 +59,7 @@ func TestParseRequestRelease(t *testing.T) {
 		args []string
 		want string
 	}{
-		{args: []string{"release"}, want: "release needs an action: list, view, create, edit, delete, download, upload, delete-asset"},
+		{args: []string{"release"}, want: "release needs an action: list, view, create, edit, delete, prepare, download, upload, delete-asset"},
 		{args: []string{"release", "publish"}, want: "release does not support publish"},
 		{args: []string{"release", "view", "a", "b"}, want: "usage: gg release view [<tag>]"},
 		{args: []string{"release", "create"}, want: "usage: gg release create <tag> [asset...]"},

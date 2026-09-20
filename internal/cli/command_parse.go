@@ -160,6 +160,17 @@ globalFlags:
 		(req.RepoFlag != "" || req.RemoteFlag != "") {
 		return req, usageErr("--repo/--remote are not supported for repo sync without --source")
 	}
+	// release prepare는 항상 현재 작업 트리의 HEAD와 origin을 대상으로 하므로
+	// 저장소 문맥 flag는 무의미하고 위험하다(ADR 0005). --explain은 핸들러가
+	// 정적 예고로 직접 처리하므로 허용이다.
+	if req.Resource == "release" && req.Action == "prepare" {
+		if req.RepoFlag != "" {
+			return req, usageErr("--repo is not supported for release prepare")
+		}
+		if req.RemoteFlag != "" {
+			return req, usageErr("--remote is not supported for release prepare")
+		}
+	}
 	return req, nil
 }
 

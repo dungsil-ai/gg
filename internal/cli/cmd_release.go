@@ -64,6 +64,16 @@ var releaseResourceDef = &resourceDef{
 			setPos: setTag,
 		},
 		{
+			// prepare는 provider 중계가 아니라 ADR 0001 릴리즈 의식을 실행하는
+			// gg-native action이다. provider builder table에 두지 않고 run.go에서
+			// forge resolve 이전에 우회한다(ADR 0005).
+			name: "prepare", summary: "Create the empty release commit, its annotated tag, and the atomic push (gg native)", usage: "gg release prepare <tag>",
+			showExplain: true, explainOK: true,
+			minPos: 1, maxPos: 1,
+			posErr: "usage: gg release prepare <tag>",
+			setPos: setTag,
+		},
+		{
 			name: "download", summary: "Download release assets", usage: "gg release download [<tag>] [flags]",
 			flags:    []flagDef{patternFlag, dirFlag},
 			showRepo: true, showRemote: true, showExplain: true,
