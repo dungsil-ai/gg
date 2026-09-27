@@ -21,6 +21,43 @@ go install github.com/dungsil-ai/gg@latest
 
 ---
 
+## 명령어 별칭
+
+`gh`, `glab`, `tea`에서 같은 기능에 사용하는 명령어 이름을 `gg`의 별칭으로 사용할 수 있습니다. 별칭은 실행할 Provider를 지정하지 않습니다. 실제 호출할 CLI는 기존과 같이 저장소 문맥으로 결정합니다.
+
+| 정규 명령어 | 사용할 수 있는 별칭 |
+| --- | --- |
+| `gg repo` | `gg repos` |
+| `gg issue` | `gg issues` |
+| `gg pr` | `gg mr`, `gg pulls` |
+| `gg label` | `gg labels` |
+| `gg release` | `gg releases` |
+| `gg ci` | `gg actions`, `gg run`, `gg pipe`, `gg pipeline` |
+| `gg issue comment`, `gg pr comment` | `gg issue note`, `gg pr note` |
+| `gg issue edit`, `gg pr edit` | `gg issue update`, `gg pr update` |
+| `gg ci view` | `gg ci get` |
+| `gg ci watch` | `gg ci trace` |
+| `gg ci retry` | `gg ci rerun` |
+| `gg ci cancel` | `gg ci cancel pipeline` |
+
+최상위 명령어와 하위 명령어의 별칭을 함께 사용할 수 있습니다.
+
+```bash
+gg pulls list
+gg mr note 42 --body "확인했습니다"
+gg issues update 42 --title "수정한 제목"
+gg run rerun 123
+gg pipeline get 123
+gg ci cancel pipeline 123
+gg run rerun --help
+```
+
+별칭은 명령어 이름만 호환하며, 인자와 옵션은 `gg`의 규칙을 따릅니다. 예를 들어 댓글 본문은 `--body`, CI 실행 번호는 위치 인자로 전달합니다. `mr update`는 제목·본문 수정에 대응하며, draft 상태 변경에는 기존 `gg pr ready` 또는 `gg pr ready --undo`를 사용합니다. Provider별 미지원 기능은 별칭으로 호출해도 동일한 오류를 반환합니다.
+
+`gg pull`은 기존 Git 전달 명령을 유지하므로 PR 작업에는 `gg pr`, `gg mr`, `gg pulls`를 사용합니다. `tea`의 명령어 생략 방식이나 모든 고유 옵션을 그대로 전달하는 기능은 제공하지 않습니다. 별칭으로 요청한 도움말은 정규 명령어의 도움말과 같습니다.
+
+---
+
 ## 릴리즈 절차
 
 `main`은 PR 없이 직접 push할 수 없으므로 릴리즈도 PR로 생성합니다.

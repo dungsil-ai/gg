@@ -12,6 +12,7 @@ import (
 // unlock, status, develop, transfer와 관계 등록(sub-issue, blocked-by, type).
 var issueResourceDef = &resourceDef{
 	name:    "issue",
+	aliases: []string{"issues"},
 	summary: "List, view, create, comment on, close, reopen, delete, pin, lock, or link issues, and show issue status",
 	desc:    "List, view, create, comment on, close, reopen, delete, pin, lock, or link issues, and show issue status.",
 	usage:   "gg issue <command> [flags]",
@@ -44,6 +45,7 @@ var issueResourceDef = &resourceDef{
 		},
 		{
 			name: "edit", summary: "Edit an issue title or body", usage: "gg issue edit <number> [flags]",
+			aliases:  []string{"update"},
 			flags:    []flagDef{titleFlag, bodyFlag},
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
@@ -59,6 +61,7 @@ var issueResourceDef = &resourceDef{
 		},
 		{
 			name: "comment", summary: "Comment on an issue", usage: "gg issue comment <number> [flags]",
+			aliases:  []string{"note"},
 			flags:    []flagDef{bodyFlag},
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,

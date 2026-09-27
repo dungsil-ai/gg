@@ -8,6 +8,7 @@ import "strings"
 // 쓰는 이름이라 gh repo archive(저장소 보관)는 이 자리에 둘 수 없다.
 var repoResourceDef = &resourceDef{
 	name:    "repo",
+	aliases: []string{"repos"},
 	summary: "List, view, create, or manage repositories, or run supported Git commands",
 	desc:    "List, view, create, or manage repositories, or run supported Git commands.",
 	usage:   "gg repo <command> [args]",
