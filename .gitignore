@@ -1,5 +1,6 @@
 .worktrees/
 gg
+!skills/gg/
 gg.exe
 out/
 .agents/worktrees/

@@ -1,0 +1,3 @@
+interface:
+  display_name: "gg"
+  short_description: "git·gh·glab·tea 대신 gg로 저장소와 Forge 작업을 수행합니다"
