@@ -379,7 +379,7 @@ jobs:
       - name: Build and package release assets
         run: |
           mkdir -p dist
-          go test -v -run '^TestBuildAndPackageRelease$' ./internal/cli
+          go run ./internal/cmd/package-release
         env:
           GG_RELEASE_OUT_DIR: ${{ github.workspace }}/dist
           GG_RELEASE_VERSION: ${{ steps.release_tag.outputs.tag }}

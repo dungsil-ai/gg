@@ -21,6 +21,25 @@ go install github.com/dungsil-ai/gg@latest
 
 ---
 
+## 테스트
+
+자동 테스트는 `tests/e2e`에 있는 E2E 테스트만 사용합니다. 테스트는 빌드한 `gg`를 별도 프로세스로 실행하며, 내부 함수를 직접 호출하거나 제품 내부 자료형으로 기대값을 만들지 않습니다.
+
+```bash
+go vet ./...
+go test -count=1 -timeout=20m ./...
+```
+
+Go(`go.mod`에 명시된 버전 이상), Git, Bash가 필요합니다. Windows에서는 Git for Windows에 포함된 Bash를 사용합니다. CI는 Linux와 Windows에서 같은 명령을 실행하며, Linux에서는 자식 프로세스의 시그널 처리도 검증합니다.
+
+- Git 이력 재작성, 백업, 릴리즈 준비는 실제 임시 저장소와 로컬 bare 원격 저장소에서 검증합니다.
+- Forge 연동은 별도 프로세스로 실행되는 `gh`, `glab`, `tea` 대역을 통해 인자, 표준 입출력, 종료 코드, 실패 시 후속 호출 여부를 검증합니다. 실제 Forge 서버와 인증 계정은 사용하지 않습니다.
+- Release 파일은 실제로 6개 OS·CPU 조합을 빌드해 압축 파일, 실행 권한, SHA-256을 검사하고, 현재 OS·CPU에 맞는 바이너리를 실행해 버전을 확인합니다.
+
+특정 동작만 확인하려면 `go test -count=1 ./tests/e2e -run '^TestE2EFilterRepo'`처럼 실행할 수 있습니다. 전체 검증에서는 `-run`이나 `-short`로 테스트를 제외하지 않습니다. 테스트 범위와 작성 원칙은 [테스트 안내](docs/testing.md)를 참고합니다.
+
+---
+
 ## 명령어 별칭
 
 `gh`, `glab`, `tea`에서 같은 기능에 사용하는 명령어 이름을 `gg`의 별칭으로 사용할 수 있습니다. 별칭은 실행할 Provider를 지정하지 않습니다. 실제 호출할 CLI는 기존과 같이 저장소 문맥으로 결정합니다.
@@ -73,6 +92,8 @@ gh workflow run Release --ref main -f tag=vMAJOR.MINOR.PATCH
 수동으로 병합해야 한다면 squash로만 병합하고 subject를 `release: vMAJOR.MINOR.PATCH`로, body를 비워 병합합니다. 수동 병합의 push 이벤트에서 `Tag release commit` job이 같은 검증으로 tag를 만들어 push합니다. rebase 병합은 빈 커밋을 제거하므로 사용하지 않습니다. `main` 직접 push나 `--atomic` push, force push는 사용하지 않습니다.
 
 tag push는 `RELEASE_ADMIN_TOKEN` PAT로 이뤄집니다. `GITHUB_TOKEN`으로 push한 tag는 이어지는 Release workflow를 트리거하지 못하므로(GitHub 재귀 방지), 이 secret은 `Administration: read`에 더해 **Contents: read and write** 권한을 가져야 합니다.
+
+Release 파일을 만드는 단계는 테스트 함수 대신 `go run ./internal/cmd/package-release`를 실행합니다. 이 명령은 저장소 루트에서 실행하며, `GG_RELEASE_VERSION`과 `GG_RELEASE_OUT_DIR` 환경 변수를 모두 지정해야 합니다.
 
 release Workflow는 다음 조건을 모두 만족해야 GitHub Release를 게시합니다.
 
