@@ -769,6 +769,22 @@ Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없�
 
 ### 사용 예시 (Usage Examples)
 
+#### 저장소 복제 (`gg clone`, `gg repo clone`)
+
+전체 URL 대신 `<namespace>/<name>`을 입력하면 설치된 `gh`, `glab`, `tea`의 등록 정보를 탐색하고, 각 CLI의 API로 접근 가능한 저장소를 확인합니다. GitLab의 중첩 namespace도 지원합니다.
+
+```bash
+gg clone owner/repo
+gg repo clone group/subgroup/project local-dir
+gg clone owner/repo --explain
+```
+
+- `gh`의 등록된 host, `glab`의 전역 설정에 있는 host, `tea`의 로그인 목록을 확인합니다. 설치된 CLI의 기본 domain과 `gg config`의 host, `GH_HOST`·`GITLAB_HOST` 등의 host 환경변수도 탐색에 반영합니다.
+- 저장소가 한 곳에서 확인되면 해당 CLI에 clone을 전달합니다. `gh`·`glab`에는 전체 URL을 전달하고, `tea`에는 조회에 성공한 로그인 계정과 `<namespace>/<name>`을 전달합니다.
+- 여러 곳에서 확인되면 후보 URL을 출력하고 종료합니다. 원하는 전체 URL로 다시 실행해야 합니다. 저장소를 찾지 못하면 로그인 상태와 네트워크 접근을 확인하도록 안내합니다.
+- 현재 디렉터리의 Git remote는 탐색에 사용하지 않습니다. `--explain`도 대상을 결정하기 위한 조회는 수행하지만 clone은 실행하지 않습니다.
+- 전체 URL을 입력하면 기존처럼 해당 URL을 사용합니다. HTTP clone은 기본적으로 차단하며, 필요한 경우에만 `--allow-insecure-http`를 명시합니다. `tea`는 기존과 동일하게 classic v0.x를 지원합니다.
+
 #### 로그인 상태 조회 (`gg auth status`)
 - Provider 설정의 host와 기본 domain(`github.com`, `gitlab.com`, `gitea.com`)의 로그인 상태를 한 표로 조회:
   ```bash

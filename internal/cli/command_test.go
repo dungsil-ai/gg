@@ -1422,7 +1422,7 @@ func TestParseRequestErrorMessages(t *testing.T) {
 		{[]string{"pr", "close", "1", "2"}, "usage: gg pr close <number>"},
 		{[]string{"pr", "reopen"}, "usage: gg pr reopen <number>"},
 		{[]string{"pr", "merge", "1", "--merge", "--squash"}, "--merge, --squash, --rebase are mutually exclusive; use at most one"},
-		{[]string{"clone", "https://x.com/o/r", "d", "x"}, "usage: gg clone <URL> [DIR]"},
+		{[]string{"clone", "https://x.com/o/r", "d", "x"}, "usage: gg clone <URL|namespace/name> [DIR]"},
 		{[]string{"create", "--public"}, "repo create needs --repo <new-repository-URL>"},
 		{[]string{"create", "--repo", "https://x.com/o/r"}, "repo create needs exactly one of --public or --private"},
 		{[]string{"list", "extra"}, "unexpected argument extra"},
