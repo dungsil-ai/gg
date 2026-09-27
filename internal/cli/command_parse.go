@@ -108,6 +108,7 @@ globalFlags:
 		if ad = rd.action(req.Action); ad == nil {
 			return req, usageErr(head + " does not support " + req.Action)
 		}
+		req.Action = ad.name
 	} else {
 		return req, usageErr("unknown command " + head)
 	}

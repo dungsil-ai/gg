@@ -6,13 +6,14 @@ import (
 )
 
 // ciResourceDef는 "ci" 최상위 명령의 정의다: list, view, watch, retry, cancel,
-// delete, download, lint, run, status, trigger. alias: actions
+// delete, download, lint, run, status, trigger. alias: actions, run, pipe, pipeline
 // (command_registry.go의 commandAliases에서 연결). GitHub은 gh run, GitLab은
 // glab ci로 중계하고, tea는 teaInvocation의 사전 가드에서 미지원으로 걸러진다.
 // download는 gh 전용, lint·run·status·trigger는 glab 전용이다.
 var ciResourceDef = &resourceDef{
 	name:    "ci",
-	summary: "List, view, watch, retry, cancel, or delete CI runs and pipelines, download artifacts, lint or run pipelines, and trigger manual jobs (alias: actions)",
+	aliases: []string{"actions", "run", "pipe", "pipeline"},
+	summary: "List, view, watch, retry, cancel, or delete CI runs and pipelines, download artifacts, lint or run pipelines, and trigger manual jobs",
 	desc:    "List, view, watch, retry, cancel, or delete CI runs and pipelines, download artifacts, lint or run pipelines, and trigger manual jobs.",
 	usage:   "gg ci <command> [flags]",
 	actions: []actionDef{
@@ -24,6 +25,7 @@ var ciResourceDef = &resourceDef{
 		},
 		{
 			name: "view", summary: "View one CI run or pipeline (default: latest on the current branch)", usage: "gg ci view [<id>] [flags]",
+			aliases:  []string{"get"},
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
 			maxPos: 1,
@@ -32,6 +34,7 @@ var ciResourceDef = &resourceDef{
 		},
 		{
 			name: "watch", summary: "Watch CI progress live (GitLab: job id)", usage: "gg ci watch [<id>] [flags]",
+			aliases:  []string{"trace"},
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
 			maxPos: 1,
@@ -40,6 +43,7 @@ var ciResourceDef = &resourceDef{
 		},
 		{
 			name: "retry", summary: "Retry a CI run or job", usage: "gg ci retry <id> [flags]",
+			aliases:  []string{"rerun"},
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
 			minPos: 1, maxPos: 1,
@@ -48,6 +52,7 @@ var ciResourceDef = &resourceDef{
 		},
 		{
 			name: "cancel", summary: "Cancel a CI run or pipeline", usage: "gg ci cancel <id> [flags]",
+			aliases:  []string{"cancel pipeline"},
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
 			minPos: 1, maxPos: 1,

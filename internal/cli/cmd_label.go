@@ -15,6 +15,7 @@ import (
 // 조회(resolvePlan의 forgeLabelID)를 거친 뒤 중계한다. clone은 gh 전용이다.
 var labelResourceDef = &resourceDef{
 	name:    "label",
+	aliases: []string{"labels"},
 	summary: "List, create, edit, clone, or delete labels",
 	desc:    "List, create, edit, clone, or delete labels.",
 	usage:   "gg label <command> [flags]",

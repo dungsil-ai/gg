@@ -8,6 +8,7 @@ package cli
 // 남긴다).
 var releaseResourceDef = &resourceDef{
 	name:    "release",
+	aliases: []string{"releases"},
 	summary: "List, view, create, edit, or delete releases, and download or upload release assets",
 	desc:    "List, view, create, edit, or delete releases, and download or upload release assets.",
 	usage:   "gg release <command> [flags]",

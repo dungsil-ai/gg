@@ -7,11 +7,12 @@ import (
 
 // prResourceDef는 "pr" 최상위 명령의 정의다: list, view, checkout, create,
 // edit, comment(하위 list/edit/delete), status, checks, ready, merge, close,
-// reopen, diff, lock, unlock, review, update-branch. alias: mr
+// reopen, diff, lock, unlock, review, update-branch. alias: mr, pulls
 // (command_registry.go의 commandAliases에서 연결).
 var prResourceDef = &resourceDef{
 	name:    "pr",
-	summary: "List, view, check out, create, edit, comment on, diff, check CI, merge, lock, review, update, or close pull requests, and check merge readiness (alias: mr)",
+	aliases: []string{"mr", "pulls"},
+	summary: "List, view, check out, create, edit, comment on, diff, check CI, merge, lock, review, update, or close pull requests, and check merge readiness",
 	desc:    "List, view, check out, create, edit, comment on, diff, check CI, merge, lock, review, update, or close pull requests, and check merge readiness.",
 	usage:   "gg pr <command> [flags]",
 	actions: []actionDef{
@@ -71,6 +72,7 @@ var prResourceDef = &resourceDef{
 		},
 		{
 			name: "edit", summary: "Edit a pull request title or body", usage: "gg pr edit <number> [flags]",
+			aliases:  []string{"update"},
 			flags:    []flagDef{titleFlag, bodyFlag},
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,
@@ -86,6 +88,7 @@ var prResourceDef = &resourceDef{
 		},
 		{
 			name: "comment", summary: "Comment on a pull request", usage: "gg pr comment <number> [flags]",
+			aliases:  []string{"note"},
 			flags:    []flagDef{bodyFlag},
 			showRepo: true, showRemote: true, showExplain: true,
 			remoteOK: true, explainOK: true,

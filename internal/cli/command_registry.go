@@ -1,5 +1,7 @@
 package cli
 
+import "slices"
+
 // 이 파일은 gg가 지원하는 명령, action, flag의 유일한 정의 골격이자, cmd_repo.go /
 // cmd_issue.go / cmd_label.go / cmd_pr.go / cmd_release.go / cmd_ci.go / cmd_config.go /
 // cmd_auth.go / cmd_git.go가 등록한 정의를 취합하는 registry다. ParseRequest는 이 정의로 인자를
@@ -8,6 +10,7 @@ package cli
 // actionDef는 resource가 지원하는 action 하나다.
 type actionDef struct {
 	name    string
+	aliases []string
 	summary string // resource help Commands 목록에 쓰는 한 줄 설명
 	usage   string // action help의 Usage 줄
 	flags   []flagDef
@@ -27,6 +30,7 @@ type actionDef struct {
 // resourceDef는 최상위 명령 하나다.
 type resourceDef struct {
 	name    string
+	aliases []string
 	summary string // 최상위 help Commands 목록 설명
 	desc    string // resource help 첫 줄
 	usage   string // resource help Usage 줄
@@ -36,6 +40,11 @@ type resourceDef struct {
 func (rd *resourceDef) action(name string) *actionDef {
 	for i := range rd.actions {
 		if rd.actions[i].name == name {
+			return &rd.actions[i]
+		}
+	}
+	for i := range rd.actions {
+		if slices.Contains(rd.actions[i].aliases, name) {
 			return &rd.actions[i]
 		}
 	}
@@ -100,9 +109,11 @@ type commandAlias struct {
 
 // commandAliases는 alias를 실제 구현이 등록된 canonical 명령 경로로 연결한다.
 var commandAliases = func() map[string]commandAlias {
-	aliases := map[string]commandAlias{
-		"mr":      {resource: "pr"},
-		"actions": {resource: "ci"},
+	aliases := make(map[string]commandAlias)
+	for name, resource := range commandDefs {
+		for _, alias := range resource.aliases {
+			aliases[alias] = commandAlias{resource: name}
+		}
 	}
 	for _, action := range commandDefs["repo"].actions {
 		if _, isResource := commandDefs[action.name]; isResource {

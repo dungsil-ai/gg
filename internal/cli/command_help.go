@@ -38,7 +38,8 @@ func topLevelHelp() string {
 	b.WriteString(topLevelHelpHead)
 	rows := make([][2]string, 0, len(commandOrder)+len(commandDefs["repo"].actions)+2)
 	for _, name := range commandOrder {
-		rows = append(rows, [2]string{name, commandDefs[name].summary})
+		rd := commandDefs[name]
+		rows = append(rows, [2]string{name, summaryWithAliases(rd.summary, rd.aliases)})
 	}
 	for _, action := range commandDefs["repo"].actions {
 		if action.passthrough {
@@ -56,10 +57,13 @@ func topLevelHelp() string {
 // renderResourceHelp는 resource 단계 help를 만든다.
 func renderResourceHelp(rd *resourceDef) string {
 	var b strings.Builder
-	b.WriteString(rd.desc + "\n\nUsage:\n  " + rd.usage + "\n\nCommands:\n")
+	b.WriteString(rd.desc + "\n\nUsage:\n  " + rd.usage + "\n")
+	writeHelpAliases(&b, rd.aliases)
+	b.WriteString("\nCommands:\n")
 	rows := make([][2]string, 0, len(rd.actions))
 	for i := range rd.actions {
-		rows = append(rows, [2]string{rd.actions[i].name, rd.actions[i].summary})
+		ad := &rd.actions[i]
+		rows = append(rows, [2]string{ad.name, summaryWithAliases(ad.summary, ad.aliases)})
 	}
 	b.WriteString(renderRows(rows, 3))
 	b.WriteString("\nFlags:\n")
@@ -92,9 +96,24 @@ func resourceFlags(rd *resourceDef) []flagDef {
 // renderActionHelp는 action 단계 help를 만든다.
 func renderActionHelp(rd *resourceDef, ad *actionDef) string {
 	var b strings.Builder
-	b.WriteString(ad.summary + ".\n\nUsage:\n  " + ad.usage + "\n\nFlags:\n")
+	b.WriteString(ad.summary + ".\n\nUsage:\n  " + ad.usage + "\n")
+	writeHelpAliases(&b, ad.aliases)
+	b.WriteString("\nFlags:\n")
 	b.WriteString(renderFlagLines(actionFlags(ad)))
 	return strings.TrimSuffix(b.String(), "\n")
+}
+
+func summaryWithAliases(summary string, aliases []string) string {
+	if len(aliases) == 0 {
+		return summary
+	}
+	return summary + " (alias: " + strings.Join(aliases, ", ") + ")"
+}
+
+func writeHelpAliases(b *strings.Builder, aliases []string) {
+	if len(aliases) > 0 {
+		b.WriteString("\nAliases:\n  " + strings.Join(aliases, ", ") + "\n")
+	}
 }
 
 // actionFlags는 action 자체 flag와 문맥 flag, --help를 순서대로 모은다.
