@@ -38,11 +38,11 @@ var repoResourceDef = &resourceDef{
 			},
 		},
 		{
-			name: "clone", summary: "Clone a repository", usage: "gg repo clone <URL> [DIR] [flags]",
+			name: "clone", summary: "Clone a repository by URL or namespace/name", usage: "gg repo clone <URL|namespace/name> [DIR] [flags]",
 			flags:       []flagDef{allowInsecureHTTPFlag},
 			showExplain: true, explainOK: true,
 			minPos: 1, maxPos: 2,
-			posErr: "usage: gg clone <URL> [DIR]",
+			posErr: "usage: gg clone <URL|namespace/name> [DIR]",
 			setPos: func(req *Request, pos []string) error {
 				req.CloneURL = pos[0]
 				if len(pos) == 2 {

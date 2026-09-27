@@ -222,6 +222,9 @@ func resolvePlan(req Request) (executionPlan, error) {
 			return executionPlan{inv: Invocation{Bin: "gh", Args: args}}, nil
 		}
 	}
+	if req.Resource == "repo" && req.Action == "clone" && !strings.Contains(req.CloneURL, ":") {
+		return resolveCloneShorthand(req)
+	}
 	if req.Resource == "repo" && req.Action == "clone" && isHTTPURL(req.CloneURL) {
 		if !req.AllowInsecureHTTP {
 			return executionPlan{}, usageErr("HTTP clone is blocked by default; use HTTPS or SSH (or pass --allow-insecure-http)")

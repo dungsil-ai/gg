@@ -20,7 +20,7 @@ var actionHelpContracts = map[string]helpContract{
 	"repo list":         {"[flags]", "--limit <N> " + forgeHelpFlags},
 	"repo view":         {"[flags]", forgeHelpFlags},
 	"repo create":       {"[flags]", "--repo <URL> --description <text> --public --private --explain --help"},
-	"repo clone":        {"<URL> [DIR] [flags]", "--allow-insecure-http --explain --help"},
+	"repo clone":        {"<URL|namespace/name> [DIR] [flags]", "--allow-insecure-http --explain --help"},
 	"repo fork":         {"[flags]", forgeHelpFlags},
 	"repo contributors": {"[flags]", forgeHelpFlags},
 	"repo mirror":       {"--url <url> --direction <pull|push|both> [flags]", "--url <url> --direction <pull|push|both> " + forgeHelpFlags},
