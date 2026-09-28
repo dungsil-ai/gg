@@ -12,7 +12,7 @@ README TODO의 `gh api`, `glab api`, `tea api`는 각 provider CLI의 원시 API
 
 검토한 다른 방식 두 가지는 기각했다. (1) `--repo`/`--remote` 같은 저장소 문맥 flag를 api 인자 사이에서 파싱하는 방식은 원시 API 인자와 충돌할 수 있어 passthrough 계약을 깬다. (2) endpoint를 gg가 파싱해 표준화하는 방식은 세 provider의 API 차이를 gg가 추상화해야 하므로 범위가 과도하다.
 
-`--help`를 포함한 모든 인자가 전달되므로 `gg api --help`는 `gh api --help`를 실행한다. 이는 git passthrough와 같은 예외다.
+`--help`를 포함한 모든 인자가 전달되므로 `gg api --help`는 `gh api --help`를 실행한다. (2026-09-28 갱신) git passthrough는 `--help`를 `gg` help로 처리하지만(ADR 0004), `gg api`는 원시 passthrough라 `--help`도 그대로 전달한다.
 
 tea의 `api` 하위 명령은 `--login`이 필요하므로 저장소 문맥의 login 조회를 실패하면 다른 tea 명령과 같이 오류를 낸다.
 

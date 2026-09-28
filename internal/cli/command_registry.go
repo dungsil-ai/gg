@@ -133,9 +133,3 @@ func resolveAlias(command string) (resource, action string) {
 	}
 	return command, ""
 }
-
-// helpAliases는 repo 생략 형태로 --help를 제공하는 action이다.
-// --help도 git에 전달해야 하는 alias는 제외한다.
-var helpAliases = map[string]bool{
-	"list": true, "view": true, "create": true, "clone": true, "pull": true, "push": true,
-}

@@ -9,7 +9,7 @@ Forge 명령이 대상으로 삼는 하나의 저장소다. 명시한 URL, remot
 _Avoid_: 대상 저장소, Repo Context
 
 **Git 전달 명령 (Git Passthrough Command)**:
-`gg`의 repo action 중 `git <action> [args...]`를 직접 실행하는 명령이다. Git에 위임되는 경로에서는 저장소 문맥과 Provider 설정을 조회하지 않고 action 뒤 인자를 순서와 값 그대로 Git에 전달한다. help alias 예외는 ADR 0004를 따른다.
+`gg`의 repo action 중 `git <action> [args...]`를 직접 실행하는 명령이다. Git에 위임되는 경로에서는 저장소 문맥과 Provider 설정을 조회하지 않고 action 뒤 인자를 순서와 값 그대로 Git에 전달한다. `--help` 예외는 ADR 0004를 따른다.
 _Avoid_: passthrough 명령, Git 명령
 
 **Provider 설정 (Provider Setting)**:

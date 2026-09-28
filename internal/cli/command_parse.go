@@ -252,6 +252,15 @@ func flagLoop(req *Request, args []string, strs map[string]*string, bools map[st
 
 // parseRest는 action 정의대로 나머지 인자를 파싱한다.
 func parseRest(req *Request, ad *actionDef, args []string) error {
+	if isGitPassthroughAction(req.Resource, ad) {
+		// 자식 git은 `--help`를 받으면 Git 문서(HTML)를 브라우저로 연다. 사용자
+		// 의도는 사용법 확인이므로 gg help로 흡수하고 git에는 전달하지 않는다.
+		// "--" 뒤 토큰은 경로명 같은 위치 인자이므로 살펴보지 않는다.
+		if hasHelpRequest(args) {
+			req.Help = true
+			return nil
+		}
+	}
 	if ad.passthrough {
 		req.GitArgs = args
 		return nil
@@ -274,4 +283,18 @@ func parseRest(req *Request, ad *actionDef, args []string) error {
 		return ad.setPos(req, pos)
 	}
 	return nil
+}
+
+// hasHelpRequest는 Git에 그대로 전달할 인자에 `--help`가 있는지 본다. `--` 뒤
+// 토큰은 경로명 같은 위치 인자이므로 보지 않는다.
+func hasHelpRequest(args []string) bool {
+	for _, a := range args {
+		if a == "--" {
+			return false
+		}
+		if a == "--help" {
+			return true
+		}
+	}
+	return false
 }

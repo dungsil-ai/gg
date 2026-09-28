@@ -58,6 +58,7 @@ gg push -u origin <branch>
 
 - Git 전달 명령 앞에 `--repo`, `--remote`, `--explain`을 붙이지 않는다. action 뒤의 같은 토큰도 `gg`가 처리하지 않고 Git으로 전달한다. 원격 지정에는 `gg fetch upstream`, `gg push origin <branch>`처럼 Git 인자를 사용한다.
 - `gg commit`은 Git 인자 앞에 `--no-gpg-sign`을 추가한다. 서명이 필요한 작업에서는 기존 서명 요구를 무시하지 말고 명시적인 서명 옵션과 환경을 확인한다.
+- `--help`는 Git에 전달하지 않고 gg help를 출력한다. Git 옵션의 짧은 사용법은 `gg status -h`처럼 `-h`를 붙여 확인하고, `--` 뒤의 `--help`는 경로명 같은 위치 인자로 보아 그대로 전달한다.
 - `gg config`는 Git 설정이 아니라 host와 Provider의 연결을 관리한다. `git config`나 Git 전역 옵션 `-c`에 대응한다고 가정하지 않는다.
 - `gg clone <URL> [DIR]`은 별도 Forge 명령이다. 전체 URL을 사용하고 `--depth` 등 Git clone 옵션을 임의로 덧붙이지 않는다. HTTPS 또는 SSH를 사용하며 HTTP 허용은 별도의 사용자 선택이 필요하다.
 - `gg repo archive`는 `git archive`에 대응한다. 호스팅된 저장소를 보관 처리하는 명령이 아니다.

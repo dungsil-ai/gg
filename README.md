@@ -784,8 +784,8 @@ gg config --help
 gg config set --help
 ```
 
-`gg <cmd> --help`와 `gg repo <cmd> --help`는 `list`, `view`, `create`, `clone`, `pull`, `push`에서 같은 gg help를 제공합니다. `gg repo commit --help`도 gg가 처리합니다.
-`gg commit --help`는 `--no-gpg-sign`을 추가해 git에 전달합니다. Git Main Porcelain 37개와 ancillary 14개, 외부 시스템 연동 10개 registry 명령은 `gg <cmd> --help`와 `gg repo <cmd> --help` 모두 명령 뒤에 둔 `--help`를 포함한 모든 인자를 git에 그대로 전달합니다.
+`gg <cmd> --help`와 `gg repo <cmd> --help`는 어느 명령에서나 같은 gg help를 제공합니다. Git 전달 명령에서 `--help`는 git에 전달하지 않으므로 git의 HTML 문서가 브라우저로 열리지 않습니다. git 옵션의 짧은 사용법은 `gg status -h`처럼 `-h`를 붙여 확인합니다.
+Git 전달 명령은 action 뒤 인자를 순서와 값 그대로 git에 전달합니다. 다만 `--` 앞의 `--help`는 gg help를 출력하고 git에는 전달하지 않으며, `--` 뒤의 `--help`는 경로명 같은 위치 인자로 보아 그대로 전달합니다(ADR 0004).
 Git passthrough 명령에는 명령 앞의 gg 전역 flag를 사용할 수 없습니다.
 
 ### 사용 예시 (Usage Examples)
