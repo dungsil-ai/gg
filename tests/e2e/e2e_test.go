@@ -946,7 +946,7 @@ func TestE2EAllActionHelp(t *testing.T) {
 // gg repo <action> --help와 같은 출력을 내는지 본다.
 func TestE2ERepoOmittedHelpMatchesRepoForm(t *testing.T) {
 	bin := buildGG(t)
-	for _, alias := range []string{"list", "view", "create", "clone", "pull", "push"} {
+	for _, alias := range []string{"list", "view", "create", "clone", "pull", "push", "status", "commit", "diff"} {
 		omitted, _, code := runGGStreams(t, bin, t.TempDir(), alias, "--help")
 		prefixed, _, code2 := runGGStreams(t, bin, t.TempDir(), "repo", alias, "--help")
 		if code != 0 || code2 != 0 {
@@ -958,23 +958,52 @@ func TestE2ERepoOmittedHelpMatchesRepoForm(t *testing.T) {
 	}
 }
 
-// TestE2ECommitAliasPassesHelpToGit는 repo 생략 commit의 --help가
-// gg help가 아니라 git으로 전달되는지 본다.
-func TestE2ECommitAliasPassesHelpToGit(t *testing.T) {
+// TestE2EGitPassthroughHelpDoesNotRunGit는 Git 전달 명령의 --help가 git을
+// 실행하지 않고 gg help를 출력하는지 본다. git은 --help를 받으면 Git 문서를
+// 브라우저로 열기 때문에 자동화된 실행에서는 창만 뜨고 사용법을 얻지 못한다.
+func TestE2EGitPassthroughHelpDoesNotRunGit(t *testing.T) {
 	bin := buildGG(t)
-	fakeDir := t.TempDir()
-	logFile := filepath.Join(t.TempDir(), "calls.log")
-	writeFakeBin(t, fakeDir, "git", logFile)
+	gitBin := buildGitPassthroughProbe(t)
+	logFile := filepath.Join(t.TempDir(), "git-args.jsonl")
+	t.Setenv("GG_GIT_LOG", logFile)
 
-	out, code := runGG(t, bin, fakeDir, t.TempDir(), "commit", "--help")
-	if code != 0 {
-		t.Fatalf("exit %d: %s", code, out)
+	cases := []struct {
+		args  []string
+		usage string
+	}{
+		{[]string{"status", "--help"}, "gg status [git args]"},
+		{[]string{"repo", "status", "--help"}, "gg status [git args]"},
+		{[]string{"commit", "--help"}, "gg repo commit [git args]"},
+		{[]string{"repo", "commit", "--help"}, "gg repo commit [git args]"},
+		{[]string{"log", "-5", "--help"}, "gg log [git args]"},
+		{[]string{"repo", "worktree", "--help"}, "gg worktree [git args]"},
 	}
-	if got := readLog(t, logFile); !strings.Contains(got, wantCall("git", "commit", "--no-gpg-sign", "--help")) {
-		t.Errorf("git argv = %q, want git commit --no-gpg-sign --help", got)
+	for _, tc := range cases {
+		cmd := ggCommand(t, bin, filepath.Dir(gitBin), t.TempDir(), tc.args...)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		if code := processExitCode(t, cmd.Run(), "stdout: "+stdout.String()+"\nstderr: "+stderr.String()); code != 0 {
+			t.Errorf("gg %v exit = %d, want 0", tc.args, code)
+		}
+		if stderr.Len() != 0 {
+			t.Errorf("gg %v stderr = %q, want empty", tc.args, stderr.String())
+		}
+		if !strings.Contains(stdout.String(), "Usage:\n  "+tc.usage) {
+			t.Errorf("gg %v stdout에 %q 없음:\n%s", tc.args, tc.usage, stdout.String())
+		}
 	}
-	if strings.Contains(out, "Usage:") {
-		t.Errorf("gg commit --help가 gg help를 출력함:\n%s", out)
+	if _, err := os.Stat(logFile); !os.IsNotExist(err) {
+		t.Errorf("--help should not run git, stat error = %v", err)
+	}
+
+	// -h는 Git flag이므로 그대로 전달한다.
+	cmd := ggCommand(t, bin, filepath.Dir(gitBin), t.TempDir(), "status", "-h")
+	if code := processExitCode(t, cmd.Run(), "gg status -h"); code != 23 {
+		t.Errorf("gg status -h exit = %d, want 23", code)
+	}
+	if calls := readGitPassthroughCalls(t, logFile); len(calls) != 1 || !slices.Equal(calls[0], []string{"status", "-h"}) {
+		t.Errorf("git calls = %q, want [[status -h]]", calls)
 	}
 }
 
@@ -1458,13 +1487,24 @@ func TestE2EGitPassthroughRoutesAllForms(t *testing.T) {
 
 	for _, action := range relayedHelpActions["repo"] {
 		for _, form := range [][]string{nil, {"repo"}} {
-			for _, suffix := range [][]string{rawArgs, {"--help"}} {
+			for _, suffix := range [][]string{rawArgs, {"-h"}} {
 				args := append(append([]string{}, form...), action)
 				args = append(args, suffix...)
 				if _, code := runGG(t, bin, filepath.Dir(gitBin), workDir, args...); code != 23 {
 					t.Errorf("gg %v exit = %d, want 23", args, code)
 				}
 				wantCalls = append(wantCalls, append([]string{action}, suffix...))
+			}
+			// --help는 Git에 전달하지 않고 gg help를 출력한다(ADR 0004).
+			helpArgs := append(append([]string{}, form...), action, "--help")
+			cmd := ggCommand(t, bin, filepath.Dir(gitBin), workDir, helpArgs...)
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout, cmd.Stderr = &stdout, &stderr
+			if code := processExitCode(t, cmd.Run(), "stdout: "+stdout.String()+"\nstderr: "+stderr.String()); code != 0 {
+				t.Errorf("gg %v exit = %d, want 0", helpArgs, code)
+			}
+			if !strings.Contains(stdout.String(), "Usage:") || stderr.Len() != 0 {
+				t.Errorf("gg %v = stdout %q, stderr %q; want gg help", helpArgs, stdout.String(), stderr.String())
 			}
 		}
 	}
@@ -1498,29 +1538,30 @@ func TestE2EPassthroughContextFlagPositions(t *testing.T) {
 	for _, action := range []string{"status", "mergetool", "commit", "pull", "push"} {
 		for _, form := range [][]string{nil, {"repo"}} {
 			for _, contextFlag := range contextFlags {
-				for _, suffix := range [][]string{nil, {"--help"}} {
-					testPath := append(append([]string{}, form...), action, contextFlag.name)
-					testPath = append(testPath, suffix...)
-					t.Run(strings.Join(testPath, " "), func(t *testing.T) {
+				prefix := append(append([]string{}, form...), action, contextFlag.name)
+				t.Run(strings.Join(prefix, " "), func(t *testing.T) {
+					resetLog := func() {
 						if err := os.WriteFile(logFile, nil, 0o600); err != nil {
 							t.Fatal(err)
 						}
-						leading := append(append([]string{}, contextFlag.args...), form...)
-						leading = append(leading, action)
-						leading = append(leading, suffix...)
-						if out, code := runGG(t, bin, filepath.Dir(gitBin), workDir, leading...); code != 2 {
-							t.Errorf("gg %v exit = %d, want 2: %s", leading, code, out)
-						}
-						if calls := readGitPassthroughCalls(t, logFile); len(calls) != 0 {
-							t.Errorf("gg %v should not run git, calls = %q", leading, calls)
-						}
+					}
+					// 명령 앞의 문맥 flag는 Git 전달 명령에서 지원하지 않는다.
+					leading := append(append([]string{}, contextFlag.args...), form...)
+					leading = append(leading, action, "--help")
+					resetLog()
+					if out, code := runGG(t, bin, filepath.Dir(gitBin), workDir, leading...); code != 2 {
+						t.Errorf("gg %v exit = %d, want 2: %s", leading, code, out)
+					}
+					if calls := readGitPassthroughCalls(t, logFile); len(calls) != 0 {
+						t.Errorf("gg %v should not run git, calls = %q", leading, calls)
+					}
 
-						if err := os.WriteFile(logFile, nil, 0o600); err != nil {
-							t.Fatal(err)
-						}
+					// action 뒤의 문맥 flag와 -h는 Git 인자로 그대로 전달한다.
+					for _, suffix := range [][]string{nil, {"-h"}} {
 						trailing := append(append([]string{}, form...), action)
 						trailing = append(trailing, contextFlag.args...)
 						trailing = append(trailing, suffix...)
+						resetLog()
 						if out, code := runGG(t, bin, filepath.Dir(gitBin), workDir, trailing...); code != 23 {
 							t.Errorf("gg %v exit = %d, want 23: %s", trailing, code, out)
 						}
@@ -1533,8 +1574,26 @@ func TestE2EPassthroughContextFlagPositions(t *testing.T) {
 						if calls := readGitPassthroughCalls(t, logFile); len(calls) != 1 || !slices.Equal(calls[0], want) {
 							t.Errorf("gg %v git calls = %q, want %q", trailing, calls, [][]string{want})
 						}
-					})
-				}
+					}
+
+					// --help는 gg help를 출력하고 Git을 실행하지 않는다(ADR 0004).
+					helpPath := append(append([]string{}, form...), action)
+					helpPath = append(helpPath, contextFlag.args...)
+					helpPath = append(helpPath, "--help")
+					resetLog()
+					cmd := ggCommand(t, bin, filepath.Dir(gitBin), workDir, helpPath...)
+					var stdout, stderr bytes.Buffer
+					cmd.Stdout, cmd.Stderr = &stdout, &stderr
+					if code := processExitCode(t, cmd.Run(), "gg "+strings.Join(helpPath, " ")); code != 0 {
+						t.Errorf("gg %v exit = %d, want 0", helpPath, code)
+					}
+					if !strings.Contains(stdout.String(), "Usage:") || stderr.Len() != 0 {
+						t.Errorf("gg %v = stdout %q, stderr %q; want gg help", helpPath, stdout.String(), stderr.String())
+					}
+					if calls := readGitPassthroughCalls(t, logFile); len(calls) != 0 {
+						t.Errorf("gg %v should not run git, calls = %q", helpPath, calls)
+					}
+				})
 			}
 		}
 	}
@@ -1588,12 +1647,13 @@ func TestE2EGitPassthroughDoesNotShadowGGResourceHelp(t *testing.T) {
 		t.Errorf("resource help should not run git, stat error = %v", err)
 	}
 
-	cmd := ggCommand(t, bin, filepath.Dir(gitBin), t.TempDir(), "diff", "--help")
-	if code := processExitCode(t, cmd.Run(), "gg diff --help"); code != 23 {
-		t.Errorf("gg diff --help exit = %d, want 23", code)
+	// Git 전달 명령의 인자는 문맥 help에 가려지지 않고 Git으로 전달된다.
+	cmd := ggCommand(t, bin, filepath.Dir(gitBin), t.TempDir(), "diff", "-h")
+	if code := processExitCode(t, cmd.Run(), "gg diff -h"); code != 23 {
+		t.Errorf("gg diff -h exit = %d, want 23", code)
 	}
-	if calls := readGitPassthroughCalls(t, logFile); len(calls) != 1 || !slices.Equal(calls[0], []string{"diff", "--help"}) {
-		t.Errorf("git calls = %q, want [[diff --help]]", calls)
+	if calls := readGitPassthroughCalls(t, logFile); len(calls) != 1 || !slices.Equal(calls[0], []string{"diff", "-h"}) {
+		t.Errorf("git calls = %q, want [[diff -h]]", calls)
 	}
 }
 

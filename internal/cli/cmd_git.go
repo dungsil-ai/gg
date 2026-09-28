@@ -1,7 +1,5 @@
 package cli
 
-import "slices"
-
 // 이 파일은 forge 라우팅 없이 Git에 직접 전달할 지원 명령을 정의한다.
 // Main Porcelain 37개, ancillary 14개, 외부 시스템 연동 10개, plumbing 70개를
 // 하나의 registry에서 관리한다. clone, commit, pull, push는 cmd_repo.go의 별도
@@ -31,8 +29,10 @@ var gitPassthroughActionNames = []string{
 	"upload-pack", "var", "verify-commit", "verify-pack", "verify-tag", "write-tree",
 }
 
-func isGitPassthroughAction(name string) bool {
-	return slices.Contains(gitPassthroughActionNames, name)
+// isGitPassthroughAction은 Git 전달 명령, 즉 git에 인자를 그대로 전달하는 repo
+// action인지 본다. auth 릴레이처럼 다른 자식 CLI로 넘기는 passthrough와 구분한다.
+func isGitPassthroughAction(resource string, ad *actionDef) bool {
+	return resource == "repo" && ad.passthrough
 }
 
 func gitPassthroughActions() []actionDef {

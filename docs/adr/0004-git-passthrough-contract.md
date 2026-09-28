@@ -4,7 +4,11 @@
 
 `commit`만 기존의 non-signing 정책을 유지하기 위해 Git 인자 앞에 `--no-gpg-sign`을 넣어 `git commit --no-gpg-sign [args...]`로 실행한다. 다른 Git 전달 명령은 action과 action 뒤 Git 인자를 바꾸지 않는다.
 
-명령 앞의 `--repo`, `--remote`, `--explain`은 Git 전달 명령에서 지원하지 않으며 UsageError와 exit code `2`로 거절한다. action 뒤의 같은 토큰은 `gg` flag로 파싱하지 않고 Git 인자(`GitArgs`)로 보존해 Git에 전달한다. `pull`과 `push`는 기존 help alias이므로 `gg pull --help`, `gg push --help`, `gg repo pull --help`, `gg repo push --help`에서 `gg` action help를 출력한다. `gg repo commit --help`도 `gg` action help를 출력하지만, `gg commit --help`는 `--no-gpg-sign`을 넣어 Git에 전달한다.
+명령 앞의 `--repo`, `--remote`, `--explain`은 Git 전달 명령에서 지원하지 않으며 UsageError와 exit code `2`로 거절한다. action 뒤의 같은 토큰은 `gg` flag로 파싱하지 않고 Git 인자(`GitArgs`)로 보존해 Git에 전달한다.
+
+(2026-09-28 갱신) `--help`는 Git에 전달하지 않고 `gg` action help를 출력한다. `gg status --help`, `gg repo status --help`, `gg commit --help`가 모두 같은 규칙을 따르므로 이전의 help alias 구분(`pull`, `push`는 `gg` help, `gg commit --help`는 Git 전달)은 없어졌다. `--` 앞의 `--help`만 이 규칙을 따르고, `--` 뒤의 `--help`는 경로명 같은 위치 인자로 보아 그대로 전달한다. `auth` 릴레이와 `gg api`는 자식 CLI로 `--help`를 전달하므로(ADR 0007) 이 규칙은 Git 전달 명령에만 적용된다.
+
+이유는 Git for Windows가 `help.format=html`을 쓰기 때문이다. `git status --help`는 Git 문서 HTML을 기본 브라우저로 연다. 자동화된 실행에서는 요청하지 않은 창이 뜨고 사용법도 얻지 못하므로 `--help`를 `gg` help로 흡수한다. Git 옵션의 짧은 사용법은 `gg status -h`로 확인한다. `-h`는 Git flag이므로 그대로 전달하며 Git의 usage 관례대로 exit code `129`를 보존한다. 다른 후보 두 가지는 기각했다. (1) `--help`를 `-h`로 바꿔 전달하는 방식은 `git grep -h`처럼 `-h`가 다른 뜻인 명령에서 동작을 바꾼다. (2) `help.format`을 `man`으로 바꾸는 방식은 사용자 Git 설정을 요구하고 man viewer가 없는 Windows에서 실패한다.
 
 이 결정은 ADR 0003의 저장소 문맥 선택 범위를 forge 명령으로 한정한다. 0003의 pull/push가 남은 인자를 Git에 그대로 전달한다는 설명은 action 뒤 인자에는 계속 적용되지만, 명령 앞 `--remote`에는 적용되지 않는다.
 

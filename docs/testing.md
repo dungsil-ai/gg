@@ -15,7 +15,7 @@
 | Provider 설정 | 저장 위치 우선순위, 파일 재조회, 호스트 정규화, 손상된 파일 보존, 동시 변경을 확인합니다. | `config_e2e_test.go`, `e2e_test.go` |
 | clone | 저장소 조회 결과, 환경 변수와 설정, HTTP 차단, 여러 계정, 인증정보가 오류에 노출되지 않는지 확인합니다. | `clone_e2e_test.go` |
 | Forge 명령 | Provider CLI에 전달되는 인자와 환경 변수, 응답 변환, 실패 시 후속 호출 차단을 확인합니다. | `core_commands_e2e_test.go`와 명령별 `*_e2e_test.go` |
-| Git 전달 명령 | 인자 경계, 표준 입출력, 종료 코드, Unix 시그널 전달을 확인합니다. | `e2e_test.go`, `child_exit_unix_test.go`, `child_sigint_unix_e2e_test.go` |
+| Git 전달 명령 | 인자 경계, `--help` 처리, 표준 입출력, 종료 코드, Unix 시그널 전달을 확인합니다. | `e2e_test.go`, `child_exit_unix_test.go`, `child_sigint_unix_e2e_test.go` |
 | 이력 재작성 | 실제 파일·커밋·태그·원격 추적 ref·백업, dry-run의 무변경, 잘못된 스트림과 자식 프로세스 실패를 확인합니다. | `filter_repo_e2e_test.go`, `filter_contract_e2e_test.go` |
 | 릴리즈 | 실제 로컬 원격 저장소의 커밋·태그, 6종 Release 파일, 체크섬, 바이너리 버전, 게시 전 실패 조건을 확인합니다. | `release_prepare_e2e_test.go`, `release_e2e_test.go`, `release_workflow_e2e_test.go` |
 

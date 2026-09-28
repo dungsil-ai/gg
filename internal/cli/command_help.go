@@ -100,6 +100,12 @@ func renderActionHelp(rd *resourceDef, ad *actionDef) string {
 	writeHelpAliases(&b, ad.aliases)
 	b.WriteString("\nFlags:\n")
 	b.WriteString(renderFlagLines(actionFlags(ad)))
+	if isGitPassthroughAction(rd.name, ad) {
+		// `--help`가 Git 문서를 브라우저로 여는 대신 gg help를 출력한다는 사실과,
+		// Git 옵션을 확인하는 브라우저 없는 경로를 안내한다.
+		b.WriteString("\n\nTips:\n  Git 옵션 사용법은 `gg " + ad.name + " -h`로 확인합니다.\n")
+		b.WriteString("  이 명령의 `--help`는 gg help를 출력하며 Git 문서를 브라우저로 열지 않습니다.")
+	}
 	return strings.TrimSuffix(b.String(), "\n")
 }
 
@@ -164,7 +170,7 @@ stripping:
 
 	head, aliasAction := resolveAlias(path[0])
 	if aliasAction != "" {
-		if len(path) != 1 || !helpAliases[path[0]] {
+		if len(path) != 1 {
 			return "", false
 		}
 		rd := commandDefs[head]
@@ -183,7 +189,7 @@ stripping:
 	case 2:
 		if rd, ok := commandDefs[head]; ok {
 			if ad := rd.action(path[1]); ad != nil {
-				if (rd.name == "repo" && isGitPassthroughAction(ad.name)) || (rd.name == "auth" && isAuthRelayAction(ad.name)) || (hasLeadingGlobal && ad.passthrough) {
+				if (rd.name == "auth" && isAuthRelayAction(ad.name)) || (hasLeadingGlobal && ad.passthrough) {
 					return "", false
 				}
 				return renderActionHelp(rd, ad), true
